@@ -1,0 +1,50 @@
+
+
+
+Breakpoint=C:/Users/Shuchen Tao/Documents/SHOOT_cmzy_REV081/Core/Src/main.c:217:5, State=BP_STATE_DISABLED
+GraphedExpression="(g_shoot_report).front_prox", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#e56a6f, Show=0
+GraphedExpression="(g_shoot_report).rear_prox", Color=#35792b, Show=0
+GraphedExpression="(g_shoot_report).front_int_count", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#769dda
+GraphedExpression="(g_shoot_report).rear_int_count", Color=#b14f0d
+GraphedExpression="(g_shoot_detect).barrel_mask", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#b3c38e
+OpenDocument="stm32f0xx_hal.c", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.c", Line=281
+OpenDocument="stm32f0xx_it.c", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Core/Src/stm32f0xx_it.c", Line=197
+OpenDocument="main.c", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Core/Src/main.c", Line=95
+OpenDocument="shoot_detect.h", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Core/Inc/shoot_detect.h", Line=51
+OpenDocument="shoot_detect.c", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Core/Src/shoot_detect.c", Line=139
+OpenDocument="led_rgb.c", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/Core/Src/led_rgb.c", Line=65
+OpenDocument="startup_stm32f072xb.s", FilePath="//192.168.191.221/Shuchen's_Documents/SHOOT_cmzy_REV081/startup_stm32f072xb.s", Line=38
+OpenToolbar="Debug", Floating=0, x=0, y=0
+OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=917, h=1149, TabPos=0, TopOfStack=0, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=917, h=1149, TabPos=1, TopOfStack=1, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=RIGHT, x=0, y=0, w=803, h=309, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=RIGHT, x=0, y=1, w=803, h=861, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="2 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="0;8", DataGraphShowNamesAtCursor=1, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="530;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="550;0"
+OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=2520, h=215, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
+TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[233;100;100;100;1344]
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[232;435;100;120]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" (g_shoot_report).front_prox";" (g_shoot_report).rear_prox";" (g_shoot_report).front_int_count";" (g_shoot_report).rear_int_count";" (g_shoot_detect).barrel_mask"], ColWidths=[100;100;100;100;100;100;100]
+TableHeader="Data Sampling Setup", SortCol="Min. Change", SortOrder="DESCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[254;256;100;100;100;146;130;150;150]
+TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
+TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
+TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;196;191;850]
+WatchedExpression="g_shoot_detect", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="hi2c1", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="hi2c2", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="g_dbg_front_prox", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="g_dbg_rear_prox", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="g_shoot_report", RefreshRate=5, Window=Watched Data 1
+WatchedExpression="huart3", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="cnt", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="dbg_busy_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="dbg_send_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="dbg_block_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="htim16", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="led_target", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="led_occluded", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="led_referee_data", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="g_shoot_detect", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="g_led_cmd", RefreshRate=1, Window=Watched Data 1
+WatchedExpression="g_led_cmd_count", RefreshRate=1, Window=Watched Data 1
+WatchedExpression="g_heat_debug", RefreshRate=1, Window=Watched Data 1
+WatchedExpression="led_team", RefreshRate=1, Window=Watched Data 1
