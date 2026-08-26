@@ -65,7 +65,7 @@ extern "C" {
 #define VCNL4040_INT_ALS_LOW         (1 << 5)
 
 /* ========================== Default configuration =========================== */
-#define VCNL4040_DEFAULT_LED_CURRENT      6   /* 0~7 → 50~200mA, 6=180mA      */
+#define VCNL4040_DEFAULT_LED_CURRENT      0   /* 0~7 → 50~200mA, 4≈140mA      */
 #define VCNL4040_DEFAULT_PROX_INT_TIME    3   /* 0~7 → 1T~8T, 3=2T (~1ms @1T) */
 #define VCNL4040_DEFAULT_HIGH_RES         true /* 16-bit proximity data        */
 

@@ -25,6 +25,9 @@
 #include "shoot_detect.h"
 #include "can_protocol.h"
 #include "led_rgb.h"
+#include "ws2812_uart.h"
+#include "reliability.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -57,13 +60,15 @@ TIM_HandleTypeDef htim16;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_tx;
+IWDG_HandleTypeDef hiwdg;
 
 /* USER CODE BEGIN PV */
 /* Global detection instance — accessed by ISR callbacks */
 ShootDetect_t g_shoot_detect;
 ShootData_Report_t g_shoot_report;
+CAN_ErrorStats_t g_can_stats = {0};
 
-/* 10 Hz sensor-reading tick (set by TIM14 ISR, cleared by main loop) */
+/* 10 Hz status-report tick (set by TIM14 ISR, cleared by main loop) */
 volatile bool g_sensor_tick_10hz = false;
 
 /* 10 Hz LED refresh tick (set by TIM15 ISR, cleared by main loop) */
@@ -72,9 +77,41 @@ volatile bool g_led_tick_10hz = false;
 /* CAN ready flag: false when CAN bus is not connected */
 volatile bool g_can_ready = false;
 
+/* Threshold debug switch. Default on in this firmware build.
+   It suppresses automatic strong-fault resets and does not transmit 0x200. */
+volatile bool debug_flag = true;
+
 /* Live sensor data (watch in debugger at runtime) */
 volatile uint16_t g_dbg_front_prox = 0;
 volatile uint16_t g_dbg_rear_prox  = 0;
+/* Peak valid PS_DATA values since this MCU boot; inspect in the debugger. */
+volatile uint16_t g_dbg_front_prox_max = 0;
+volatile uint16_t g_dbg_rear_prox_max  = 0;
+/* Initial 0xFFFF means no valid sample has been seen since this boot. */
+volatile uint16_t g_dbg_front_prox_min = 0xFFFFU;
+volatile uint16_t g_dbg_rear_prox_min  = 0xFFFFU;
+/* Incremented once per full front+rear I2C sample pair. */
+volatile uint32_t g_dbg_sensor_sample_count = 0;
+/* Baselines captured by ShootDetect_Calibrate at this MCU boot. */
+volatile uint16_t g_dbg_front_baseline = 0;
+volatile uint16_t g_dbg_rear_baseline  = 0;
+volatile uint16_t g_dbg_front_threshold = 0;
+volatile uint16_t g_dbg_rear_threshold  = 0;
+/* Debug watch variable: valid shots counted since the latest power-up/reset. */
+volatile uint32_t gbd_shoot_count = 0;
+
+#define DEBUG_SENSOR_FLASH_MS 200U
+
+/* VOFA+ JustFloat over USART2: front PS_DATA, rear PS_DATA, frame tail. */
+#define VOFA_UART_BAUDRATE    1000000U
+#define VOFA_CHANNEL_COUNT    8U
+#define VOFA_FRAME_SIZE       (VOFA_CHANNEL_COUNT * 4U + 4U)
+
+/* Hardware-noise isolation build: after sensor initialization, run only the
+   two raw PS_DATA reads and the existing VOFA+ stream.  This deliberately
+   skips calibration, CAN, timers, LED activity, watchdog, adaptive
+   thresholds, shot detection, and fault handling. */
+#define DEBUG_SENSOR_UART_ONLY 1
 
 /* Debug LED override — write from debugger:
    g_led_cmd = 1 → 9 LEDs all green  (WS2812_COLOR(255,0,0))
@@ -104,6 +141,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM15_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -128,6 +166,9 @@ int main(void)
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* Read the reset cause and any retained HardFault/CAN Bus-Off note. */
+  Reliability_EarlyInit();
 
   /* USER CODE BEGIN Init */
 
@@ -168,12 +209,10 @@ int main(void)
   __HAL_TIM_ENABLE(&htim16);
 
   /* ---- Init VCNL4040 sensors ---- */
-  if (VCNL4040_Init(&hi2c1) != HAL_OK) {
-      Error_Handler();
-  }
-  if (VCNL4040_Init(&hi2c2) != HAL_OK) {
-      Error_Handler();
-  }
+  bool front_sensor_ready = (VCNL4040_Init(&hi2c1) == HAL_OK);
+  bool rear_sensor_ready  = (VCNL4040_Init(&hi2c2) == HAL_OK);
+  Reliability_SetWeakFault(REL_WEAK_FRONT_SENSOR, !front_sensor_ready);
+  Reliability_SetWeakFault(REL_WEAK_REAR_SENSOR, !rear_sensor_ready);
 
   /* ---- Init projectile detection ---- */
   /* front_i2c=hi2c1 (PB6/PB7, 2nd in path), rear_i2c=hi2c2 (PB13/PB14, 1st) */
@@ -183,10 +222,48 @@ int main(void)
                         DEFAULT_SPEED_MAX_MPS,
                         DEFAULT_TIMEOUT_MS);
 
-  /* ---- Calibrate baseline & set thresholds ---- */
-  if (!ShootDetect_Calibrate(&g_shoot_detect)) {
-      Error_Handler();
+#if DEBUG_SENSOR_UART_ONLY
+  /* WS2812 LEDs retain their last frame across MCU reset.  Clear them once
+     before entering the sensor-only loop; no LED application or refresh task
+     runs afterwards. */
+  {
+      uint32_t led_off[LED_COUNT] = {0};
+      ws2812_uart_init();
+      ws2812_uart_send(led_off, LED_COUNT);
+      HAL_Delay(1);
   }
+
+  /* Raw sensor isolation loop.  Keep the existing 8-channel JustFloat frame
+     format so the current VOFA+ configuration remains usable:
+       channel 0 = front PS_DATA, channel 1 = rear PS_DATA,
+       channels 2..7 = zero (no calibration/derived values in this mode). */
+  while (1)
+  {
+      uint8_t vofa_frame[VOFA_FRAME_SIZE];
+      float vofa_values[VOFA_CHANNEL_COUNT] = {0.0f};
+      uint32_t vofa_tail = 0x7F800000U;
+
+      g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
+      g_dbg_rear_prox  = VCNL4040_GetProximity(&hi2c2);
+      g_dbg_sensor_sample_count++;
+
+
+      vofa_values[0] = (float)g_dbg_front_prox;
+      vofa_values[1] = (float)g_dbg_rear_prox;
+      memcpy(&vofa_frame[0], vofa_values, sizeof(vofa_values));
+      memcpy(&vofa_frame[VOFA_CHANNEL_COUNT * 4U], &vofa_tail,
+             sizeof(vofa_tail));
+      (void)HAL_UART_Transmit(&huart2, vofa_frame, VOFA_FRAME_SIZE, 1U);
+  }
+#endif
+
+  /* ---- Calibrate baseline & set thresholds ---- */
+  if (front_sensor_ready && rear_sensor_ready &&
+      !ShootDetect_Calibrate(&g_shoot_detect)) {
+      Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+  }
+  g_dbg_front_baseline = g_shoot_detect.front_baseline;
+  g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
 
   /* ---- Init success: light IND_1 (PA5 DAC_OUT2, max = on) ---- */
   HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 4095);
@@ -198,16 +275,56 @@ int main(void)
 
   /* ---- Init CAN protocol (slave-only) ---- */
   CANProtocol_Init(&hcan);
-  /* CAN bus not connected → g_can_ready stays false.
-     When CAN is wired, uncomment the 3 lines below to activate CAN: */
-  /* HAL_CAN_Start(&hcan); */
-  /* HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING); */
-  /* g_can_ready = true; */
+  /* Accept standard CAN data frames for the protocol RX interrupt. */
+  CAN_FilterTypeDef can_filter = {0};
+  can_filter.FilterBank = 0;
+  can_filter.FilterMode = CAN_FILTERMODE_IDMASK;
+  can_filter.FilterScale = CAN_FILTERSCALE_32BIT;
+  can_filter.FilterIdHigh = 0x0000;
+  can_filter.FilterIdLow = 0x0000;
+  can_filter.FilterMaskIdHigh = 0x0000;
+  can_filter.FilterMaskIdLow = 0x0000;
+  can_filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  can_filter.FilterActivation = ENABLE;
+  can_filter.SlaveStartFilterBank = 0;
+  if (HAL_CAN_ConfigFilter(&hcan, &can_filter) != HAL_OK) {
+      Error_Handler();
+  }
+  /* Start CAN and enable receive interrupt. */
+  if (HAL_CAN_Start(&hcan) != HAL_OK) {
+      Error_Handler();
+  }
+  if (HAL_CAN_ActivateNotification(&hcan,
+        CAN_IT_RX_FIFO0_MSG_PENDING |
+        CAN_IT_ERROR_WARNING |
+        CAN_IT_ERROR_PASSIVE |
+        CAN_IT_BUSOFF |
+        CAN_IT_LAST_ERROR_CODE) != HAL_OK) {
+      Error_Handler();
+  }
+  g_can_ready = true;
+  g_can_stats.state = (uint8_t)HAL_CAN_GetState(&hcan);
+
+  /* Threshold-debug builds do not start IWDG; IWDG cannot be disabled later. */
+  if (!debug_flag) {
+      MX_IWDG_Init();
+  }
+
+  /* Report a prior strong reset before announcing this successful startup. */
+  uint8_t pending_strong = Reliability_GetPendingStrongMask();
+  if (pending_strong != 0U) {
+      (void)CANProtocol_SendStrongFault(pending_strong);
+  }
+  (void)CANProtocol_SendBoot();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t last_led_shot_count = 0U;
+  uint32_t last_led_front_int_count = 0U;
+  uint32_t last_led_rear_int_count = 0U;
+  uint32_t debug_sensor_flash_until = 0U;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -216,12 +333,129 @@ int main(void)
     /* Always check timeout + clear sensor interrupts (fast) */
     ShootDetect_Process(&g_shoot_detect);
 
-    /* 10 Hz tasks: sensor reading + CAN report refresh */
+    /* A 0x220 request is deferred from the CAN ISR because calibration reads
+       both sensors 20 times and must never block CAN interrupt handling. */
+    if (CANProtocol_TakeCalibrationRequest()) {
+        bool calibration_ok = ShootDetect_Calibrate(&g_shoot_detect);
+        Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, !calibration_ok);
+        g_dbg_front_baseline  = g_shoot_detect.front_baseline;
+        g_dbg_rear_baseline   = g_shoot_detect.rear_baseline;
+        g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
+        g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
+        (void)CANProtocol_SendCalibrationAck(calibration_ok ? 0x00U : 0x01U);
+    }
+
+    /* Fast threshold-debug sampling.  Each current/min/max update comes from
+       the same I2C read, so extrema have exactly the sampling rate of PS_DATA. */
+    g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
+    if (g_dbg_front_prox != 0xFFFFU) {
+        if (g_dbg_front_prox > g_dbg_front_prox_max) {
+            g_dbg_front_prox_max = g_dbg_front_prox;
+        }
+        if (g_dbg_front_prox < g_dbg_front_prox_min) {
+            g_dbg_front_prox_min = g_dbg_front_prox;
+        }
+    }
+
+    g_dbg_rear_prox = VCNL4040_GetProximity(&hi2c2);
+    if (g_dbg_rear_prox != 0xFFFFU) {
+        if (g_dbg_rear_prox > g_dbg_rear_prox_max) {
+            g_dbg_rear_prox_max = g_dbg_rear_prox;
+        }
+        if (g_dbg_rear_prox < g_dbg_rear_prox_min) {
+            g_dbg_rear_prox_min = g_dbg_rear_prox;
+        }
+    }
+    g_dbg_sensor_sample_count++;
+
+    ShootDetect_UpdateAdaptiveThresholds(&g_shoot_detect,
+                                         g_dbg_front_prox,
+                                         g_dbg_rear_prox,
+                                         HAL_GetTick());
+    g_dbg_front_baseline = g_shoot_detect.front_baseline;
+    g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
+    g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
+    g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
+
+    /* CAN Bus-Off is shown locally for 2 s, then the MCU restarts. */
+    if (!debug_flag && Reliability_ShouldResetNow()) {
+        NVIC_SystemReset();
+    }
+
+    uint32_t now_tick = HAL_GetTick();
+
+    /* Stream adaptive-threshold diagnostics as VOFA+ JustFloat channels:
+       0 front PS, 1 rear PS, 2 front baseline, 3 rear baseline,
+       4 front THDL, 5 rear THDL, 6 front PS-THDL, 7 rear PS-THDL. */
+    if (debug_flag) {
+        uint8_t vofa_frame[VOFA_FRAME_SIZE];
+        float vofa_values[VOFA_CHANNEL_COUNT];
+        uint32_t vofa_tail = 0x7F800000U;
+        vofa_values[0] = (float)g_dbg_front_prox;
+        vofa_values[1] = (float)g_dbg_rear_prox;
+        vofa_values[2] = (float)g_dbg_front_baseline;
+        vofa_values[3] = (float)g_dbg_rear_baseline;
+        vofa_values[4] = (float)g_dbg_front_threshold;
+        vofa_values[5] = (float)g_dbg_rear_threshold;
+        vofa_values[6] = (float)((int32_t)g_dbg_front_prox -
+                                 (int32_t)g_dbg_front_threshold);
+        vofa_values[7] = (float)((int32_t)g_dbg_rear_prox -
+                                 (int32_t)g_dbg_rear_threshold);
+        memcpy(&vofa_frame[0], vofa_values, sizeof(vofa_values));
+        memcpy(&vofa_frame[VOFA_CHANNEL_COUNT * 4U], &vofa_tail,
+               sizeof(vofa_tail));
+        (void)HAL_UART_Transmit(&huart2, vofa_frame, VOFA_FRAME_SIZE, 1U);
+    }
+
+    /* Debug-only sensor activity indicator: either optical sensor can light
+       the upper status LED.  Keep the flag long enough for the 10 Hz LED task
+       to render it even when the interrupt occurs between two task ticks. */
+    uint32_t front_int_count = ShootDetect_GetFrontIntCount(&g_shoot_detect);
+    uint32_t rear_int_count = ShootDetect_GetRearIntCount(&g_shoot_detect);
+    if (debug_flag &&
+        (front_int_count != last_led_front_int_count ||
+         rear_int_count != last_led_rear_int_count)) {
+        debug_sensor_flash_until = now_tick + DEBUG_SENSOR_FLASH_MS;
+    }
+    last_led_front_int_count = front_int_count;
+    last_led_rear_int_count = rear_int_count;
+
+    /* A confirmed shot (not merely one sensor edge) starts the 100 ms sweep. */
+    uint32_t current_shot_count = ShootDetect_GetCount(&g_shoot_detect);
+    gbd_shoot_count = current_shot_count;
+    if (current_shot_count != last_led_shot_count) {
+        last_led_shot_count = current_shot_count;
+        LedStrip_StartShotEffect(now_tick);
+    }
+
+    /* Send one unsolicited 0x230 frame for every confirmed valid shot. */
+    ShootEvent_t shot_event;
+    while (ShootDetect_PeekEvent(&g_shoot_detect, &shot_event)) {
+        if (CANProtocol_SendShotEvent(&shot_event) != HAL_OK) {
+            /* Keep the event queued and retry after CAN becomes available. */
+            break;
+        }
+        ShootDetect_DropEvent(&g_shoot_detect);
+    }
+
+    /* CAN 0x200 remains reserved for debug heartbeat but is idle in this build. */
+
+    /* Keep raw CAN controller diagnostics visible in the debugger. */
+    uint32_t can_esr = CAN->ESR;
+    g_can_stats.last_error_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
+    g_can_stats.tx_error_counter = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
+    g_can_stats.rx_error_counter = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
+    g_can_stats.bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
+    g_can_stats.state = (uint8_t)HAL_CAN_GetState(&hcan);
+
+    /* 10 Hz tasks: status report refresh */
     if (g_sensor_tick_10hz) {
         g_sensor_tick_10hz = false;
 
-        g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
-        g_dbg_rear_prox  = VCNL4040_GetProximity(&hi2c2);
+        Reliability_ObserveSensors(g_dbg_front_prox != 0xFFFFU,
+                                   g_dbg_rear_prox != 0xFFFFU);
+        Reliability_ObserveEventQueueDropped(
+            ShootDetect_GetDroppedEventCount(&g_shoot_detect));
 
         g_shoot_report.shot_count      = ShootDetect_GetCount(&g_shoot_detect);
         g_shoot_report.front_int_count = ShootDetect_GetFrontIntCount(&g_shoot_detect);
@@ -234,25 +468,60 @@ int main(void)
         CANProtocol_UpdateData(&g_shoot_report);
     }
 
+    bool shot_effect_active = false;
+    if (!Reliability_IsFaultAlertActive() &&
+        g_led_cmd == 0 &&
+        CANProtocol_GetLedCommand()->source != LED_SRC_DEBUG) {
+        shot_effect_active = LedStrip_ProcessShotEffect(now_tick);
+    }
+
     if (g_led_tick_10hz) {
         g_led_tick_10hz = false;
 
-        /* Priority 1: debugger override (g_led_cmd = 1~5) */
-        if (g_led_cmd != 0) {
+        bool debug_sensor_flash = debug_flag &&
+            ((int32_t)(debug_sensor_flash_until - now_tick) > 0);
+
+        /* Priority 1: any active fault overrides all ordinary LED control. */
+        if (Reliability_IsFaultAlertActive()) {
+            LedStrip_ShowFaultAlert(HAL_GetTick());
+        }
+        /* Priority 2: debugger override (g_led_cmd = 1~5) */
+        else if (g_led_cmd != 0) {
             LedStrip_TestPattern(g_led_cmd, g_led_cmd_count);
         }
-        /* Priority 2: CAN LED command */
+        /* Priority 3: CAN LED command */
         else if (CANProtocol_GetLedCommand()->source == LED_SRC_DEBUG) {
             LedStrip_ApplyCommand(CANProtocol_GetLedCommand());
         }
-        /* Priority 3: auto — follow shoot detection */
+        /* Priority 4: valid-shot animation; it is updated every main-loop pass. */
+        else if (shot_effect_active) {
+            /* LedStrip_ProcessShotEffect() has already sent this frame. */
+        }
+        /* Priority 5: auto — follow shoot detection */
         else {
-            LedStrip_SetOcclusion(g_shoot_detect.barrel_mask != 0);
+            LedStrip_SetOcclusion((g_shoot_detect.barrel_mask != 0) ||
+                                  debug_sensor_flash);
             LedStrip_SetRefereeData(g_heat_debug);
             LedStrip_Update();
         }
     }
 
+    /* Weak fault notification is best-effort and never blocks the main loop. */
+    static uint8_t last_weak_mask = 0U;
+    static uint32_t weak_fault_tx_tick = 0U;
+    uint8_t weak_mask = Reliability_GetWeakMask();
+    if (weak_mask != 0U &&
+        (weak_mask != last_weak_mask ||
+         (now_tick - weak_fault_tx_tick) >= 100U)) {
+        (void)CANProtocol_SendWeakFault(weak_mask);
+        weak_fault_tx_tick = now_tick;
+    }
+    last_weak_mask = weak_mask;
+
+    /* Main-loop-only watchdog feed: do not feed it from any ISR. */
+    if (!debug_flag) {
+        (void)HAL_IWDG_Refresh(&hiwdg);
+    }
     HAL_Delay(1);
   }
   /* USER CODE END 3 */
@@ -323,10 +592,11 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 16;
+  /* CAN bitrate: 48 MHz / 8 / (1 + 10 + 1) = 500 kbps, 12 TQ/bit. */
+  hcan.Init.Prescaler = 8;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_10TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
@@ -342,6 +612,18 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 2 */
 
+}
+
+static void MX_IWDG_Init(void)
+{
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_64;
+  hiwdg.Init.Reload = 1000U;
+  hiwdg.Init.Window = IWDG_WINDOW_DISABLE;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -686,7 +968,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
+  huart2.Init.BaudRate = VOFA_UART_BAUDRATE;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -806,6 +1088,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
     if (htim->Instance == TIM15) {
         g_led_tick_10hz = true;
+    }
+}
+
+/** @brief CAN error interrupt callback; keeps cumulative diagnostics. */
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan_ptr)
+{
+    uint32_t can_esr;
+
+    if (hcan_ptr != &hcan) {
+        return;
+    }
+
+    can_esr = CAN->ESR;
+    g_can_stats.error_callbacks++;
+    g_can_stats.error_events++;
+    g_can_stats.error_code = HAL_CAN_GetError(hcan_ptr);
+    g_can_stats.last_error_tick = HAL_GetTick();
+    g_can_stats.last_error_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
+    g_can_stats.tx_error_counter = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
+    g_can_stats.rx_error_counter = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
+    g_can_stats.bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
+    if (!debug_flag && g_can_stats.bus_off != 0U) {
+        Reliability_RequestStrongFault(REL_STRONG_CAN_BUSOFF);
     }
 }
 

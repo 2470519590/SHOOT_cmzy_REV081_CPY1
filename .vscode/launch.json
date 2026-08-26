@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32: Debug with J-Link",
+      "type": "cortex-debug",
+      "request": "launch",
+      "servertype": "jlink",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/build/SHOOT_cmzy_REV081.elf",
+      "device": "STM32F072C8",
+      "interface": "swd",
+      "speed": 100,
+      "runToEntryPoint": "main",
+      "preLaunchTask": "STM32: Build",
+      "serverpath": "C:/Program Files/JLink_V960/JLinkGDBServerCL.exe",
+      "armToolchainPath": "E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin",
+      "gdbPath": "E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gdb.exe"
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": true,
+      "cwd": "e:/STM32_PROJ/SHOOT_cmzy_REV081/Core/Src",
+      "program": "e:/STM32_PROJ/SHOOT_cmzy_REV081/Core/Src/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/arm-none-eabi-gdb.exe",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

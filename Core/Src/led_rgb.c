@@ -20,6 +20,13 @@ static bool      led_occluded     = false;
 static uint8_t   led_referee_data = 0;
 static float     led_desired[LED_COUNT];  /* desired brightness 0.0–1.0        */
 static float     led_current[LED_COUNT];  /* current brightness (lerp→desired) */
+static bool      shot_effect_active;
+static uint32_t  shot_effect_start_tick;
+
+#define SHOT_EFFECT_STEP_MS      10U
+#define SHOT_EFFECT_FILL_MS      (LED_HEAT_COUNT * SHOT_EFFECT_STEP_MS)
+#define SHOT_EFFECT_OFF_MS       90U
+#define SHOT_EFFECT_TOTAL_MS     100U
 
 /* ========================== Helpers ======================================== */
 
@@ -53,10 +60,10 @@ void LedStrip_Init(void)
         led_current[i] = 0.0f;
     }
 
-    /* Self-test: light all 9 LEDs green (G=255, R=0, B=0 in GRB) */
+    /* Self-test: light all 9 LEDs green. */
     uint32_t green[LED_COUNT];
     for (int i = 0; i < LED_COUNT; i++) {
-        green[i] = WS2812_COLOR(255, 0, 0);  /* GRB: G=255 → green */
+        green[i] = WS2812_COLOR(255, 0, 0);
     }
     ws2812_uart_send(green, LED_COUNT);
 
@@ -120,6 +127,70 @@ void LedStrip_Update(void)
         }
     }
     ws2812_uart_send(out, LED_COUNT);
+}
+
+void LedStrip_ShowFaultAlert(uint32_t tick_ms)
+{
+    uint32_t out[LED_COUNT];
+    uint32_t color;
+
+    if (ws2812_uart_busy()) return;
+
+    /* Three colours per 500 ms gives one red/blue/green cycle every 500 ms. */
+    switch ((tick_ms / 167U) % 3U) {
+    case 0U: color = WS2812_COLOR(0, 255, 0); break;   /* red */
+    case 1U: color = WS2812_COLOR(0, 0, 255); break;   /* blue */
+    default: color = WS2812_COLOR(255, 0, 0); break;   /* green */
+    }
+    for (int i = 0; i < LED_COUNT; i++) out[i] = color;
+    ws2812_uart_send(out, LED_COUNT);
+}
+
+/**
+  * @brief  Start the valid-shot rear-to-front sweep on LEDs 8 down to 1.
+  * @note   The effect is displayed only by the automatic LED layer; faults
+  *         and explicit debug/CAN LED commands keep their existing priority.
+  */
+void LedStrip_StartShotEffect(uint32_t tick_ms)
+{
+    shot_effect_start_tick = tick_ms;
+    shot_effect_active = true;
+}
+
+/**
+  * @brief  Render a 100 ms valid-shot effect. LEDs fill front-to-rear in
+  *         10 ms steps, then all eight heat LEDs turn off at 90 ms.
+  * @return true while the automatic LED layer must remain overridden.
+  */
+bool LedStrip_ProcessShotEffect(uint32_t tick_ms)
+{
+    if (!shot_effect_active) return false;
+
+    uint32_t elapsed = tick_ms - shot_effect_start_tick;
+    if (elapsed >= SHOT_EFFECT_TOTAL_MS) {
+        if (ws2812_uart_busy()) return true;
+        shot_effect_active = false;
+        LedStrip_Update();  /* immediately restore the ordinary LED state */
+        return false;
+    }
+
+    if (ws2812_uart_busy()) return true;
+
+    uint32_t out[LED_COUNT] = {0};
+    /* Keep the upper status LED blue while the shot sweep is running. */
+    out[LED_DEBUG_IDX] = COLOR_LAKE_BLUE;
+    if (elapsed < SHOT_EFFECT_OFF_MS) {
+        uint8_t lit = (uint8_t)(elapsed / SHOT_EFFECT_STEP_MS) + 1U;
+        if (lit > LED_HEAT_COUNT) lit = LED_HEAT_COUNT;
+
+        /* Physical direction is LED[1] toward LED[8]. */
+        for (uint8_t i = 0; i < lit; i++) {
+            out[LED_HEAT_START + i] =
+                WS2812_COLOR(255, 0, 0);  /* green, same colour as boot test */
+        }
+    }
+    ws2812_uart_send(out, LED_COUNT);
+    return true;
 }
 
 /* ========================== Debug / CAN Override =========================== */

@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "shoot_detect.h"
 #include "can_protocol.h"
+#include "reliability.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,16 +89,13 @@ void NMI_Handler(void)
 /**
   * @brief This function handles Hard fault interrupt.
   */
+void HardFault_Handler(void) __attribute__((naked));
 void HardFault_Handler(void)
 {
-  /* USER CODE BEGIN HardFault_IRQn 0 */
-
-  /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
+  __asm volatile (
+      "mrs r0, msp \n"
+      "ldr r1, =Reliability_HandleHardFault \n"
+      "bx r1 \n");
 }
 
 /**

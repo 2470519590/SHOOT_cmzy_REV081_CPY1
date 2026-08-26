@@ -42,6 +42,7 @@ Core/Src/stm32f0xx_hal_msp.c \
 Core/Src/vcnl4040.c \
 Core/Src/shoot_detect.c \
 Core/Src/can_protocol.c \
+Core/Src/reliability.c \
 Core/Src/ws2812_uart.c \
 Core/Src/led_rgb.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_can.c \
@@ -50,6 +51,7 @@ Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_rcc_ex.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c_ex.c \
+Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_iwdg.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_gpio.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dma.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_cortex.c \

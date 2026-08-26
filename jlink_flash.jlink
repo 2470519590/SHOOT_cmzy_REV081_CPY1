@@ -1,0 +1,8 @@
+device STM32F072C8
+si SWD
+speed 100
+r
+loadfile E:\STM32_PROJ\SHOOT_cmzy_REV081\build\SHOOT_cmzy_REV081.hex 0x08000000
+r
+g
+exit

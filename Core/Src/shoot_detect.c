@@ -61,8 +61,8 @@ void ShootDetect_Init(ShootDetect_t *det,
     det->speed_min_mps       = DEFAULT_SPEED_MIN_MPS;
     det->speed_max_mps       = DEFAULT_SPEED_MAX_MPS;
     det->timeout_ms          = DEFAULT_TIMEOUT_MS;
-    det->threshold_high_offset = THRESHOLD_HIGH_OFFSET;
-    det->threshold_low_offset  = THRESHOLD_LOW_OFFSET;
+    det->threshold_away_offset = THRESHOLD_AWAY_OFFSET;
+    det->threshold_last_update_ms = 0U;
 }
 
 void ShootDetect_SetParams(ShootDetect_t *det,
@@ -94,18 +94,24 @@ bool ShootDetect_Calibrate(ShootDetect_t *det)
     det->front_baseline = (uint16_t)(sum_front / CALIBRATION_SAMPLES);
     det->rear_baseline  = (uint16_t)(sum_rear  / CALIBRATION_SAMPLES);
 
-    uint16_t f_high = det->front_baseline + det->threshold_high_offset;
-    uint16_t r_high = det->rear_baseline  + det->threshold_high_offset;
-    uint16_t f_low  = det->front_baseline + det->threshold_low_offset;
-    uint16_t r_low  = det->rear_baseline  + det->threshold_low_offset;
+    /* A projectile makes PS_DATA fall.  Use the VCNL4040 AWAY mode, which
+       asserts INT when PS_DATA drops below PS_THDL.  Keep PS_THDH at the
+       calibrated baseline although AWAY mode does not use it. */
+    uint16_t f_low = (det->front_baseline > det->threshold_away_offset) ?
+                     (uint16_t)(det->front_baseline - det->threshold_away_offset) : 0U;
+    uint16_t r_low = (det->rear_baseline > det->threshold_away_offset) ?
+                     (uint16_t)(det->rear_baseline - det->threshold_away_offset) : 0U;
 
     VCNL4040_SetProximityLowThreshold(det->front_i2c, f_low);
-    VCNL4040_SetProximityHighThreshold(det->front_i2c, f_high);
+    VCNL4040_SetProximityHighThreshold(det->front_i2c, det->front_baseline);
     VCNL4040_SetProximityLowThreshold(det->rear_i2c,  r_low);
-    VCNL4040_SetProximityHighThreshold(det->rear_i2c,  r_high);
+    VCNL4040_SetProximityHighThreshold(det->rear_i2c,  det->rear_baseline);
 
-    VCNL4040_EnableProximityInterrupt(det->front_i2c, VCNL4040_PS_INT_CLOSE);
-    VCNL4040_EnableProximityInterrupt(det->rear_i2c,  VCNL4040_PS_INT_CLOSE);
+    det->front_threshold_low = f_low;
+    det->rear_threshold_low  = r_low;
+
+    VCNL4040_EnableProximityInterrupt(det->front_i2c, VCNL4040_PS_INT_AWAY);
+    VCNL4040_EnableProximityInterrupt(det->rear_i2c,  VCNL4040_PS_INT_AWAY);
     VCNL4040_GetInterruptStatus(det->front_i2c);
     VCNL4040_GetInterruptStatus(det->rear_i2c);
 
@@ -151,6 +157,18 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
     if (speed >= det->speed_min_mps && speed <= det->speed_max_mps) {
         det->last_speed_mps = speed;
         det->shot_count++;
+
+        /* Queue the confirmed event. CAN transmission is deferred to main. */
+        uint8_t next = (uint8_t)((det->event_queue_head + 1U) % SHOOT_EVENT_QUEUE_SIZE);
+        if (next != det->event_queue_tail) {
+            ShootEvent_t *event = &det->event_queue[det->event_queue_head];
+            event->shot_count = det->shot_count;
+            event->speed_mps = speed;
+            event->barrel_mask = (uint8_t)(det->barrel_mask & BARREL_MASK);
+            det->event_queue_head = next;
+        } else {
+            det->event_queue_dropped++;
+        }
     }
 
     det->barrel_mask &= (uint8_t)~(1 << slot);
@@ -206,4 +224,74 @@ float ShootDetect_GetLastSpeed(const ShootDetect_t *det)
 uint8_t ShootDetect_GetState(const ShootDetect_t *det)
 {
     return det->barrel_mask;   /* now exposes which slots are occupied         */
+}
+
+/**
+  * @brief  Slowly follow the PS background and move the AWAY threshold.
+  *         There is intentionally no event freeze or change-size lockout:
+  *         the baseline must recover from a genuine environment step.
+  */
+void ShootDetect_UpdateAdaptiveThresholds(ShootDetect_t *det,
+                                           uint16_t front_ps,
+                                           uint16_t rear_ps,
+                                           uint32_t now_ms)
+{
+    int32_t diff;
+
+    if (front_ps != 0xFFFFU) {
+        diff = (int32_t)front_ps - (int32_t)det->front_baseline;
+        int32_t step = diff / (1 << ADAPTIVE_BASELINE_SHIFT);
+        /* Integer EMA would otherwise stop with a 1..15 count steady-state
+           error. Force a one-count final step so the baseline converges. */
+        if (step == 0 && diff != 0) step = (diff > 0) ? 1 : -1;
+        det->front_baseline = (uint16_t)((int32_t)det->front_baseline + step);
+    }
+    if (rear_ps != 0xFFFFU) {
+        diff = (int32_t)rear_ps - (int32_t)det->rear_baseline;
+        int32_t step = diff / (1 << ADAPTIVE_BASELINE_SHIFT);
+        if (step == 0 && diff != 0) step = (diff > 0) ? 1 : -1;
+        det->rear_baseline = (uint16_t)((int32_t)det->rear_baseline + step);
+    }
+
+    if ((uint32_t)(now_ms - det->threshold_last_update_ms) <
+        ADAPTIVE_THRESHOLD_PERIOD_MS) {
+        return;
+    }
+    det->threshold_last_update_ms = now_ms;
+
+    uint16_t front_low = (det->front_baseline > det->threshold_away_offset) ?
+        (uint16_t)(det->front_baseline - det->threshold_away_offset) : 0U;
+    uint16_t rear_low = (det->rear_baseline > det->threshold_away_offset) ?
+        (uint16_t)(det->rear_baseline - det->threshold_away_offset) : 0U;
+
+    if (front_low != det->front_threshold_low) {
+        VCNL4040_SetProximityLowThreshold(det->front_i2c, front_low);
+        VCNL4040_SetProximityHighThreshold(det->front_i2c, det->front_baseline);
+        det->front_threshold_low = front_low;
+    }
+    if (rear_low != det->rear_threshold_low) {
+        VCNL4040_SetProximityLowThreshold(det->rear_i2c, rear_low);
+        VCNL4040_SetProximityHighThreshold(det->rear_i2c, det->rear_baseline);
+        det->rear_threshold_low = rear_low;
+    }
+}
+
+bool ShootDetect_PeekEvent(const ShootDetect_t *det, ShootEvent_t *event)
+{
+    if (det->event_queue_tail == det->event_queue_head) return false;
+
+    *event = det->event_queue[det->event_queue_tail];
+    return true;
+}
+
+void ShootDetect_DropEvent(ShootDetect_t *det)
+{
+    if (det->event_queue_tail != det->event_queue_head) {
+        det->event_queue_tail = (uint8_t)((det->event_queue_tail + 1U) % SHOOT_EVENT_QUEUE_SIZE);
+    }
+}
+
+uint32_t ShootDetect_GetDroppedEventCount(const ShootDetect_t *det)
+{
+    return det->event_queue_dropped;
 }

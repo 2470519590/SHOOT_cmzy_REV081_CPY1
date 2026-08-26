@@ -51,6 +51,9 @@ void LedStrip_SetTeam(Team_t team);
 void LedStrip_SetOcclusion(bool occluded);
 void LedStrip_SetRefereeData(uint8_t data);
 void LedStrip_Update(void);    /* Call every 100 ms (TIM15 tick)              */
+void LedStrip_ShowFaultAlert(uint32_t tick_ms); /* red/blue/green cyclic alert */
+void LedStrip_StartShotEffect(uint32_t tick_ms);
+bool LedStrip_ProcessShotEffect(uint32_t tick_ms);
 
 /* Debug / CAN test patterns */
 void LedStrip_TestPattern(uint8_t pattern, uint8_t count);  /* count=0→all 9 LEDs */
