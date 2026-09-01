@@ -10,22 +10,18 @@
 
 #include "led_rgb.h"
 #include "ws2812_uart.h"
-
-#define HEAT_PER_LED  (256 / LED_HEAT_COUNT)   /* 32 levels per LED            */
+#include "thermal.h"
 
 /* ========================== Local State ==================================== */
 
 static Team_t    led_team         = TEAM_BLUE;
-static bool      led_occluded     = false;
+static bool      led_overheat_alert;
 static uint8_t   led_referee_data = 0;
 static float     led_desired[LED_COUNT];  /* desired brightness 0.0–1.0        */
 static float     led_current[LED_COUNT];  /* current brightness (lerp→desired) */
 static bool      shot_effect_active;
 static uint32_t  shot_effect_start_tick;
 
-#define SHOT_EFFECT_STEP_MS      10U
-#define SHOT_EFFECT_FILL_MS      (LED_HEAT_COUNT * SHOT_EFFECT_STEP_MS)
-#define SHOT_EFFECT_OFF_MS       90U
 #define SHOT_EFFECT_TOTAL_MS     100U
 
 /* ========================== Helpers ======================================== */
@@ -60,15 +56,6 @@ void LedStrip_Init(void)
         led_current[i] = 0.0f;
     }
 
-    /* Self-test: light all 9 LEDs green. */
-    uint32_t green[LED_COUNT];
-    for (int i = 0; i < LED_COUNT; i++) {
-        green[i] = WS2812_COLOR(255, 0, 0);
-    }
-    ws2812_uart_send(green, LED_COUNT);
-
-    /* Wait for DMA to finish (108 UART bytes @ 3.75M ≈ 288 µs) */
-    HAL_Delay(1);
 }
 
 void LedStrip_SetTeam(Team_t team)
@@ -76,9 +63,9 @@ void LedStrip_SetTeam(Team_t team)
     led_team = team;
 }
 
-void LedStrip_SetOcclusion(bool occluded)
+void LedStrip_SetOverheatAlert(bool active)
 {
-    led_occluded = occluded;
+    led_overheat_alert = active;
 }
 
 void LedStrip_SetRefereeData(uint8_t data)
@@ -93,18 +80,22 @@ void LedStrip_Update(void)
     /* ---- Compute desired brightness fractions ---- */
     uint32_t tc = team_color();
 
-    /* LED[0] debug: 100 % team if occluded, 20 % yellow if idle */
-    led_desired[LED_DEBUG_IDX] = led_occluded ? 1.0f : 0.20f;
+    /* LED[0]: full team colour during overheat alert, dim yellow while idle. */
+    led_desired[LED_DEBUG_IDX] =
+        led_overheat_alert ? 1.0f : 0.20f;
 
-    /* LED[1-8] heat: 256 levels across 8 LEDs (32 per LED) */
-    uint8_t full = led_referee_data / HEAT_PER_LED;
-    uint8_t frac = led_referee_data % HEAT_PER_LED;
+    /* LED[1-8]: current heat 0..45 mapped linearly across eight LEDs. */
+    uint8_t heat = led_referee_data;
+    if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+    uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+    uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+    uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
     for (int i = 0; i < LED_HEAT_COUNT; i++) {
         uint8_t idx = LED_HEAT_START + i;
         if (i < full) {
             led_desired[idx] = 1.0f;
         } else if (i == full && frac > 0) {
-            led_desired[idx] = (float)frac / (float)HEAT_PER_LED;
+            led_desired[idx] = (float)frac / (float)THERMAL_HEAT_LIMIT;
         } else {
             led_desired[idx] = 0.0f;
         }
@@ -120,8 +111,12 @@ void LedStrip_Update(void)
 
         if (led_current[i] <= 0.0f) {
             out[i] = 0;
-        } else if (i == LED_DEBUG_IDX && !led_occluded) {
-            out[i] = color_dim(COLOR_YELLOW_DIM, led_current[i] / 0.20f);
+        } else if (i == LED_DEBUG_IDX) {
+            if (led_overheat_alert) {
+                out[i] = team_color();
+            } else {
+                out[i] = color_dim(COLOR_YELLOW_DIM, led_current[i] / 0.20f);
+            }
         } else {
             out[i] = color_dim(tc, led_current[i]);
         }
@@ -147,7 +142,7 @@ void LedStrip_ShowFaultAlert(uint32_t tick_ms)
 }
 
 /**
-  * @brief  Start the valid-shot rear-to-front sweep on LEDs 8 down to 1.
+ * @brief  Start the valid-shot top-status LED flash.
   * @note   The effect is displayed only by the automatic LED layer; faults
   *         and explicit debug/CAN LED commands keep their existing priority.
   */
@@ -158,8 +153,8 @@ void LedStrip_StartShotEffect(uint32_t tick_ms)
 }
 
 /**
-  * @brief  Render a 100 ms valid-shot effect. LEDs fill front-to-rear in
-  *         10 ms steps, then all eight heat LEDs turn off at 90 ms.
+ * @brief  Render a 100 ms valid-shot top-status LED flash while preserving
+ *         the static heat bar.
   * @return true while the automatic LED layer must remain overridden.
   */
 bool LedStrip_ProcessShotEffect(uint32_t tick_ms)
@@ -177,16 +172,20 @@ bool LedStrip_ProcessShotEffect(uint32_t tick_ms)
     if (ws2812_uart_busy()) return true;
 
     uint32_t out[LED_COUNT] = {0};
-    /* Keep the upper status LED blue while the shot sweep is running. */
-    out[LED_DEBUG_IDX] = COLOR_LAKE_BLUE;
-    if (elapsed < SHOT_EFFECT_OFF_MS) {
-        uint8_t lit = (uint8_t)(elapsed / SHOT_EFFECT_STEP_MS) + 1U;
-        if (lit > LED_HEAT_COUNT) lit = LED_HEAT_COUNT;
-
-        /* Physical direction is LED[1] toward LED[8]. */
-        for (uint8_t i = 0; i < lit; i++) {
+    /* Only the top status LED flashes; the heat bar remains visible. */
+    uint32_t shot_color = team_color();
+    out[LED_DEBUG_IDX] = shot_color;
+    uint8_t heat = led_referee_data;
+    if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+    uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+    uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+    uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+    for (uint8_t i = 0; i < LED_HEAT_COUNT; i++) {
+        if (i < full) {
+            out[LED_HEAT_START + i] = shot_color;
+        } else if (i == full && frac > 0U) {
             out[LED_HEAT_START + i] =
-                WS2812_COLOR(255, 0, 0);  /* green, same colour as boot test */
+                color_dim(shot_color, (float)frac / (float)THERMAL_HEAT_LIMIT);
         }
     }
     ws2812_uart_send(out, LED_COUNT);
@@ -229,22 +228,29 @@ void LedStrip_ApplyCommand(const LedCommand_t *cmd)
 {
     uint32_t out[LED_COUNT];
     uint32_t tc;
-    uint8_t  full, frac;
+    uint8_t  full, frac, heat;
+    uint16_t scaled;
 
     switch (cmd->cmd) {
     case CAN_LED_TEAM_RED:
         LedStrip_SetTeam(TEAM_RED);
+        /* Refresh immediately so the heat bar changes color with the team
+           command instead of waiting for a later shot or heat update. */
+        LedStrip_Update();
         break;
     case CAN_LED_TEAM_BLUE:
         LedStrip_SetTeam(TEAM_BLUE);
+        LedStrip_Update();
         break;
     case CAN_LED_HEAT_DATA:
         /* Bypass lerp — direct write with fractional edge brightness */
         LedStrip_SetRefereeData(cmd->heat_data);
-        LedStrip_SetOcclusion(true);
         tc   = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
-        full = cmd->heat_data / HEAT_PER_LED;
-        frac = cmd->heat_data % HEAT_PER_LED;
+        heat = cmd->heat_data;
+        if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+        scaled = (uint16_t)heat * LED_HEAT_COUNT;
+        full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+        frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
         if (ws2812_uart_busy()) break;
         out[LED_DEBUG_IDX] = tc;
         for (int i = 0; i < LED_HEAT_COUNT; i++) {
@@ -252,7 +258,7 @@ void LedStrip_ApplyCommand(const LedCommand_t *cmd)
                 out[LED_HEAT_START + i] = tc;
             else if (i == full && frac > 0)
                 out[LED_HEAT_START + i] = color_dim(tc,
-                    (float)frac / (float)HEAT_PER_LED);
+                    (float)frac / (float)THERMAL_HEAT_LIMIT);
             else
                 out[LED_HEAT_START + i] = 0;
         }

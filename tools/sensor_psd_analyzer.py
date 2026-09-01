@@ -1,4 +1,4 @@
-"""Capture and diagnose the two VCNL4040 channels sent as VOFA+ JustFloat.
+"""Capture and diagnose timestamped VCNL4040 VOFA+ JustFloat logs.
 
 Firmware frame format (little endian):
     float front_ps_data, float rear_ps_data, 0x00 0x00 0x80 0x7F
@@ -13,6 +13,7 @@ import argparse
 import csv
 import struct
 import time
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -209,7 +210,8 @@ def main() -> None:
     parser.add_argument("--port", required=True, help="例如 COM12")
     parser.add_argument("--baud", type=int, default=1_000_000)
     parser.add_argument("--seconds", type=float, default=60.0)
-    parser.add_argument("--out", type=Path, default=Path("sensor_analysis"))
+    parser.add_argument("--out-dir", type=Path, default=Path(__file__).resolve().parent / "logs",
+                        help="base output directory; a new timestamped folder is created")
     parser.add_argument("--max-samples", type=int, default=2_000_000)
     args = parser.parse_args()
     try:
@@ -219,14 +221,15 @@ def main() -> None:
     except serial.SerialException as exc:
         raise SystemExit(f"串口打开失败: {exc}") from exc
     analysis = analyze(t, front, rear)
-    save_outputs(args.out, t, front, rear, analysis)
+    output_dir = args.out_dir / f"sensor_psd_{datetime.now():%Y%m%d_%H%M%S}"
+    save_outputs(output_dir, t, front, rear, analysis)
     print("\n分析结果:")
     for k, v in analysis.items():
         print(f"{k}: {v}")
     print("\n诊断:")
     for line in diagnosis(analysis):
         print(f"- {line}")
-    print(f"\n输出目录: {args.out.resolve()}")
+    print(f"\n输出目录: {output_dir.resolve()}")
 
 
 if __name__ == "__main__":

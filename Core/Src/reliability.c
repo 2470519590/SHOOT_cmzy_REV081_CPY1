@@ -9,7 +9,6 @@
 
 #define FAULT_RECORD_MAGIC          0x52464C54UL /* "RFLT" */
 #define SENSOR_FAIL_LIMIT           3U
-#define BUSOFF_ALERT_MS             2000U
 
 typedef struct {
     uint32_t magic;
@@ -29,8 +28,6 @@ static uint8_t front_fail_count;
 static uint8_t rear_fail_count;
 static uint32_t last_queue_dropped;
 static uint32_t queue_fault_last_tick;
-static bool strong_reset_pending;
-static uint32_t strong_reset_tick;
 
 static uint32_t fault_checksum(const FaultRecord_t *record)
 {
@@ -120,24 +117,9 @@ uint8_t Reliability_GetWeakMask(void)
     return weak_mask;
 }
 
-void Reliability_RequestStrongFault(uint8_t mask)
-{
-    if (!strong_reset_pending) {
-        save_strong_fault(mask, 0U, 0U, 0U);
-        strong_reset_pending = true;
-        strong_reset_tick = HAL_GetTick();
-    }
-}
-
 bool Reliability_IsFaultAlertActive(void)
 {
-    return strong_reset_pending || (weak_mask != 0U);
-}
-
-bool Reliability_ShouldResetNow(void)
-{
-    return strong_reset_pending &&
-           ((HAL_GetTick() - strong_reset_tick) >= BUSOFF_ALERT_MS);
+    return weak_mask != 0U;
 }
 
 void Reliability_HandleHardFault(const uint32_t *stack_frame)

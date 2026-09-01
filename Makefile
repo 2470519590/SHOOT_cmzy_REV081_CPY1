@@ -41,6 +41,7 @@ Core/Src/stm32f0xx_it.c \
 Core/Src/stm32f0xx_hal_msp.c \
 Core/Src/vcnl4040.c \
 Core/Src/shoot_detect.c \
+Core/Src/thermal.c \
 Core/Src/can_protocol.c \
 Core/Src/reliability.c \
 Core/Src/ws2812_uart.c \

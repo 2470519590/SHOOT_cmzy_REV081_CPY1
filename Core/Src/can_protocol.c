@@ -6,6 +6,7 @@
   */
 
 #include "can_protocol.h"
+#include "thermal.h"
 
 extern CAN_ErrorStats_t g_can_stats;
 
@@ -14,7 +15,6 @@ static ShootData_Report_t  shoot_data = {0};
 static LedCommand_t        led_cmd    = { .source = LED_SRC_NORMAL,
                                           .cmd = 0, .heat_data = 0, .team = 1 };
 static volatile bool calibration_requested;
-extern volatile uint8_t g_heat_debug;
 
 /* ---- LED command accessor ----------------------------------------------- */
 const LedCommand_t *CANProtocol_GetLedCommand(void)
@@ -31,7 +31,12 @@ void CANProtocol_Init(CAN_HandleTypeDef *hcan)
 /* ---- Shoot data refresh ------------------------------------------------- */
 void CANProtocol_UpdateData(const ShootData_Report_t *data)
 {
-    if (data != NULL) shoot_data = *data;
+    if (data != NULL) {
+        uint32_t primask = __get_PRIMASK();
+        __disable_irq();
+        shoot_data = *data;
+        __set_PRIMASK(primask);
+    }
 }
 
 static HAL_StatusTypeDef send_single_byte(uint16_t id, uint8_t value)
@@ -77,9 +82,34 @@ HAL_StatusTypeDef CANProtocol_SendBoot(void)
     return HAL_CAN_AddTxMessage(can_handle, &tx_header, &unused, &tx_mailbox);
 }
 
-HAL_StatusTypeDef CANProtocol_SendCalibrationAck(uint8_t status)
+HAL_StatusTypeDef CANProtocol_SendCalibrationAck(uint16_t old_front,
+                                                 uint16_t new_front,
+                                                 uint16_t old_rear,
+                                                 uint16_t new_rear)
 {
-    return send_single_byte(CAN_CALIBRATE_ACK_ID, status);
+    CAN_TxHeaderTypeDef tx_header = {0};
+    uint8_t payload[8];
+    uint32_t tx_mailbox = 0;
+
+    if (can_handle == NULL ||
+        HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+        return HAL_ERROR;
+    }
+
+    payload[0] = (uint8_t)(old_front >> 0);
+    payload[1] = (uint8_t)(old_front >> 8);
+    payload[2] = (uint8_t)(new_front >> 0);
+    payload[3] = (uint8_t)(new_front >> 8);
+    payload[4] = (uint8_t)(old_rear >> 0);
+    payload[5] = (uint8_t)(old_rear >> 8);
+    payload[6] = (uint8_t)(new_rear >> 0);
+    payload[7] = (uint8_t)(new_rear >> 8);
+    tx_header.StdId = CAN_CALIBRATE_ACK_ID;
+    tx_header.IDE = CAN_ID_STD;
+    tx_header.RTR = CAN_RTR_DATA;
+    tx_header.DLC = 8;
+    tx_header.TransmitGlobalTime = DISABLE;
+    return HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
 }
 
 bool CANProtocol_TakeCalibrationRequest(void)
@@ -112,7 +142,7 @@ HAL_StatusTypeDef CANProtocol_SendHeartbeat(void)
     payload[3] = (uint8_t)(uptime_s >> 8);
     payload[4] = (uint8_t)(uptime_s >> 16);
     payload[5] = (uint8_t)(uptime_s >> 24);
-    payload[6] = g_heat_debug;
+    payload[6] = shoot_data.heat_level;
     payload[7] = (uint8_t)(shoot_data.barrel_mask & 0x1FU);
 
     tx_header.StdId = CAN_HEARTBEAT_ID;
@@ -140,6 +170,7 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
 
     if (event == NULL || can_handle == NULL ||
         HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+        g_can_stats.tx_shot_event_fail++;
         return HAL_ERROR;
     }
 
@@ -151,7 +182,7 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
     payload[4] = (uint8_t)(speed_cmps >> 0);
     payload[5] = (uint8_t)(speed_cmps >> 8);
     payload[6] = (uint8_t)(event->barrel_mask & 0x1FU);
-    payload[7] = 0x01U; /* valid-shot event */
+    payload[7] = event->heat_level;
 
     tx_header.StdId = CAN_SHOT_EVENT_ID;
     tx_header.IDE = CAN_ID_STD;
@@ -159,7 +190,14 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
     tx_header.DLC = 8;
     tx_header.TransmitGlobalTime = DISABLE;
 
-    return HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
+    HAL_StatusTypeDef status =
+        HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
+    if (status == HAL_OK) {
+        g_can_stats.tx_shot_event_ok++;
+    } else {
+        g_can_stats.tx_shot_event_fail++;
+    }
+    return status;
 }
 
 /* ---- Send shoot status response (0x232) --------------------------------- */
@@ -168,12 +206,18 @@ static void send_shoot_report(CAN_HandleTypeDef *hcan)
     CAN_TxHeaderTypeDef  tx_header;
     CAN_ShootReport_t    payload;
     uint32_t             tx_mailbox;
+    uint32_t             primask;
 
+    /* Snapshot all fields together; this function is called from CAN IRQ while
+       the main loop refreshes shoot_data periodically. */
+    primask = __get_PRIMASK();
+    __disable_irq();
     payload.shot_count      = shoot_data.shot_count;
     payload.last_speed_cmps = (uint16_t)(shoot_data.last_speed_mps * 100.0f
                                          + 0.5f);
     payload.barrel_mask     = shoot_data.barrel_mask;
     payload.heat_level      = shoot_data.heat_level;
+    __set_PRIMASK(primask);
 
     tx_header.StdId              = CAN_BOARD_RESPONSE_ID;
     tx_header.ExtId              = 0;
@@ -205,10 +249,14 @@ static bool handle_led_cmd(const CAN_LedCmd_t *rx)
         led_cmd.team   = 1;
         break;
     case CAN_LED_HEAT_DATA:
-        led_cmd.source    = LED_SRC_DEBUG;
-        led_cmd.cmd       = CAN_LED_HEAT_DATA;
+        if (!Thermal_SetHeat(rx->heat_data, HAL_GetTick())) {
+            return false;
+        }
+        /* The heat-bar display remains in automatic mode and follows the
+           locally maintained thermal value as it subsequently cools. */
+        led_cmd.source = LED_SRC_NORMAL;
+        led_cmd.cmd = CAN_LED_NORMAL;
         led_cmd.heat_data = rx->heat_data;
-        g_heat_debug      = rx->heat_data;
         break;
     case CAN_LED_TEST_GREEN:
     case CAN_LED_TEST_RED:

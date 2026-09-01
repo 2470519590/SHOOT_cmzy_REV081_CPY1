@@ -23,10 +23,8 @@ extern "C" {
 
 #define SENSOR_SPACING_M        0.050f        /* 50 mm between sensors          */
 #define CALIBRATION_SAMPLES     20            /* Number of baseline readings    */
-#define THRESHOLD_AWAY_OFFSET   45            /* trigger: PS_DATA < baseline - 45 */
-#define ADAPTIVE_BASELINE_SHIFT 4             /* EMA alpha = 1 / 16              */
-#define ADAPTIVE_THRESHOLD_PERIOD_MS 20U      /* minimum I2C threshold write rate */
-#define DEFAULT_TIMEOUT_MS      50            /* Per-slot timeout (ms)           */
+#define THRESHOLD_AWAY_OFFSET   20            /* trigger: PS_DATA < baseline - THRESHOLD_AWAY_OFFSET  */
+#define DEFAULT_TIMEOUT_MS      50            /* Per-slot timeout window (ms)     */
 #define DEFAULT_SPEED_MIN_MPS   0.0f          /* Minimum valid speed   (m/s)    */
 #define DEFAULT_SPEED_MAX_MPS   50.0f         /* Maximum valid speed   (m/s)    */
 
@@ -40,6 +38,7 @@ typedef struct {
     uint32_t shot_count;          /* cumulative count at this event             */
     float    speed_mps;           /* measured speed for this event              */
     uint8_t  barrel_mask;         /* barrel state after this event              */
+    uint8_t  heat_level;          /* heat after this confirmed shot, 0..45      */
 } ShootEvent_t;
 
 typedef struct {
@@ -67,9 +66,15 @@ typedef struct {
     uint16_t      front_baseline;
     uint16_t      rear_baseline;
     uint16_t      threshold_away_offset;  /* low-threshold margin below baseline */
-    uint32_t      threshold_last_update_ms;
     uint16_t      front_threshold_low;
     uint16_t      rear_threshold_low;
+    /* Calibration trace; inspect after boot without adding a breakpoint. */
+    volatile uint8_t  calibration_last_index;   /* 0..19 */
+    volatile uint8_t  calibration_fail_channel; /* 0=none, 1=front, 2=rear */
+    volatile uint16_t calibration_front_sample;
+    volatile uint16_t calibration_rear_sample;
+    volatile uint32_t calibration_front_i2c_error;
+    volatile uint32_t calibration_rear_i2c_error;
 
     /* ---- I2C handles ---- */
     I2C_HandleTypeDef *front_i2c;         /* hi2c1                               */
@@ -77,12 +82,24 @@ typedef struct {
 
     /* ---- Diagnostic ---- */
     volatile bool     timer_wrapped;      /* counter wrapped between triggers     */
+    volatile uint32_t front_exti_raw_count; /* every PB5 falling edge              */
+    volatile uint32_t rear_exti_raw_count;  /* every PB12 falling edge             */
+    volatile uint32_t front_exti_tick_ms;
+    volatile uint32_t rear_exti_tick_ms;
+    volatile uint16_t front_exti_timer_tick;
+    volatile uint16_t rear_exti_timer_tick;
+    volatile uint8_t  front_int_flag;     /* VCNL INT_FLAG after last PB5 edge   */
+    volatile uint8_t  rear_int_flag;      /* VCNL INT_FLAG after last PB12 edge  */
+    volatile uint16_t last_pair_delta_ticks;
+    volatile uint32_t pair_timeout_count;
 
     /* Valid-shot events are queued by the EXTI callback and sent by main. */
     ShootEvent_t      event_queue[SHOOT_EVENT_QUEUE_SIZE];
     volatile uint8_t  event_queue_head;
     volatile uint8_t  event_queue_tail;
     volatile uint32_t event_queue_dropped;
+    /* Number of confirmed shots whose local LED effect has not been started. */
+    volatile uint32_t shot_effect_pending;
 } ShootDetect_t;
 
 /* ========================== Public API ====================================== */
@@ -101,11 +118,6 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det);
 
 /* Periodic processing — called every 1 ms from main loop */
 void ShootDetect_Process(ShootDetect_t *det);
-void ShootDetect_UpdateAdaptiveThresholds(ShootDetect_t *det,
-                                           uint16_t front_ps,
-                                           uint16_t rear_ps,
-                                           uint32_t now_ms);
-
 /* Result access */
 uint32_t ShootDetect_GetCount(const ShootDetect_t *det);
 uint32_t ShootDetect_GetFrontIntCount(const ShootDetect_t *det);
@@ -115,6 +127,7 @@ uint8_t  ShootDetect_GetState(const ShootDetect_t *det);  /* returns barrel_mask
 bool     ShootDetect_PeekEvent(const ShootDetect_t *det, ShootEvent_t *event);
 void     ShootDetect_DropEvent(ShootDetect_t *det);
 uint32_t ShootDetect_GetDroppedEventCount(const ShootDetect_t *det);
+uint32_t ShootDetect_TakeShotEffectPending(ShootDetect_t *det);
 
 #ifdef __cplusplus
 }

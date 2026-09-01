@@ -38,9 +38,7 @@ void Reliability_ObserveEventQueueDropped(uint32_t dropped_count);
 void Reliability_SetWeakFault(uint8_t mask, bool active);
 uint8_t Reliability_GetWeakMask(void);
 
-void Reliability_RequestStrongFault(uint8_t mask);
 bool Reliability_IsFaultAlertActive(void);
-bool Reliability_ShouldResetNow(void);
 
 /* Called from the naked Cortex-M0 HardFault handler with its exception stack. */
 void Reliability_HandleHardFault(const uint32_t *stack_frame);

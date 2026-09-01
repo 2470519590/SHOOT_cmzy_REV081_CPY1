@@ -27,7 +27,9 @@
 #include "led_rgb.h"
 #include "ws2812_uart.h"
 #include "reliability.h"
+#include "thermal.h"
 #include <string.h>
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -77,13 +79,12 @@ volatile bool g_led_tick_10hz = false;
 /* CAN ready flag: false when CAN bus is not connected */
 volatile bool g_can_ready = false;
 
-/* Threshold debug switch. Default on in this firmware build.
-   It suppresses automatic strong-fault resets and does not transmit 0x200. */
-volatile bool debug_flag = true;
-
-/* Live sensor data (watch in debugger at runtime) */
+/* Debug observation variables (retained for debugger inspection only). */
 volatile uint16_t g_dbg_front_prox = 0;
 volatile uint16_t g_dbg_rear_prox  = 0;
+/* Direct PB5/PB12 levels: true means the VCNL4040 open-drain INT is low. */
+volatile bool g_dbg_front_int_pin_low = false;
+volatile bool g_dbg_rear_int_pin_low  = false;
 /* Peak valid PS_DATA values since this MCU boot; inspect in the debugger. */
 volatile uint16_t g_dbg_front_prox_max = 0;
 volatile uint16_t g_dbg_rear_prox_max  = 0;
@@ -92,6 +93,9 @@ volatile uint16_t g_dbg_front_prox_min = 0xFFFFU;
 volatile uint16_t g_dbg_rear_prox_min  = 0xFFFFU;
 /* Incremented once per full front+rear I2C sample pair. */
 volatile uint32_t g_dbg_sensor_sample_count = 0;
+/* Measured software rate of complete front+rear polling pairs, updated each
+   second.  It is not the VCNL4040 internal conversion rate. */
+volatile uint32_t g_dbg_sensor_pair_rate_hz = 0;
 /* Baselines captured by ShootDetect_Calibrate at this MCU boot. */
 volatile uint16_t g_dbg_front_baseline = 0;
 volatile uint16_t g_dbg_rear_baseline  = 0;
@@ -100,18 +104,33 @@ volatile uint16_t g_dbg_rear_threshold  = 0;
 /* Debug watch variable: valid shots counted since the latest power-up/reset. */
 volatile uint32_t gbd_shoot_count = 0;
 
-#define DEBUG_SENSOR_FLASH_MS 200U
+/* Firmware identity and shot-to-LED trace points.
+   This value is deliberately changed with this diagnostic build.  It lets the
+   debugger and the one-time USART2 boot line prove which image is executing;
+   it is not derived from the source timestamp. */
+#define FW_BUILD_MAGIC  0x26083001UL
+volatile uint32_t g_dbg_firmware_build_magic = FW_BUILD_MAGIC;
+/* A mailbox accept is not yet a physical CAN ACK; it only means bxCAN took
+   the 0x230 request.  Keep the two counters separate from sensor counters. */
+volatile uint32_t g_dbg_shot_mailbox_accept_count = 0;
+volatile uint32_t g_dbg_shot_led_start_count = 0;
+volatile uint32_t g_dbg_last_shot_led_event_count = 0;
 
-/* VOFA+ JustFloat over USART2: front PS_DATA, rear PS_DATA, frame tail. */
-#define VOFA_UART_BAUDRATE    1000000U
-#define VOFA_CHANNEL_COUNT    8U
-#define VOFA_FRAME_SIZE       (VOFA_CHANNEL_COUNT * 4U + 4U)
-
-/* Hardware-noise isolation build: after sensor initialization, run only the
-   two raw PS_DATA reads and the existing VOFA+ stream.  This deliberately
-   skips calibration, CAN, timers, LED activity, watchdog, adaptive
-   thresholds, shot detection, and fault handling. */
-#define DEBUG_SENSOR_UART_ONLY 1
+/* USART2 is used by the command-driven capture interface. */
+#define SENSOR_UART_BAUDRATE  38400U
+/* Command capture protocol. F/R retain the existing one-channel 5 s capture.
+   D records both sensors at 200 scheduled sample pairs/s for 10 s and sends
+   the buffered raw values only after sampling is complete. */
+#define SENSOR_CAPTURE_FRONT_COMMAND 'F'
+#define SENSOR_CAPTURE_REAR_COMMAND  'R'
+#define SENSOR_CAPTURE_DUAL_200HZ_COMMAND 'D'
+#define SENSOR_CAPTURE_DURATION_MS   5000U
+#define SENSOR_CAPTURE_MAX_SAMPLES   4096U
+#define SENSOR_DUAL_CAPTURE_RATE_HZ  200U
+#define SENSOR_DUAL_CAPTURE_DURATION_MS 10000U
+#define SENSOR_DUAL_CAPTURE_COUNT \
+    ((SENSOR_DUAL_CAPTURE_RATE_HZ * SENSOR_DUAL_CAPTURE_DURATION_MS) / 1000U)
+#define SENSOR_DUAL_CAPTURE_PERIOD_MS (1000U / SENSOR_DUAL_CAPTURE_RATE_HZ)
 
 /* Debug LED override — write from debugger:
    g_led_cmd = 1 → 9 LEDs all green  (WS2812_COLOR(255,0,0))
@@ -123,7 +142,7 @@ volatile uint32_t gbd_shoot_count = 0;
    Set g_led_cmd_count to limit lit LEDs (0 = all 9). */
 volatile uint8_t  g_led_cmd        = 0;
 volatile uint8_t  g_led_cmd_count  = 0;
-volatile uint8_t  g_heat_debug     = 0;   /* manual heat data (0–255)           */
+volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–45            */
 /* USER CODE END PV */
 
 /* USER CODE END PV */
@@ -148,6 +167,177 @@ static void MX_IWDG_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+static uint16_t sensor_capture_crc16(const uint16_t *samples, uint16_t count)
+{
+    uint16_t crc = 0xFFFFU;
+
+    for (uint16_t i = 0U; i < count; i++) {
+        uint16_t sample = samples[i];
+        for (uint8_t byte = 0U; byte < 2U; byte++) {
+            crc ^= (uint16_t)((sample >> (8U * byte)) & 0xFFU) << 8;
+            for (uint8_t bit = 0U; bit < 8U; bit++) {
+                crc = (crc & 0x8000U) ? (uint16_t)((crc << 1) ^ 0x1021U)
+                                       : (uint16_t)(crc << 1);
+            }
+        }
+    }
+    return crc;
+}
+
+/* At 38400 baud, an 8 KiB capture requires a little over two seconds to
+   transmit.  Feed IWDG between bounded UART chunks; a single blocking
+   HAL_UART_Transmit() causes a watchdog reset partway through the payload. */
+static HAL_StatusTypeDef sensor_capture_transmit(const uint8_t *data,
+                                                 uint16_t length)
+{
+    const uint16_t chunk_size = 128U;
+    uint16_t sent = 0U;
+
+    while (sent < length) {
+        uint16_t chunk = length - sent;
+        if (chunk > chunk_size) chunk = chunk_size;
+        HAL_StatusTypeDef status = HAL_UART_Transmit(&huart2,
+            (uint8_t *)&data[sent], chunk, 250U);
+        if (status != HAL_OK) return status;
+        sent += chunk;
+        (void)HAL_IWDG_Refresh(&hiwdg);
+    }
+    return HAL_OK;
+}
+
+typedef enum {
+    SENSOR_CAPTURE_NONE = 0,
+    SENSOR_CAPTURE_FRONT,
+    SENSOR_CAPTURE_REAR,
+    SENSOR_CAPTURE_DUAL_200HZ,
+} SensorCaptureChannel_t;
+
+/* 4096 x uint16_t = 8192 bytes.  Dual capture uses indices [0,1999] for the
+   front sensor and [2000,3999] for the rear sensor, so it needs no new SRAM. */
+static uint16_t capture_samples[SENSOR_CAPTURE_MAX_SAMPLES];
+
+static SensorCaptureChannel_t sensor_capture_command_received(void)
+{
+    uint8_t received;
+
+    /* This is deliberately register-level polling.  HAL_UART_Receive(..., 0)
+       races with its tick-based timeout, and a multi-byte ASCII command
+       overflows while the normal main loop is delayed for 1 ms. */
+    if (!__HAL_UART_GET_FLAG(&huart2, UART_FLAG_RXNE)) {
+        return SENSOR_CAPTURE_NONE;
+    }
+    received = (uint8_t)(huart2.Instance->RDR & USART_RDR_RDR);
+    if ((huart2.Instance->ISR & USART_ISR_ORE) != 0U) {
+        huart2.Instance->ICR = USART_ICR_ORECF;
+    }
+
+    if (received == SENSOR_CAPTURE_FRONT_COMMAND) {
+        return SENSOR_CAPTURE_FRONT;
+    }
+    if (received == SENSOR_CAPTURE_REAR_COMMAND) {
+        return SENSOR_CAPTURE_REAR;
+    }
+    if (received == SENSOR_CAPTURE_DUAL_200HZ_COMMAND) {
+        return SENSOR_CAPTURE_DUAL_200HZ;
+    }
+    return SENSOR_CAPTURE_NONE;
+}
+
+static void sensor_capture_and_send(I2C_HandleTypeDef *sensor_i2c,
+                                    char channel_name)
+{
+    uint32_t start_tick = HAL_GetTick();
+    uint32_t elapsed_ms = 0U;
+    uint16_t sample_count = 0U;
+
+    while (elapsed_ms < SENSOR_CAPTURE_DURATION_MS) {
+        /* Pacing guarantees a full 5 s in the 8 KiB sample buffer. */
+        uint32_t desired_count = ((elapsed_ms + 1U) *
+                                  SENSOR_CAPTURE_MAX_SAMPLES +
+                                  SENSOR_CAPTURE_DURATION_MS - 1U) /
+                                 SENSOR_CAPTURE_DURATION_MS;
+        while (sample_count < desired_count &&
+               sample_count < SENSOR_CAPTURE_MAX_SAMPLES) {
+            uint16_t sample = VCNL4040_GetProximity(sensor_i2c);
+            capture_samples[sample_count++] = sample;
+            if (channel_name == 'F') {
+                g_dbg_front_prox = sample;
+            } else {
+                g_dbg_rear_prox = sample;
+            }
+            g_dbg_sensor_sample_count++;
+        }
+        /* The full application starts IWDG; keep it alive during the
+           intentionally blocking five-second high-rate capture. */
+        (void)HAL_IWDG_Refresh(&hiwdg);
+        elapsed_ms = HAL_GetTick() - start_tick;
+    }
+
+    elapsed_ms = HAL_GetTick() - start_tick;
+    uint16_t crc = sensor_capture_crc16(capture_samples, sample_count);
+    char header[112];
+    int header_length = snprintf(header, sizeof(header),
+        "CAP5_BEGIN CH=%c N=%u ELAPSED_MS=%lu RATE=%lu CRC16=%04X\r\n",
+        channel_name, sample_count, (unsigned long)elapsed_ms,
+        (unsigned long)((uint32_t)sample_count * 1000U / elapsed_ms), crc);
+    if (header_length > 0) {
+        uint16_t tx_length = (header_length >= (int)sizeof(header)) ?
+            (uint16_t)(sizeof(header) - 1U) : (uint16_t)header_length;
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)header, tx_length, 100U);
+    }
+    (void)sensor_capture_transmit((const uint8_t *)capture_samples,
+                                  (uint16_t)(sample_count * sizeof(uint16_t)));
+    char end_message[] = "CAP5_END CH=X\r\n";
+    end_message[12] = channel_name;
+    (void)HAL_UART_Transmit(&huart2, (const uint8_t *)end_message,
+                            sizeof(end_message) - 1U, 100U);
+}
+
+/* Sample both buses as one pair every 5 ms for 10 s.  Each pair is scheduled
+   from the original start tick, so I2C transfer duration does not accumulate
+   into the sampling period. UART transmission starts only after sampling. */
+static void sensor_dual_capture_200hz_and_send(void)
+{
+    uint32_t start_tick = HAL_GetTick();
+    uint32_t next_tick = start_tick;
+    uint16_t *front_samples = &capture_samples[0];
+    uint16_t *rear_samples = &capture_samples[SENSOR_DUAL_CAPTURE_COUNT];
+
+    for (uint16_t index = 0U; index < SENSOR_DUAL_CAPTURE_COUNT; index++) {
+        while ((int32_t)(HAL_GetTick() - next_tick) < 0) {
+            (void)HAL_IWDG_Refresh(&hiwdg);
+        }
+        front_samples[index] = VCNL4040_GetProximity(&hi2c1);
+        rear_samples[index] = VCNL4040_GetProximity(&hi2c2);
+        g_dbg_front_prox = front_samples[index];
+        g_dbg_rear_prox = rear_samples[index];
+        g_dbg_sensor_sample_count++;
+        next_tick += SENSOR_DUAL_CAPTURE_PERIOD_MS;
+    }
+
+    uint32_t elapsed_ms = HAL_GetTick() - start_tick;
+    uint16_t crc = sensor_capture_crc16(capture_samples,
+                                        SENSOR_DUAL_CAPTURE_COUNT * 2U);
+    char header[128];
+    int header_length = snprintf(
+        header, sizeof(header),
+        "CAP10_200_BEGIN N=%u ELAPSED_MS=%lu PERIOD_MS=%u CRC16=%04X\r\n",
+        SENSOR_DUAL_CAPTURE_COUNT, (unsigned long)elapsed_ms,
+        SENSOR_DUAL_CAPTURE_PERIOD_MS, crc);
+    if (header_length > 0) {
+        uint16_t tx_length = (header_length >= (int)sizeof(header)) ?
+            (uint16_t)(sizeof(header) - 1U) : (uint16_t)header_length;
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)header, tx_length, 100U);
+    }
+    (void)sensor_capture_transmit((const uint8_t *)capture_samples,
+        SENSOR_DUAL_CAPTURE_COUNT * 2U * sizeof(uint16_t));
+    static const char end_message[] = "CAP10_200_END\r\n";
+    (void)HAL_UART_Transmit(&huart2, (const uint8_t *)end_message,
+                            sizeof(end_message) - 1U, 100U);
+}
+
+/* Phase-alignment experiment removed from the production source. */
 
 /* USER CODE END 0 */
 
@@ -209,7 +399,8 @@ int main(void)
   __HAL_TIM_ENABLE(&htim16);
 
   /* ---- Init VCNL4040 sensors ---- */
-  bool front_sensor_ready = (VCNL4040_Init(&hi2c1) == HAL_OK);
+  bool front_sensor_ready = false;
+  front_sensor_ready = (VCNL4040_Init(&hi2c1) == HAL_OK);
   bool rear_sensor_ready  = (VCNL4040_Init(&hi2c2) == HAL_OK);
   Reliability_SetWeakFault(REL_WEAK_FRONT_SENSOR, !front_sensor_ready);
   Reliability_SetWeakFault(REL_WEAK_REAR_SENSOR, !rear_sensor_ready);
@@ -221,49 +412,19 @@ int main(void)
                         DEFAULT_SPEED_MIN_MPS,
                         DEFAULT_SPEED_MAX_MPS,
                         DEFAULT_TIMEOUT_MS);
-
-#if DEBUG_SENSOR_UART_ONLY
-  /* WS2812 LEDs retain their last frame across MCU reset.  Clear them once
-     before entering the sensor-only loop; no LED application or refresh task
-     runs afterwards. */
-  {
-      uint32_t led_off[LED_COUNT] = {0};
-      ws2812_uart_init();
-      ws2812_uart_send(led_off, LED_COUNT);
-      HAL_Delay(1);
-  }
-
-  /* Raw sensor isolation loop.  Keep the existing 8-channel JustFloat frame
-     format so the current VOFA+ configuration remains usable:
-       channel 0 = front PS_DATA, channel 1 = rear PS_DATA,
-       channels 2..7 = zero (no calibration/derived values in this mode). */
-  while (1)
-  {
-      uint8_t vofa_frame[VOFA_FRAME_SIZE];
-      float vofa_values[VOFA_CHANNEL_COUNT] = {0.0f};
-      uint32_t vofa_tail = 0x7F800000U;
-
-      g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
-      g_dbg_rear_prox  = VCNL4040_GetProximity(&hi2c2);
-      g_dbg_sensor_sample_count++;
-
-
-      vofa_values[0] = (float)g_dbg_front_prox;
-      vofa_values[1] = (float)g_dbg_rear_prox;
-      memcpy(&vofa_frame[0], vofa_values, sizeof(vofa_values));
-      memcpy(&vofa_frame[VOFA_CHANNEL_COUNT * 4U], &vofa_tail,
-             sizeof(vofa_tail));
-      (void)HAL_UART_Transmit(&huart2, vofa_frame, VOFA_FRAME_SIZE, 1U);
-  }
-#endif
+  Thermal_Init(HAL_GetTick());
 
   /* ---- Calibrate baseline & set thresholds ---- */
+  bool sensor_calibration_ready = false;
   if (front_sensor_ready && rear_sensor_ready &&
-      !ShootDetect_Calibrate(&g_shoot_detect)) {
+      ShootDetect_Calibrate(&g_shoot_detect)) {
+      sensor_calibration_ready = true;
+  } else {
       Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
   }
   g_dbg_front_baseline = g_shoot_detect.front_baseline;
   g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
+
 
   /* ---- Init success: light IND_1 (PA5 DAC_OUT2, max = on) ---- */
   HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 4095);
@@ -295,54 +456,78 @@ int main(void)
       Error_Handler();
   }
   if (HAL_CAN_ActivateNotification(&hcan,
-        CAN_IT_RX_FIFO0_MSG_PENDING |
-        CAN_IT_ERROR_WARNING |
-        CAN_IT_ERROR_PASSIVE |
-        CAN_IT_BUSOFF |
-        CAN_IT_LAST_ERROR_CODE) != HAL_OK) {
+        CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
       Error_Handler();
   }
   g_can_ready = true;
   g_can_stats.state = (uint8_t)HAL_CAN_GetState(&hcan);
 
-  /* Threshold-debug builds do not start IWDG; IWDG cannot be disabled later. */
-  if (!debug_flag) {
-      MX_IWDG_Init();
-  }
+  MX_IWDG_Init();
 
   /* Report a prior strong reset before announcing this successful startup. */
   uint8_t pending_strong = Reliability_GetPendingStrongMask();
   if (pending_strong != 0U) {
       (void)CANProtocol_SendStrongFault(pending_strong);
   }
+  /* Keep the debugger-visible image identity linked into the final ELF. */
+  if (g_dbg_firmware_build_magic != FW_BUILD_MAGIC) {
+      Error_Handler();
+  }
   (void)CANProtocol_SendBoot();
+  static const char capture_ready_message[] =
+      "FW=26083001 CAP_READY: rear PS/IRED ON, D=10s dual@200Hz\r\n";
+  (void)HAL_UART_Transmit(&huart2, (const uint8_t *)capture_ready_message,
+                          sizeof(capture_ready_message) - 1U, 100U);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t last_led_shot_count = 0U;
-  uint32_t last_led_front_int_count = 0U;
-  uint32_t last_led_rear_int_count = 0U;
-  uint32_t debug_sensor_flash_until = 0U;
+  uint32_t sensor_rate_window_tick = HAL_GetTick();
+  uint32_t sensor_rate_window_pairs = 0U;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    SensorCaptureChannel_t capture_channel = sensor_capture_command_received();
+    if (capture_channel == SENSOR_CAPTURE_FRONT) {
+        sensor_capture_and_send(&hi2c1, 'F');
+        continue;
+    }
+    if (capture_channel == SENSOR_CAPTURE_REAR) {
+        sensor_capture_and_send(&hi2c2, 'R');
+        continue;
+    }
+    if (capture_channel == SENSOR_CAPTURE_DUAL_200HZ) {
+        sensor_dual_capture_200hz_and_send();
+        continue;
+    }
     /* Always check timeout + clear sensor interrupts (fast) */
-    ShootDetect_Process(&g_shoot_detect);
+    /* Do not process stale/noisy interrupt state unless both sensors completed
+       initialization and calibration. Raw diagnostics remain available. */
+    if (sensor_calibration_ready) {
+        ShootDetect_Process(&g_shoot_detect);
+    }
 
     /* A 0x220 request is deferred from the CAN ISR because calibration reads
        both sensors 20 times and must never block CAN interrupt handling. */
     if (CANProtocol_TakeCalibrationRequest()) {
-        bool calibration_ok = ShootDetect_Calibrate(&g_shoot_detect);
+        uint16_t old_front_baseline = g_shoot_detect.front_baseline;
+        uint16_t old_rear_baseline  = g_shoot_detect.rear_baseline;
+        bool calibration_ok = front_sensor_ready && rear_sensor_ready &&
+                              ShootDetect_Calibrate(&g_shoot_detect);
+        sensor_calibration_ready = calibration_ok;
         Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, !calibration_ok);
         g_dbg_front_baseline  = g_shoot_detect.front_baseline;
         g_dbg_rear_baseline   = g_shoot_detect.rear_baseline;
         g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
         g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
-        (void)CANProtocol_SendCalibrationAck(calibration_ok ? 0x00U : 0x01U);
+        (void)CANProtocol_SendCalibrationAck(
+            old_front_baseline,
+            calibration_ok ? g_shoot_detect.front_baseline : 0xFFFFU,
+            old_rear_baseline,
+            calibration_ok ? g_shoot_detect.rear_baseline : 0xFFFFU);
     }
 
     /* Fast threshold-debug sampling.  Each current/min/max update comes from
@@ -366,75 +551,59 @@ int main(void)
             g_dbg_rear_prox_min = g_dbg_rear_prox;
         }
     }
+    g_dbg_front_int_pin_low =
+        (HAL_GPIO_ReadPin(IR_IIC1_INT_GPIO_Port, IR_IIC1_INT_Pin) ==
+         GPIO_PIN_RESET);
+    g_dbg_rear_int_pin_low =
+        (HAL_GPIO_ReadPin(IR_IIC2_INT_GPIO_Port, IR_IIC2_INT_Pin) ==
+         GPIO_PIN_RESET);
     g_dbg_sensor_sample_count++;
+    sensor_rate_window_pairs++;
+    uint32_t sensor_rate_now = HAL_GetTick();
+    uint32_t sensor_rate_elapsed = sensor_rate_now - sensor_rate_window_tick;
+    if (sensor_rate_elapsed >= 1000U) {
+        g_dbg_sensor_pair_rate_hz =
+            (sensor_rate_window_pairs * 1000U) / sensor_rate_elapsed;
+        sensor_rate_window_pairs = 0U;
+        sensor_rate_window_tick = sensor_rate_now;
+    }
 
-    ShootDetect_UpdateAdaptiveThresholds(&g_shoot_detect,
-                                         g_dbg_front_prox,
-                                         g_dbg_rear_prox,
-                                         HAL_GetTick());
+    /* Keep the requested boot-calibrated baseline - 20 threshold fixed.
+       A large positive reflection must not move the baseline and turn its
+       departure into a false low-threshold event. */
     g_dbg_front_baseline = g_shoot_detect.front_baseline;
     g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
     g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
     g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
 
-    /* CAN Bus-Off is shown locally for 2 s, then the MCU restarts. */
-    if (!debug_flag && Reliability_ShouldResetNow()) {
-        NVIC_SystemReset();
-    }
-
     uint32_t now_tick = HAL_GetTick();
+    Thermal_Update(now_tick);
+    g_heat_debug = Thermal_GetHeat();
+    LedStrip_SetOverheatAlert(
+        Thermal_IsOverheatIndicatorActive(now_tick));
 
-    /* Stream adaptive-threshold diagnostics as VOFA+ JustFloat channels:
-       0 front PS, 1 rear PS, 2 front baseline, 3 rear baseline,
-       4 front THDL, 5 rear THDL, 6 front PS-THDL, 7 rear PS-THDL. */
-    if (debug_flag) {
-        uint8_t vofa_frame[VOFA_FRAME_SIZE];
-        float vofa_values[VOFA_CHANNEL_COUNT];
-        uint32_t vofa_tail = 0x7F800000U;
-        vofa_values[0] = (float)g_dbg_front_prox;
-        vofa_values[1] = (float)g_dbg_rear_prox;
-        vofa_values[2] = (float)g_dbg_front_baseline;
-        vofa_values[3] = (float)g_dbg_rear_baseline;
-        vofa_values[4] = (float)g_dbg_front_threshold;
-        vofa_values[5] = (float)g_dbg_rear_threshold;
-        vofa_values[6] = (float)((int32_t)g_dbg_front_prox -
-                                 (int32_t)g_dbg_front_threshold);
-        vofa_values[7] = (float)((int32_t)g_dbg_rear_prox -
-                                 (int32_t)g_dbg_rear_threshold);
-        memcpy(&vofa_frame[0], vofa_values, sizeof(vofa_values));
-        memcpy(&vofa_frame[VOFA_CHANNEL_COUNT * 4U], &vofa_tail,
-               sizeof(vofa_tail));
-        (void)HAL_UART_Transmit(&huart2, vofa_frame, VOFA_FRAME_SIZE, 1U);
-    }
+    gbd_shoot_count = ShootDetect_GetCount(&g_shoot_detect);
 
-    /* Debug-only sensor activity indicator: either optical sensor can light
-       the upper status LED.  Keep the flag long enough for the 10 Hz LED task
-       to render it even when the interrupt occurs between two task ticks. */
-    uint32_t front_int_count = ShootDetect_GetFrontIntCount(&g_shoot_detect);
-    uint32_t rear_int_count = ShootDetect_GetRearIntCount(&g_shoot_detect);
-    if (debug_flag &&
-        (front_int_count != last_led_front_int_count ||
-         rear_int_count != last_led_rear_int_count)) {
-        debug_sensor_flash_until = now_tick + DEBUG_SENSOR_FLASH_MS;
-    }
-    last_led_front_int_count = front_int_count;
-    last_led_rear_int_count = rear_int_count;
-
-    /* A confirmed shot (not merely one sensor edge) starts the 100 ms sweep. */
-    uint32_t current_shot_count = ShootDetect_GetCount(&g_shoot_detect);
-    gbd_shoot_count = current_shot_count;
-    if (current_shot_count != last_led_shot_count) {
-        last_led_shot_count = current_shot_count;
+    /* A confirmed shot owns its local indication even when CAN is absent or
+       temporarily has no free TX mailbox.  Drain the counter once; the
+       queued event below remains available for later CAN transmission. */
+    uint32_t shot_effect_pending =
+        ShootDetect_TakeShotEffectPending(&g_shoot_detect);
+    if (shot_effect_pending != 0U) {
+        g_dbg_shot_led_start_count += shot_effect_pending;
+        g_dbg_last_shot_led_event_count = gbd_shoot_count;
         LedStrip_StartShotEffect(now_tick);
     }
 
-    /* Send one unsolicited 0x230 frame for every confirmed valid shot. */
+    /* A confirmed 0x230 submission is retried independently of the local
+       shot indication; the rear strip stays reserved for the heat display. */
     ShootEvent_t shot_event;
     while (ShootDetect_PeekEvent(&g_shoot_detect, &shot_event)) {
         if (CANProtocol_SendShotEvent(&shot_event) != HAL_OK) {
             /* Keep the event queued and retry after CAN becomes available. */
             break;
         }
+        g_dbg_shot_mailbox_accept_count++;
         ShootDetect_DropEvent(&g_shoot_detect);
     }
 
@@ -454,6 +623,12 @@ int main(void)
 
         Reliability_ObserveSensors(g_dbg_front_prox != 0xFFFFU,
                                    g_dbg_rear_prox != 0xFFFFU);
+        /* A valid raw read alone is not enough to re-enable detection after
+           startup/calibration failure. Keep this fault asserted until a
+           successful calibration establishes valid thresholds. */
+        if (!sensor_calibration_ready) {
+            Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+        }
         Reliability_ObserveEventQueueDropped(
             ShootDetect_GetDroppedEventCount(&g_shoot_detect));
 
@@ -478,9 +653,6 @@ int main(void)
     if (g_led_tick_10hz) {
         g_led_tick_10hz = false;
 
-        bool debug_sensor_flash = debug_flag &&
-            ((int32_t)(debug_sensor_flash_until - now_tick) > 0);
-
         /* Priority 1: any active fault overrides all ordinary LED control. */
         if (Reliability_IsFaultAlertActive()) {
             LedStrip_ShowFaultAlert(HAL_GetTick());
@@ -499,8 +671,6 @@ int main(void)
         }
         /* Priority 5: auto — follow shoot detection */
         else {
-            LedStrip_SetOcclusion((g_shoot_detect.barrel_mask != 0) ||
-                                  debug_sensor_flash);
             LedStrip_SetRefereeData(g_heat_debug);
             LedStrip_Update();
         }
@@ -508,20 +678,25 @@ int main(void)
 
     /* Weak fault notification is best-effort and never blocks the main loop. */
     static uint8_t last_weak_mask = 0U;
+    static bool weak_mask_initialized = false;
     static uint32_t weak_fault_tx_tick = 0U;
     uint8_t weak_mask = Reliability_GetWeakMask();
-    if (weak_mask != 0U &&
-        (weak_mask != last_weak_mask ||
+    if ((!weak_mask_initialized && weak_mask != 0U) ||
+        (weak_mask_initialized && weak_mask != last_weak_mask &&
+         (now_tick - weak_fault_tx_tick) >= 100U) ||
+        (weak_mask != 0U &&
          (now_tick - weak_fault_tx_tick) >= 100U)) {
-        (void)CANProtocol_SendWeakFault(weak_mask);
+        HAL_StatusTypeDef weak_tx_status =
+            CANProtocol_SendWeakFault(weak_mask);
         weak_fault_tx_tick = now_tick;
+        if (weak_tx_status == HAL_OK) {
+            last_weak_mask = weak_mask;
+        }
     }
-    last_weak_mask = weak_mask;
+    weak_mask_initialized = true;
 
     /* Main-loop-only watchdog feed: do not feed it from any ISR. */
-    if (!debug_flag) {
-        (void)HAL_IWDG_Refresh(&hiwdg);
-    }
+    (void)HAL_IWDG_Refresh(&hiwdg);
     HAL_Delay(1);
   }
   /* USER CODE END 3 */
@@ -599,7 +774,9 @@ static void MX_CAN_Init(void)
   hcan.Init.TimeSeg1 = CAN_BS1_10TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
-  hcan.Init.AutoBusOff = DISABLE;
+  /* Let bxCAN leave Bus-Off after the bus has recovered. A missing CAN
+     network must not reset the whole barrel application. */
+  hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = DISABLE;
   hcan.Init.AutoRetransmission = DISABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
@@ -968,7 +1145,7 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = VOFA_UART_BAUDRATE;
+  huart2.Init.BaudRate = SENSOR_UART_BAUDRATE;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
@@ -1088,29 +1265,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     }
     if (htim->Instance == TIM15) {
         g_led_tick_10hz = true;
-    }
-}
-
-/** @brief CAN error interrupt callback; keeps cumulative diagnostics. */
-void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan_ptr)
-{
-    uint32_t can_esr;
-
-    if (hcan_ptr != &hcan) {
-        return;
-    }
-
-    can_esr = CAN->ESR;
-    g_can_stats.error_callbacks++;
-    g_can_stats.error_events++;
-    g_can_stats.error_code = HAL_CAN_GetError(hcan_ptr);
-    g_can_stats.last_error_tick = HAL_GetTick();
-    g_can_stats.last_error_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
-    g_can_stats.tx_error_counter = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
-    g_can_stats.rx_error_counter = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
-    g_can_stats.bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
-    if (!debug_flag && g_can_stats.bus_off != 0U) {
-        Reliability_RequestStrongFault(REL_STRONG_CAN_BUSOFF);
     }
 }
 

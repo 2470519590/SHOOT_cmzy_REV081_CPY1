@@ -48,7 +48,7 @@ typedef enum {
 
 void LedStrip_Init(void);
 void LedStrip_SetTeam(Team_t team);
-void LedStrip_SetOcclusion(bool occluded);
+void LedStrip_SetOverheatAlert(bool active);
 void LedStrip_SetRefereeData(uint8_t data);
 void LedStrip_Update(void);    /* Call every 100 ms (TIM15 tick)              */
 void LedStrip_ShowFaultAlert(uint32_t tick_ms); /* red/blue/green cyclic alert */

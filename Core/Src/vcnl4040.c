@@ -14,7 +14,8 @@ static HAL_StatusTypeDef VCNL4040_ReadReg(I2C_HandleTypeDef *hi2c,
     HAL_StatusTypeDef status;
 
     status = HAL_I2C_Mem_Read(hi2c, VCNL4040_I2C_ADDR, reg,
-                              I2C_MEMADD_SIZE_8BIT, buf, 2, 100);
+                              I2C_MEMADD_SIZE_8BIT, buf, 2,
+                              VCNL4040_I2C_TIMEOUT_MS);
     if (status == HAL_OK) {
         *data = (uint16_t)buf[0] | ((uint16_t)buf[1] << 8);
     }
@@ -30,7 +31,8 @@ static HAL_StatusTypeDef VCNL4040_WriteReg(I2C_HandleTypeDef *hi2c,
     buf[1] = (uint8_t)((data >> 8) & 0xFF);
 
     return HAL_I2C_Mem_Write(hi2c, VCNL4040_I2C_ADDR, reg,
-                             I2C_MEMADD_SIZE_8BIT, buf, 2, 100);
+                             I2C_MEMADD_SIZE_8BIT, buf, 2,
+                             VCNL4040_I2C_TIMEOUT_MS);
 }
 
 static void VCNL4040_ModifyReg(I2C_HandleTypeDef *hi2c, uint8_t reg,
@@ -62,8 +64,10 @@ HAL_StatusTypeDef VCNL4040_Init(I2C_HandleTypeDef *hi2c)
         return HAL_ERROR;
     }
 
-    /* PS_CONF1_2: PS enabled, 16-bit proximity, interrupt disabled for now. */
+    /* PS_CONF1_2: PS enabled, 16-bit proximity, interrupt disabled for now.
+       PS_DUTY=1/40 is the highest IRED duty and fastest response setting. */
     uint16_t ps_conf = 0x0800
+                     | ((uint16_t)(VCNL4040_DEFAULT_PS_DUTY & 0x03) << 6)
                      | ((uint16_t)(VCNL4040_DEFAULT_PROX_INT_TIME & 0x07) << 1);
     status = VCNL4040_WriteReg(hi2c, VCNL4040_REG_PS_CONF1_2, ps_conf);
     if (status != HAL_OK) return status;

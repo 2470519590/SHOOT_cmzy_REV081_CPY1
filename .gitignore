@@ -2,3 +2,5 @@
 /VCNL4040_Xplorer_v2_6_35
 /ws2812-uart
 /.cache
+/tools/logs/
+/tools/__pycache__/

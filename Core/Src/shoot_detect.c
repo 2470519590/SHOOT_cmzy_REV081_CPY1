@@ -12,6 +12,7 @@
 
 #include "shoot_detect.h"
 #include "vcnl4040.h"
+#include "thermal.h"
 #include <string.h>
 
 /* TIM16 is configured as 20 kHz free-running counter in main.c
@@ -62,7 +63,6 @@ void ShootDetect_Init(ShootDetect_t *det,
     det->speed_max_mps       = DEFAULT_SPEED_MAX_MPS;
     det->timeout_ms          = DEFAULT_TIMEOUT_MS;
     det->threshold_away_offset = THRESHOLD_AWAY_OFFSET;
-    det->threshold_last_update_ms = 0U;
 }
 
 void ShootDetect_SetParams(ShootDetect_t *det,
@@ -79,13 +79,29 @@ bool ShootDetect_Calibrate(ShootDetect_t *det)
     uint32_t sum_front = 0, sum_rear = 0;
     uint16_t sample;
 
+    det->calibration_last_index = 0U;
+    det->calibration_fail_channel = 0U;
+    det->calibration_front_i2c_error = HAL_I2C_ERROR_NONE;
+    det->calibration_rear_i2c_error = HAL_I2C_ERROR_NONE;
+
     for (int i = 0; i < CALIBRATION_SAMPLES; i++) {
+        det->calibration_last_index = (uint8_t)i;
         sample = VCNL4040_GetProximity(det->front_i2c);
-        if (sample == 0xFFFF) return false;
+        det->calibration_front_sample = sample;
+        if (sample == 0xFFFF) {
+            det->calibration_fail_channel = 1U;
+            det->calibration_front_i2c_error = HAL_I2C_GetError(det->front_i2c);
+            return false;
+        }
         sum_front += sample;
 
         sample = VCNL4040_GetProximity(det->rear_i2c);
-        if (sample == 0xFFFF) return false;
+        det->calibration_rear_sample = sample;
+        if (sample == 0xFFFF) {
+            det->calibration_fail_channel = 2U;
+            det->calibration_rear_i2c_error = HAL_I2C_GetError(det->rear_i2c);
+            return false;
+        }
         sum_rear += sample;
 
         HAL_Delay(2);
@@ -124,8 +140,12 @@ void ShootDetect_RearTrigger(ShootDetect_t *det)
 {
     uint16_t now = speed_timer_ticks();
 
-    det->rear_int_count++;
+    det->rear_exti_raw_count++;
+    det->rear_exti_tick_ms = HAL_GetTick();
+    det->rear_exti_timer_tick = now;
+    /* The hardware AWAY interrupt is the only condition: PS_DATA below THDL. */
     det->rear_int_triggered = true;
+    det->rear_int_count++;
 
     int slot = barrel_find_free(det->barrel_mask);
     if (slot < 0) return;   /* barrel full — discard */
@@ -139,8 +159,11 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
 {
     uint16_t now = speed_timer_ticks();
 
-    det->front_int_count++;
+    det->front_exti_raw_count++;
+    det->front_exti_tick_ms = HAL_GetTick();
+    det->front_exti_timer_tick = now;
     det->front_int_triggered = true;
+    det->front_int_count++;
 
     int slot = barrel_find_oldest(det->barrel_mask);
     if (slot < 0) return;   /* no projectile in barrel — spurious front event */
@@ -148,15 +171,18 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
     det->timer_wrapped = (now < det->rear_tick[slot]);
 
     uint16_t delta = now - det->rear_tick[slot];   /* unsigned handles wrap */
-    if (delta == 0) {
-        det->barrel_mask &= (uint8_t)~(1 << slot);
-        return;
-    }
-
-    float speed = SPEED_TICKS_TO_MPS(delta);
-    if (speed >= det->speed_min_mps && speed <= det->speed_max_mps) {
+    det->last_pair_delta_ticks = delta;
+    float speed = (delta == 0U) ? 0.0f : SPEED_TICKS_TO_MPS(delta);
+    bool speed_valid = (delta != 0U) &&
+        (speed >= det->speed_min_mps && speed <= det->speed_max_mps);
+    if (speed_valid) {
         det->last_speed_mps = speed;
         det->shot_count++;
+        /* Local indication must not depend on CAN being connected or
+           accepting a mailbox.  CAN reporting is handled independently by
+           the main loop. */
+        det->shot_effect_pending++;
+        uint8_t heat_after_shot = Thermal_AddShot(HAL_GetTick());
 
         /* Queue the confirmed event. CAN transmission is deferred to main. */
         uint8_t next = (uint8_t)((det->event_queue_head + 1U) % SHOOT_EVENT_QUEUE_SIZE);
@@ -165,6 +191,7 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
             event->shot_count = det->shot_count;
             event->speed_mps = speed;
             event->barrel_mask = (uint8_t)(det->barrel_mask & BARREL_MASK);
+            event->heat_level = heat_after_shot;
             det->event_queue_head = next;
         } else {
             det->event_queue_dropped++;
@@ -178,25 +205,41 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
 
 void ShootDetect_Process(ShootDetect_t *det)
 {
+    bool front_pending;
+    bool rear_pending;
+
+    /* Claim each pending flag atomically before the blocking I2C read.
+       Otherwise an EXTI arriving between the test and the clear can be lost. */
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    front_pending = det->front_int_triggered;
+    rear_pending  = det->rear_int_triggered;
+    det->front_int_triggered = false;
+    det->rear_int_triggered  = false;
+    __set_PRIMASK(primask);
+
     /* Clear VCNL4040 interrupt latches */
-    if (det->front_int_triggered) {
-        VCNL4040_GetInterruptStatus(det->front_i2c);
-        det->front_int_triggered = false;
+    if (front_pending) {
+        det->front_int_flag = VCNL4040_GetInterruptStatus(det->front_i2c);
     }
-    if (det->rear_int_triggered) {
-        VCNL4040_GetInterruptStatus(det->rear_i2c);
-        det->rear_int_triggered = false;
+    if (rear_pending) {
+        det->rear_int_flag = VCNL4040_GetInterruptStatus(det->rear_i2c);
     }
 
-    /* Per-slot timeout: any projectile stuck > timeout_ms gets evicted */
+    /* Per-slot timeout: any projectile stuck > timeout_ms gets evicted.
+       Protect the byte read-modify-write against an EXTI allocating a slot. */
     uint32_t now_ms = HAL_GetTick();
+    uint32_t timeout_primask = __get_PRIMASK();
+    __disable_irq();
     for (int i = 0; i < BARREL_SLOTS; i++) {
         if (det->barrel_mask & (1 << i)) {
             if ((now_ms - det->slot_timeout[i]) >= det->timeout_ms) {
                 det->barrel_mask &= (uint8_t)~(1 << i);
+                det->pair_timeout_count++;
             }
         }
     }
+    __set_PRIMASK(timeout_primask);
 }
 
 /* ---- Getters ------------------------------------------------------------- */
@@ -226,56 +269,6 @@ uint8_t ShootDetect_GetState(const ShootDetect_t *det)
     return det->barrel_mask;   /* now exposes which slots are occupied         */
 }
 
-/**
-  * @brief  Slowly follow the PS background and move the AWAY threshold.
-  *         There is intentionally no event freeze or change-size lockout:
-  *         the baseline must recover from a genuine environment step.
-  */
-void ShootDetect_UpdateAdaptiveThresholds(ShootDetect_t *det,
-                                           uint16_t front_ps,
-                                           uint16_t rear_ps,
-                                           uint32_t now_ms)
-{
-    int32_t diff;
-
-    if (front_ps != 0xFFFFU) {
-        diff = (int32_t)front_ps - (int32_t)det->front_baseline;
-        int32_t step = diff / (1 << ADAPTIVE_BASELINE_SHIFT);
-        /* Integer EMA would otherwise stop with a 1..15 count steady-state
-           error. Force a one-count final step so the baseline converges. */
-        if (step == 0 && diff != 0) step = (diff > 0) ? 1 : -1;
-        det->front_baseline = (uint16_t)((int32_t)det->front_baseline + step);
-    }
-    if (rear_ps != 0xFFFFU) {
-        diff = (int32_t)rear_ps - (int32_t)det->rear_baseline;
-        int32_t step = diff / (1 << ADAPTIVE_BASELINE_SHIFT);
-        if (step == 0 && diff != 0) step = (diff > 0) ? 1 : -1;
-        det->rear_baseline = (uint16_t)((int32_t)det->rear_baseline + step);
-    }
-
-    if ((uint32_t)(now_ms - det->threshold_last_update_ms) <
-        ADAPTIVE_THRESHOLD_PERIOD_MS) {
-        return;
-    }
-    det->threshold_last_update_ms = now_ms;
-
-    uint16_t front_low = (det->front_baseline > det->threshold_away_offset) ?
-        (uint16_t)(det->front_baseline - det->threshold_away_offset) : 0U;
-    uint16_t rear_low = (det->rear_baseline > det->threshold_away_offset) ?
-        (uint16_t)(det->rear_baseline - det->threshold_away_offset) : 0U;
-
-    if (front_low != det->front_threshold_low) {
-        VCNL4040_SetProximityLowThreshold(det->front_i2c, front_low);
-        VCNL4040_SetProximityHighThreshold(det->front_i2c, det->front_baseline);
-        det->front_threshold_low = front_low;
-    }
-    if (rear_low != det->rear_threshold_low) {
-        VCNL4040_SetProximityLowThreshold(det->rear_i2c, rear_low);
-        VCNL4040_SetProximityHighThreshold(det->rear_i2c, det->rear_baseline);
-        det->rear_threshold_low = rear_low;
-    }
-}
-
 bool ShootDetect_PeekEvent(const ShootDetect_t *det, ShootEvent_t *event)
 {
     if (det->event_queue_tail == det->event_queue_head) return false;
@@ -294,4 +287,16 @@ void ShootDetect_DropEvent(ShootDetect_t *det)
 uint32_t ShootDetect_GetDroppedEventCount(const ShootDetect_t *det)
 {
     return det->event_queue_dropped;
+}
+
+uint32_t ShootDetect_TakeShotEffectPending(ShootDetect_t *det)
+{
+    uint32_t primask = __get_PRIMASK();
+    uint32_t pending;
+
+    __disable_irq();
+    pending = det->shot_effect_pending;
+    det->shot_effect_pending = 0U;
+    __set_PRIMASK(primask);
+    return pending;
 }

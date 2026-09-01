@@ -35,7 +35,7 @@ extern "C" {
 /* ---- CAN_LED_CMD_ID sub-commands (data[0]) --------------------------------- */
 #define CAN_LED_TEAM_RED           0x01    /* set team = red                    */
 #define CAN_LED_TEAM_BLUE          0x02    /* set team = blue                   */
-#define CAN_LED_HEAT_DATA          0x03    /* data[1] = heat value 0-255        */
+#define CAN_LED_HEAT_DATA          0x03    /* data[1] = absolute heat 0-45      */
 #define CAN_LED_TEST_GREEN         0x10    /* all LEDs green (factory test)     */
 #define CAN_LED_TEST_RED           0x11    /* all LEDs red                      */
 #define CAN_LED_TEST_BLUE          0x12    /* all LEDs blue                     */
@@ -48,7 +48,7 @@ typedef struct __attribute__((packed)) {
     uint32_t shot_count;          /* [ 3: 0] cumulative valid shots             */
     uint16_t last_speed_cmps;     /* [ 5: 4] last speed × 100 (cm/s)           */
     uint8_t  barrel_mask;         /* [ 6   ] projectiles in barrel, bits[4:0]  */
-    uint8_t  heat_level;          /* [ 7   ] current heat 0-255                */
+    uint8_t  heat_level;          /* [ 7   ] current heat 0-45                 */
 } CAN_ShootReport_t;
 
 /* ========================== Rx Frame (8 bytes from 0x233) =================== */
@@ -85,6 +85,8 @@ typedef struct {
     volatile uint32_t tx_status_fail;
     volatile uint32_t tx_heartbeat_ok;
     volatile uint32_t tx_heartbeat_fail;
+    volatile uint32_t tx_shot_event_ok;
+    volatile uint32_t tx_shot_event_fail;
     volatile uint32_t error_callbacks;
     volatile uint32_t error_code;
     volatile uint32_t error_events;
@@ -119,7 +121,10 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event);
 HAL_StatusTypeDef CANProtocol_SendWeakFault(uint8_t weak_mask);
 HAL_StatusTypeDef CANProtocol_SendStrongFault(uint8_t strong_mask);
 HAL_StatusTypeDef CANProtocol_SendBoot(void);
-HAL_StatusTypeDef CANProtocol_SendCalibrationAck(uint8_t status);
+HAL_StatusTypeDef CANProtocol_SendCalibrationAck(uint16_t old_front,
+                                                 uint16_t new_front,
+                                                 uint16_t old_rear,
+                                                 uint16_t new_rear);
 bool CANProtocol_TakeCalibrationRequest(void);
 void CANProtocol_RxCallback(CAN_HandleTypeDef *hcan, uint32_t RxFifo);
 const LedCommand_t *CANProtocol_GetLedCommand(void);

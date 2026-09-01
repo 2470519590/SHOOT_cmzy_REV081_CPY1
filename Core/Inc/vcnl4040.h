@@ -36,6 +36,9 @@ extern "C" {
 #define VCNL4040_REG_DEVICE_ID   0x0C  /* Device ID (expected 0x0186)         */
 
 #define VCNL4040_EXPECTED_ID     0x0186
+/* A normal two-byte register transfer completes in under 1 ms at 100 kHz.
+   Never allow an I2C fault to stall projectile interrupt servicing for 100 ms. */
+#define VCNL4040_I2C_TIMEOUT_MS  5U
 
 /* ========================== PS_CONF1_2 bit fields ========================== */
 /* [0]     PS_SD       : Proximity sensor shutdown (1=disable)                */
@@ -66,7 +69,8 @@ extern "C" {
 
 /* ========================== Default configuration =========================== */
 #define VCNL4040_DEFAULT_LED_CURRENT      0   /* 0~7 → 50~200mA, 4≈140mA      */
-#define VCNL4040_DEFAULT_PROX_INT_TIME    3   /* 0~7 → 1T~8T, 3=2T (~1ms @1T) */
+#define VCNL4040_DEFAULT_PROX_INT_TIME    1   /* 0~7 → 1T~8T, 3=2T (~1ms @1T) */
+#define VCNL4040_DEFAULT_PS_DUTY          0   /* 0 → 1/40, highest duty / fastest response */
 #define VCNL4040_DEFAULT_HIGH_RES         true /* 16-bit proximity data        */
 
 /* ========================== Public API ====================================== */
