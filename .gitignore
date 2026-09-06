@@ -4,3 +4,4 @@
 /.cache
 /tools/logs/
 /tools/__pycache__/
+compile_commands.json

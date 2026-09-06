@@ -5,7 +5,7 @@
 **********************************************************************
 
 File          : 
-Created       : 24. Jun 2026 17:13
+Created       : 06. Sep 2026 22:39
 Ozone Version : V3.40i
 */
 
@@ -22,8 +22,8 @@ void OnProjectLoad (void) {
   //
   // Dialog-generated settings
   //
-  Project.AddPathSubstitute ("C:/Users/Shuchen Tao/Documents/SHOOT_cmzy_REV081", "$(ProjectDir)");
-  Project.AddPathSubstitute ("c:/users/shuchen tao/documents/shoot_cmzy_rev081", "$(ProjectDir)");
+  Project.AddPathSubstitute ("C:/Users/Shuchen Tao/Documents/SHOOT_cmzy_REV081_CPY1", "$(ProjectDir)");
+  Project.AddPathSubstitute ("c:/users/shuchen tao/documents/shoot_cmzy_rev081_cpy1", "$(ProjectDir)");
   Project.SetDevice ("STM32F072C8");
   Project.SetHostIF ("USB", "");
   Project.SetTargetIF ("SWD");
@@ -32,7 +32,6 @@ void OnProjectLoad (void) {
   //
   // User settings
   //
-  Edit.SysVar (VAR_HSS_SPEED, FREQ_10_KHZ);
   File.Open ("$(ProjectDir)/build/SHOOT_cmzy_REV081.elf");
 }
 
