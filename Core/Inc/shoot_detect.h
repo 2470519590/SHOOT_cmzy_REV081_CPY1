@@ -22,10 +22,10 @@ extern "C" {
 /* ========================== Fixed Parameters ================================ */
 
 #define SENSOR_SPACING_M        0.050f        /* 50 mm between sensors          */
-#define CALIBRATION_SAMPLES     20            /* Number of baseline readings    */
+#define CALIBRATION_SAMPLES     100           /* Number of baseline readings    */
 #define THRESHOLD_AWAY_OFFSET   20            /* trigger: PS_DATA < baseline - THRESHOLD_AWAY_OFFSET  */
 #define DEFAULT_TIMEOUT_MS      50            /* Per-slot timeout window (ms)     */
-#define DEFAULT_SPEED_MIN_MPS   0.0f          /* Minimum valid speed   (m/s)    */
+#define DEFAULT_SPEED_MIN_MPS   1.0f          /* Minimum valid speed   (m/s)    */
 #define DEFAULT_SPEED_MAX_MPS   50.0f         /* Maximum valid speed   (m/s)    */
 
 #define BARREL_SLOTS            5             /* Max simultaneous projectiles    */
@@ -38,7 +38,7 @@ typedef struct {
     uint32_t shot_count;          /* cumulative count at this event             */
     float    speed_mps;           /* measured speed for this event              */
     uint8_t  barrel_mask;         /* barrel state after this event              */
-    uint8_t  heat_level;          /* heat after this confirmed shot, 0..45      */
+    uint8_t  heat_level;          /* heat after this confirmed shot, 0..200     */
 } ShootEvent_t;
 
 typedef struct {
@@ -49,6 +49,7 @@ typedef struct {
 
     /* ---- Counters & results ---- */
     uint32_t      shot_count;
+    uint32_t      pair_count;            /* rear→front pairs before speed filter */
     uint32_t      front_int_count;        /* Raw EXTI count (every rising edge)  */
     uint32_t      rear_int_count;         /* Raw EXTI count (every rising edge)  */
     float         last_speed_mps;
@@ -69,7 +70,7 @@ typedef struct {
     uint16_t      front_threshold_low;
     uint16_t      rear_threshold_low;
     /* Calibration trace; inspect after boot without adding a breakpoint. */
-    volatile uint8_t  calibration_last_index;   /* 0..19 */
+    volatile uint8_t  calibration_last_index;   /* 0..99 */
     volatile uint8_t  calibration_fail_channel; /* 0=none, 1=front, 2=rear */
     volatile uint16_t calibration_front_sample;
     volatile uint16_t calibration_rear_sample;
@@ -128,6 +129,11 @@ bool     ShootDetect_PeekEvent(const ShootDetect_t *det, ShootEvent_t *event);
 void     ShootDetect_DropEvent(ShootDetect_t *det);
 uint32_t ShootDetect_GetDroppedEventCount(const ShootDetect_t *det);
 uint32_t ShootDetect_TakeShotEffectPending(ShootDetect_t *det);
+void ShootDetect_GetCountSnapshot(const ShootDetect_t *det,
+                                  uint32_t *rear_trigger_count,
+                                  uint32_t *front_trigger_count,
+                                  uint32_t *pair_count,
+                                  uint32_t *valid_shot_count);
 
 #ifdef __cplusplus
 }

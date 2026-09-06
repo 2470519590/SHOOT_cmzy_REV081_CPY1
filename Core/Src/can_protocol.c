@@ -160,6 +160,37 @@ HAL_StatusTypeDef CANProtocol_SendHeartbeat(void)
     return status;
 }
 
+/* ---- 2 Hz debug count report (0x201) ----------------------------------- */
+HAL_StatusTypeDef CANProtocol_SendDebugCounts(uint16_t rear_trigger_count,
+                                              uint16_t front_trigger_count,
+                                              uint16_t pair_count,
+                                              uint16_t valid_shot_count)
+{
+    CAN_TxHeaderTypeDef tx_header = {0};
+    uint8_t payload[8];
+    uint32_t tx_mailbox = 0;
+
+    if (can_handle == NULL || HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+        return HAL_ERROR;
+    }
+
+    payload[0] = (uint8_t)(rear_trigger_count >> 0);
+    payload[1] = (uint8_t)(rear_trigger_count >> 8);
+    payload[2] = (uint8_t)(front_trigger_count >> 0);
+    payload[3] = (uint8_t)(front_trigger_count >> 8);
+    payload[4] = (uint8_t)(pair_count >> 0);
+    payload[5] = (uint8_t)(pair_count >> 8);
+    payload[6] = (uint8_t)(valid_shot_count >> 0);
+    payload[7] = (uint8_t)(valid_shot_count >> 8);
+
+    tx_header.StdId = CAN_DEBUG_COUNT_ID;
+    tx_header.IDE = CAN_ID_STD;
+    tx_header.RTR = CAN_RTR_DATA;
+    tx_header.DLC = 8;
+    tx_header.TransmitGlobalTime = DISABLE;
+    return HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
+}
+
 /* ---- Send one valid-shot event (0x230) ------------------------------- */
 HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
 {
@@ -306,7 +337,7 @@ void CANProtocol_RxCallback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
 
     g_can_stats.rx_frames++;
 
-    /* Calibration takes roughly 40 ms of I2C reads and delays. This ISR only
+    /* Calibration takes roughly 200 ms of I2C reads and delays. This ISR only
        records the request; the main loop performs it and sends the ACK. */
     if (rx_header.StdId == CAN_CALIBRATE_REQUEST_ID &&
         rx_header.IDE   == CAN_ID_STD &&

@@ -142,7 +142,7 @@ volatile uint32_t g_dbg_last_shot_led_event_count = 0;
    Set g_led_cmd_count to limit lit LEDs (0 = all 9). */
 volatile uint8_t  g_led_cmd        = 0;
 volatile uint8_t  g_led_cmd_count  = 0;
-volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–45            */
+volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–200           */
 /* USER CODE END PV */
 
 /* USER CODE END PV */
@@ -433,6 +433,7 @@ int main(void)
   /* ---- Init LED strip (WS2812 via USART3 PB10) ---- */
   LedStrip_Init();
   LedStrip_SetTeam(TEAM_BLUE);
+  LedStrip_StartBootEffect(HAL_GetTick());
 
   /* ---- Init CAN protocol (slave-only) ---- */
   CANProtocol_Init(&hcan);
@@ -485,6 +486,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint32_t sensor_rate_window_tick = HAL_GetTick();
   uint32_t sensor_rate_window_pairs = 0U;
+  uint32_t debug_count_report_tick = HAL_GetTick();
+  uint32_t debug_last_rear_trigger_count = 0U;
+  uint32_t debug_last_front_trigger_count = 0U;
+  uint32_t debug_last_pair_count = 0U;
+  uint32_t debug_last_valid_shot_count = 0U;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -584,6 +590,32 @@ int main(void)
 
     gbd_shoot_count = ShootDetect_GetCount(&g_shoot_detect);
 
+    /* Debug layer: report count deltas every 500 ms.  These are deliberately
+       independent of business-layer 0x230 transmission and CAN availability. */
+    if ((uint32_t)(now_tick - debug_count_report_tick) >= 500U) {
+        uint32_t rear_trigger_count;
+        uint32_t front_trigger_count;
+        uint32_t pair_count;
+        uint32_t valid_shot_count;
+        ShootDetect_GetCountSnapshot(&g_shoot_detect,
+                                     &rear_trigger_count,
+                                     &front_trigger_count,
+                                     &pair_count,
+                                     &valid_shot_count);
+        (void)CANProtocol_SendDebugCounts(
+            (uint16_t)(rear_trigger_count - debug_last_rear_trigger_count),
+            (uint16_t)(front_trigger_count - debug_last_front_trigger_count),
+            (uint16_t)(pair_count - debug_last_pair_count),
+            (uint16_t)(valid_shot_count - debug_last_valid_shot_count));
+        debug_last_rear_trigger_count = rear_trigger_count;
+        debug_last_front_trigger_count = front_trigger_count;
+        debug_last_pair_count = pair_count;
+        debug_last_valid_shot_count = valid_shot_count;
+        /* Rebase instead of catching up after a deliberately blocking sensor
+           capture or calibration; the diagnostic cadence remains 2 Hz. */
+        debug_count_report_tick = now_tick;
+    }
+
     /* A confirmed shot owns its local indication even when CAN is absent or
        temporarily has no free TX mailbox.  Drain the counter once; the
        queued event below remains available for later CAN transmission. */
@@ -643,33 +675,37 @@ int main(void)
         CANProtocol_UpdateData(&g_shoot_report);
     }
 
+    bool boot_effect_active = LedStrip_ProcessBootEffect(now_tick);
     bool shot_effect_active = false;
-    if (!Reliability_IsFaultAlertActive() &&
-        g_led_cmd == 0 &&
-        CANProtocol_GetLedCommand()->source != LED_SRC_DEBUG) {
+    if (!boot_effect_active && !Reliability_IsFaultAlertActive() &&
+        g_led_cmd == 0 && CANProtocol_GetLedCommand()->source != LED_SRC_DEBUG) {
         shot_effect_active = LedStrip_ProcessShotEffect(now_tick);
     }
 
     if (g_led_tick_10hz) {
         g_led_tick_10hz = false;
 
-        /* Priority 1: any active fault overrides all ordinary LED control. */
-        if (Reliability_IsFaultAlertActive()) {
+        /* Priority 1: one-shot power-on confirmation of the lower eight LEDs. */
+        if (boot_effect_active) {
+            /* LedStrip_ProcessBootEffect() has already sent this frame. */
+        }
+        /* Priority 2: any active fault overrides ordinary LED control. */
+        else if (Reliability_IsFaultAlertActive()) {
             LedStrip_ShowFaultAlert(HAL_GetTick());
         }
-        /* Priority 2: debugger override (g_led_cmd = 1~5) */
+        /* Priority 3: debugger override (g_led_cmd = 1~5) */
         else if (g_led_cmd != 0) {
             LedStrip_TestPattern(g_led_cmd, g_led_cmd_count);
         }
-        /* Priority 3: CAN LED command */
+        /* Priority 4: CAN LED command */
         else if (CANProtocol_GetLedCommand()->source == LED_SRC_DEBUG) {
             LedStrip_ApplyCommand(CANProtocol_GetLedCommand());
         }
-        /* Priority 4: valid-shot animation; it is updated every main-loop pass. */
+        /* Priority 5: valid-shot animation; it is updated every main-loop pass. */
         else if (shot_effect_active) {
             /* LedStrip_ProcessShotEffect() has already sent this frame. */
         }
-        /* Priority 5: auto — follow shoot detection */
+        /* Priority 6: auto — follow shoot detection */
         else {
             LedStrip_SetRefereeData(g_heat_debug);
             LedStrip_Update();

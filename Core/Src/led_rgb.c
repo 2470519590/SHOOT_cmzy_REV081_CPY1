@@ -19,9 +19,12 @@ static bool      led_overheat_alert;
 static uint8_t   led_referee_data = 0;
 static float     led_desired[LED_COUNT];  /* desired brightness 0.0–1.0        */
 static float     led_current[LED_COUNT];  /* current brightness (lerp→desired) */
+static bool      boot_effect_active;
+static uint32_t  boot_effect_start_tick;
 static bool      shot_effect_active;
 static uint32_t  shot_effect_start_tick;
 
+#define BOOT_EFFECT_TOTAL_MS     250U
 #define SHOT_EFFECT_TOTAL_MS     100U
 
 /* ========================== Helpers ======================================== */
@@ -84,7 +87,7 @@ void LedStrip_Update(void)
     led_desired[LED_DEBUG_IDX] =
         led_overheat_alert ? 1.0f : 0.20f;
 
-    /* LED[1-8]: current heat 0..45 mapped linearly across eight LEDs. */
+    /* LED[1-8]: current heat 0..200 mapped linearly across eight LEDs. */
     uint8_t heat = led_referee_data;
     if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
@@ -139,6 +142,41 @@ void LedStrip_ShowFaultAlert(uint32_t tick_ms)
     }
     for (int i = 0; i < LED_COUNT; i++) out[i] = color;
     ws2812_uart_send(out, LED_COUNT);
+}
+
+/**
+ * @brief Start the one-shot power-on indication for the lower heat bar.
+ */
+void LedStrip_StartBootEffect(uint32_t tick_ms)
+{
+    boot_effect_start_tick = tick_ms;
+    boot_effect_active = true;
+}
+
+/**
+ * @brief Keep LED[1..8] lit in the default/current team colour for 250 ms.
+ * @return true while the power-on indication owns the LED output.
+ */
+bool LedStrip_ProcessBootEffect(uint32_t tick_ms)
+{
+    if (!boot_effect_active) return false;
+
+    if ((uint32_t)(tick_ms - boot_effect_start_tick) >= BOOT_EFFECT_TOTAL_MS) {
+        if (ws2812_uart_busy()) return true;
+        boot_effect_active = false;
+        LedStrip_Update();
+        return false;
+    }
+
+    if (ws2812_uart_busy()) return true;
+
+    uint32_t out[LED_COUNT] = {0};
+    uint32_t color = team_color();
+    for (uint8_t i = 0U; i < LED_HEAT_COUNT; i++) {
+        out[LED_HEAT_START + i] = color;
+    }
+    ws2812_uart_send(out, LED_COUNT);
+    return true;
 }
 
 /**

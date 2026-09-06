@@ -4,8 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define THERMAL_HEAT_LIMIT       45U  /* competition heat capacity */
-#define THERMAL_COOL_PERIOD_MS   500U  /* one heat point per 500 ms = 2/s */
+#define THERMAL_HEAT_LIMIT       200U /* competition heat capacity */
+#define THERMAL_HEAT_PER_SHOT    10U  /* heat added by one valid shot */
+#define THERMAL_COOL_PER_SECOND  10U  /* heat removed each elapsed second */
+#define THERMAL_COOL_PERIOD_MS   1000U
 #define THERMAL_OVERHEAT_LED_MS  3000U
 
 void Thermal_Init(uint32_t now_ms);

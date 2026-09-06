@@ -52,6 +52,8 @@ void LedStrip_SetOverheatAlert(bool active);
 void LedStrip_SetRefereeData(uint8_t data);
 void LedStrip_Update(void);    /* Call every 100 ms (TIM15 tick)              */
 void LedStrip_ShowFaultAlert(uint32_t tick_ms); /* red/blue/green cyclic alert */
+void LedStrip_StartBootEffect(uint32_t tick_ms);
+bool LedStrip_ProcessBootEffect(uint32_t tick_ms);
 void LedStrip_StartShotEffect(uint32_t tick_ms);
 bool LedStrip_ProcessShotEffect(uint32_t tick_ms);
 

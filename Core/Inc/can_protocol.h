@@ -21,6 +21,7 @@ extern "C" {
 /* ========================== CAN Message IDs ================================= */
 
 #define CAN_HEARTBEAT_ID           0x200   /* Tx: debug heartbeat, once per sec   */
+#define CAN_DEBUG_COUNT_ID          0x201   /* Tx: 2 Hz trigger/pair/shot counters */
 #define CAN_STRONG_FAULT_ID        0x210   /* Tx: post-reset strong-fault mask    */
 #define CAN_WEAK_FAULT_ID          0x211   /* Tx: weak-fault mask                 */
 #define CAN_BOOT_ID                0x212   /* Tx: initialization complete         */
@@ -35,7 +36,7 @@ extern "C" {
 /* ---- CAN_LED_CMD_ID sub-commands (data[0]) --------------------------------- */
 #define CAN_LED_TEAM_RED           0x01    /* set team = red                    */
 #define CAN_LED_TEAM_BLUE          0x02    /* set team = blue                   */
-#define CAN_LED_HEAT_DATA          0x03    /* data[1] = absolute heat 0-45      */
+#define CAN_LED_HEAT_DATA          0x03    /* data[1] = absolute heat 0-200     */
 #define CAN_LED_TEST_GREEN         0x10    /* all LEDs green (factory test)     */
 #define CAN_LED_TEST_RED           0x11    /* all LEDs red                      */
 #define CAN_LED_TEST_BLUE          0x12    /* all LEDs blue                     */
@@ -48,7 +49,7 @@ typedef struct __attribute__((packed)) {
     uint32_t shot_count;          /* [ 3: 0] cumulative valid shots             */
     uint16_t last_speed_cmps;     /* [ 5: 4] last speed × 100 (cm/s)           */
     uint8_t  barrel_mask;         /* [ 6   ] projectiles in barrel, bits[4:0]  */
-    uint8_t  heat_level;          /* [ 7   ] current heat 0-45                 */
+    uint8_t  heat_level;          /* [ 7   ] current heat 0-200                */
 } CAN_ShootReport_t;
 
 /* ========================== Rx Frame (8 bytes from 0x233) =================== */
@@ -117,6 +118,10 @@ typedef struct {
 void CANProtocol_Init(CAN_HandleTypeDef *hcan);
 void CANProtocol_UpdateData(const ShootData_Report_t *data);
 HAL_StatusTypeDef CANProtocol_SendHeartbeat(void);
+HAL_StatusTypeDef CANProtocol_SendDebugCounts(uint16_t rear_trigger_count,
+                                              uint16_t front_trigger_count,
+                                              uint16_t pair_count,
+                                              uint16_t valid_shot_count);
 HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event);
 HAL_StatusTypeDef CANProtocol_SendWeakFault(uint8_t weak_mask);
 HAL_StatusTypeDef CANProtocol_SendStrongFault(uint8_t strong_mask);

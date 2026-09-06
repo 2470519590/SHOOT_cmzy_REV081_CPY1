@@ -18,7 +18,8 @@ void Thermal_Update(uint32_t now_ms)
     __disable_irq();
     while (thermal_heat > 0U &&
            (uint32_t)(now_ms - thermal_cool_tick) >= THERMAL_COOL_PERIOD_MS) {
-        thermal_heat--;
+        thermal_heat = (thermal_heat > THERMAL_COOL_PER_SECOND) ?
+                       (uint8_t)(thermal_heat - THERMAL_COOL_PER_SECOND) : 0U;
         thermal_cool_tick += THERMAL_COOL_PERIOD_MS;
     }
     if (thermal_heat == 0U) {
@@ -32,7 +33,9 @@ uint8_t Thermal_AddShot(uint32_t now_ms)
     uint32_t primask = __get_PRIMASK();
     __disable_irq();
     if (thermal_heat < THERMAL_HEAT_LIMIT) {
-        thermal_heat++;
+        uint16_t heat_after_shot = (uint16_t)thermal_heat + THERMAL_HEAT_PER_SHOT;
+        thermal_heat = (heat_after_shot > THERMAL_HEAT_LIMIT) ?
+                       THERMAL_HEAT_LIMIT : (uint8_t)heat_after_shot;
         if (thermal_heat == THERMAL_HEAT_LIMIT) {
             thermal_overheat_led_until = now_ms + THERMAL_OVERHEAT_LED_MS;
         }
