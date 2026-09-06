@@ -21,7 +21,6 @@ extern "C" {
 
 /* ========================== Fixed Parameters ================================ */
 
-#define SENSOR_SPACING_M        0.050f        /* 50 mm between sensors          */
 #define CALIBRATION_SAMPLES     100           /* Number of baseline readings    */
 #define THRESHOLD_AWAY_OFFSET   20            /* trigger: PS_DATA < baseline - THRESHOLD_AWAY_OFFSET  */
 #define DEFAULT_TIMEOUT_MS      50            /* Per-slot timeout window (ms)     */
@@ -83,8 +82,6 @@ typedef struct {
 
     /* ---- Diagnostic ---- */
     volatile bool     timer_wrapped;      /* counter wrapped between triggers     */
-    volatile uint32_t front_exti_raw_count; /* every PB5 falling edge              */
-    volatile uint32_t rear_exti_raw_count;  /* every PB12 falling edge             */
     volatile uint32_t front_exti_tick_ms;
     volatile uint32_t rear_exti_tick_ms;
     volatile uint16_t front_exti_timer_tick;
