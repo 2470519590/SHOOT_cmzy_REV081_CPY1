@@ -140,7 +140,6 @@ void ShootDetect_RearTrigger(ShootDetect_t *det)
 {
     uint16_t now = speed_timer_ticks();
 
-    det->rear_exti_raw_count++;
     det->rear_exti_tick_ms = HAL_GetTick();
     det->rear_exti_timer_tick = now;
     /* The hardware AWAY interrupt is the only condition: PS_DATA below THDL. */
@@ -159,7 +158,6 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
 {
     uint16_t now = speed_timer_ticks();
 
-    det->front_exti_raw_count++;
     det->front_exti_tick_ms = HAL_GetTick();
     det->front_exti_timer_tick = now;
     det->front_int_triggered = true;

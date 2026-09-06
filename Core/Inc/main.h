@@ -57,10 +57,6 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define RGB_UART2_TX_Pin GPIO_PIN_2
-#define RGB_UART2_TX_GPIO_Port GPIOA
-#define RGB_UART2_RX_Pin GPIO_PIN_3
-#define RGB_UART2_RX_GPIO_Port GPIOA
 #define IND_1_Pin GPIO_PIN_5
 #define IND_1_GPIO_Port GPIOA
 #define RGB_UART3_TX_Pin GPIO_PIN_10
