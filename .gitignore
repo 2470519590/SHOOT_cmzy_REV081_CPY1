@@ -4,4 +4,5 @@
 /.cache
 /tools/logs/
 /tools/__pycache__/
+/3Ds/
 compile_commands.json
