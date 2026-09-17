@@ -48,7 +48,6 @@ typedef struct {
 
     /* ---- Counters & results ---- */
     uint32_t      shot_count;
-    uint32_t      pair_count;            /* rear→front pairs before speed filter */
     uint32_t      front_int_count;        /* Raw EXTI count (every rising edge)  */
     uint32_t      rear_int_count;         /* Raw EXTI count (every rising edge)  */
     float         last_speed_mps;
@@ -126,11 +125,6 @@ bool     ShootDetect_PeekEvent(const ShootDetect_t *det, ShootEvent_t *event);
 void     ShootDetect_DropEvent(ShootDetect_t *det);
 uint32_t ShootDetect_GetDroppedEventCount(const ShootDetect_t *det);
 uint32_t ShootDetect_TakeShotEffectPending(ShootDetect_t *det);
-void ShootDetect_GetCountSnapshot(const ShootDetect_t *det,
-                                  uint32_t *rear_trigger_count,
-                                  uint32_t *front_trigger_count,
-                                  uint32_t *pair_count,
-                                  uint32_t *valid_shot_count);
 
 #ifdef __cplusplus
 }

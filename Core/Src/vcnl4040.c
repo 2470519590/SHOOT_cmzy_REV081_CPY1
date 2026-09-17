@@ -65,9 +65,8 @@ HAL_StatusTypeDef VCNL4040_Init(I2C_HandleTypeDef *hi2c)
     }
 
     /* PS_CONF1_2: PS enabled, 16-bit proximity, interrupt disabled for now.
-       PS_DUTY=1/40 is the highest IRED duty and fastest response setting. */
+       Keep the original reference configuration for PS_IT and PS_DUTY. */
     uint16_t ps_conf = 0x0800
-                     | ((uint16_t)(VCNL4040_DEFAULT_PS_DUTY & 0x03) << 6)
                      | ((uint16_t)(VCNL4040_DEFAULT_PROX_INT_TIME & 0x07) << 1);
     status = VCNL4040_WriteReg(hi2c, VCNL4040_REG_PS_CONF1_2, ps_conf);
     if (status != HAL_OK) return status;

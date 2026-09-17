@@ -102,13 +102,29 @@ volatile uint32_t gbd_shoot_count = 0;
    This value is deliberately changed with this diagnostic build.  It lets the
    debugger prove which image is executing; it is not derived from the source
    timestamp. */
-#define FW_BUILD_MAGIC  0x26083001UL
+#if SHOOT_CAN_DIAGNOSTIC_SILENT
+#define FW_BUILD_MAGIC  0x26091002UL /* CAN silent diagnostic image */
+#elif SHOOT_CAN_DIAGNOSTIC_NO_APP_TX
+#define FW_BUILD_MAGIC  0x26091004UL /* RX-only + reset-cause diagnostic */
+#else
+#define FW_BUILD_MAGIC  0x26083001UL /* normal operational image */
+#endif
 volatile uint32_t g_dbg_firmware_build_magic = FW_BUILD_MAGIC;
 /* A mailbox accept is not yet a physical CAN ACK; it only means bxCAN took
    the 0x230 request.  Keep the two counters separate from sensor counters. */
 volatile uint32_t g_dbg_shot_mailbox_accept_count = 0;
 volatile uint32_t g_dbg_shot_led_start_count = 0;
 volatile uint32_t g_dbg_last_shot_led_event_count = 0;
+
+/* Keep CAN fault evidence as scalar volatile symbols.  Some GDB frontends
+ * cannot create a watch for a member of CAN_ErrorStats_t, especially after
+ * -Og optimisation.  These are deliberately boring debugger entry points. */
+volatile uint32_t g_dbg_can_esr = 0U;
+volatile uint32_t g_dbg_can_btr = 0U;
+volatile uint8_t  g_dbg_can_lec = 0U;
+volatile uint8_t  g_dbg_can_tec = 0U;
+volatile uint8_t  g_dbg_can_rec = 0U;
+volatile uint8_t  g_dbg_can_bus_off = 0U;
 
 /* Debug LED override — write from debugger:
    g_led_cmd = 1 → 9 LEDs all green  (WS2812_COLOR(255,0,0))
@@ -242,22 +258,26 @@ int main(void)
 
   /* ---- Init CAN protocol (slave-only) ---- */
   CANProtocol_Init(&hcan);
-  /* Accept standard CAN data frames for the protocol RX interrupt. */
+  /* Only receive the gun command range (0x220..0x23F), standard data frames.
+     Armor-board traffic never reaches this CAN RX ISR. */
   CAN_FilterTypeDef can_filter = {0};
   can_filter.FilterBank = 0;
   can_filter.FilterMode = CAN_FILTERMODE_IDMASK;
   can_filter.FilterScale = CAN_FILTERSCALE_32BIT;
-  can_filter.FilterIdHigh = 0x0000;
+  can_filter.FilterIdHigh = 0x4400; /* 0x220 << 5 */
   can_filter.FilterIdLow = 0x0000;
-  can_filter.FilterMaskIdHigh = 0x0000;
-  can_filter.FilterMaskIdLow = 0x0000;
+  can_filter.FilterMaskIdHigh = 0xFC00; /* match 0x220..0x23F */
+  can_filter.FilterMaskIdLow = 0x0006;  /* IDE=0, RTR=0 */
   can_filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   can_filter.FilterActivation = ENABLE;
   can_filter.SlaveStartFilterBank = 0;
   if (HAL_CAN_ConfigFilter(&hcan, &can_filter) != HAL_OK) {
       Error_Handler();
   }
-  /* Start CAN and enable receive interrupt. */
+  /* Start CAN and enable receive interrupt.  The silent diagnostic image
+     deliberately remains fully powered and receives 0x220..0x23F, but bxCAN
+     neither ACKs nor drives any CAN bit.  It is only for isolating a
+     gun-side CAN fault; production builds always use normal mode. */
   if (HAL_CAN_Start(&hcan) != HAL_OK) {
       Error_Handler();
   }
@@ -285,11 +305,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint32_t sensor_rate_window_tick = HAL_GetTick();
   uint32_t sensor_rate_window_pairs = 0U;
-  uint32_t debug_count_report_tick = HAL_GetTick();
-  uint32_t debug_last_rear_trigger_count = 0U;
-  uint32_t debug_last_front_trigger_count = 0U;
-  uint32_t debug_last_pair_count = 0U;
-  uint32_t debug_last_valid_shot_count = 0U;
   while (1)
   {
     /* USER CODE END WHILE */
@@ -376,32 +391,6 @@ int main(void)
 
     gbd_shoot_count = ShootDetect_GetCount(&g_shoot_detect);
 
-    /* Debug layer: report count deltas every 500 ms.  These are deliberately
-       independent of business-layer 0x230 transmission and CAN availability. */
-    if ((uint32_t)(now_tick - debug_count_report_tick) >= 500U) {
-        uint32_t rear_trigger_count;
-        uint32_t front_trigger_count;
-        uint32_t pair_count;
-        uint32_t valid_shot_count;
-        ShootDetect_GetCountSnapshot(&g_shoot_detect,
-                                     &rear_trigger_count,
-                                     &front_trigger_count,
-                                     &pair_count,
-                                     &valid_shot_count);
-        (void)CANProtocol_SendDebugCounts(
-            (uint16_t)(rear_trigger_count - debug_last_rear_trigger_count),
-            (uint16_t)(front_trigger_count - debug_last_front_trigger_count),
-            (uint16_t)(pair_count - debug_last_pair_count),
-            (uint16_t)(valid_shot_count - debug_last_valid_shot_count));
-        debug_last_rear_trigger_count = rear_trigger_count;
-        debug_last_front_trigger_count = front_trigger_count;
-        debug_last_pair_count = pair_count;
-        debug_last_valid_shot_count = valid_shot_count;
-        /* Rebase instead of catching up after a deliberately blocking sensor
-           capture or calibration; the diagnostic cadence remains 2 Hz. */
-        debug_count_report_tick = now_tick;
-    }
-
     /* A confirmed shot owns its local indication even when CAN is absent or
        temporarily has no free TX mailbox.  Drain the counter once; the
        queued event below remains available for later CAN transmission. */
@@ -425,10 +414,20 @@ int main(void)
         ShootDetect_DropEvent(&g_shoot_detect);
     }
 
+    /* Queries are queued by CAN RX ISR and replied from the main loop. This
+       prevents an ISR reply from racing an armor-board response for CAN TX. */
+    CANProtocol_Task();
+
     /* CAN 0x200 remains reserved for debug heartbeat but is idle in this build. */
 
     /* Keep raw CAN controller diagnostics visible in the debugger. */
     uint32_t can_esr = CAN->ESR;
+    g_dbg_can_esr = can_esr;
+    g_dbg_can_btr = CAN->BTR;
+    g_dbg_can_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
+    g_dbg_can_tec = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
+    g_dbg_can_rec = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
+    g_dbg_can_bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
     g_can_stats.last_error_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
     g_can_stats.tx_error_counter = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
     g_can_stats.rx_error_counter = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
@@ -588,18 +587,25 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  /* CAN bitrate: 48 MHz / 8 / (1 + 10 + 1) = 500 kbps, 12 TQ/bit. */
-  hcan.Init.Prescaler = 8;
+  /* 48 MHz / 6 / (1 + 13 + 2) = 500 kbps, sample point 87.5%.
+     This matches the L431PM and all armor boards. */
+  hcan.Init.Prescaler = 6;
+#if SHOOT_CAN_DIAGNOSTIC_SILENT
+  hcan.Init.Mode = CAN_MODE_SILENT;
+#else
   hcan.Init.Mode = CAN_MODE_NORMAL;
+#endif
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_10TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   /* Let bxCAN leave Bus-Off after the bus has recovered. A missing CAN
      network must not reset the whole barrel application. */
   hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = DISABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
+  /* 2026-09-10：开启自动重传（NART=0）。失败帧由硬件重发；
+   * 发送侧 send_frame_confirmed() 的超时路径会 abort 邮箱，避免无 ACK 帧把邮箱占死。 */
+  hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)

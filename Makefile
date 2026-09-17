@@ -141,7 +141,7 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CFLAGS += $(MCU) $(C_DEFS) $(EXTRA_C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
@@ -205,6 +205,19 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
+
+.PHONY: silent
+# Keep the diagnostic image out of build/ so normal and silent object files
+# can never be mixed.  Flash only build_silent/SHOOT_cmzy_REV081.bin for the
+# gun-connected CAN isolation test.
+silent:
+	$(MAKE) BUILD_DIR=build_silent EXTRA_C_DEFS="-DSHOOT_CAN_DIAGNOSTIC_SILENT=1" all
+
+.PHONY: rx_only
+# The controller is normal and ACKs bus traffic, but the gun application never
+# transmits a CAN frame.  This is distinct from `silent` and builds separately.
+rx_only:
+	$(MAKE) BUILD_DIR=build_rx_only EXTRA_C_DEFS="-DSHOOT_CAN_DIAGNOSTIC_NO_APP_TX=1" all
   
 #######################################
 # dependencies

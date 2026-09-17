@@ -13,8 +13,11 @@ extern CAN_ErrorStats_t g_can_stats;
 static CAN_HandleTypeDef  *can_handle = NULL;
 static ShootData_Report_t  shoot_data = {0};
 static LedCommand_t        led_cmd    = { .source = LED_SRC_NORMAL,
-                                          .cmd = 0, .heat_data = 0, .team = 1 };
+                                           .cmd = 0, .heat_data = 0, .team = 1 };
 static volatile bool calibration_requested;
+static volatile uint8_t shoot_report_request_count;
+
+#define CAN_PROTOCOL_TX_TIMEOUT_MS 2U
 
 /* ---- LED command accessor ----------------------------------------------- */
 const LedCommand_t *CANProtocol_GetLedCommand(void)
@@ -26,6 +29,7 @@ const LedCommand_t *CANProtocol_GetLedCommand(void)
 void CANProtocol_Init(CAN_HandleTypeDef *hcan)
 {
     can_handle = hcan;
+    shoot_report_request_count = 0U;
 }
 
 /* ---- Shoot data refresh ------------------------------------------------- */
@@ -44,7 +48,8 @@ static HAL_StatusTypeDef send_single_byte(uint16_t id, uint8_t value)
     CAN_TxHeaderTypeDef tx_header = {0};
     uint32_t tx_mailbox = 0;
 
-    if (can_handle == NULL || HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+    if (can_handle == NULL ||
+        HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
         return HAL_ERROR;
     }
     tx_header.StdId = id;
@@ -71,7 +76,8 @@ HAL_StatusTypeDef CANProtocol_SendBoot(void)
     uint8_t unused = 0U;
     uint32_t tx_mailbox = 0;
 
-    if (can_handle == NULL || HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+    if (can_handle == NULL ||
+        HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
         return HAL_ERROR;
     }
     tx_header.StdId = CAN_BOOT_ID;
@@ -131,7 +137,8 @@ HAL_StatusTypeDef CANProtocol_SendHeartbeat(void)
     uint32_t uptime_s = HAL_GetTick() / 1000U;
     HAL_StatusTypeDef status;
 
-    if (can_handle == NULL || HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+    if (!can_protocol_tx_permitted() || can_handle == NULL ||
+        HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
         g_can_stats.tx_heartbeat_fail++;
         return HAL_ERROR;
     }
@@ -160,35 +167,49 @@ HAL_StatusTypeDef CANProtocol_SendHeartbeat(void)
     return status;
 }
 
-/* ---- 2 Hz debug count report (0x201) ----------------------------------- */
-HAL_StatusTypeDef CANProtocol_SendDebugCounts(uint16_t rear_trigger_count,
-                                              uint16_t front_trigger_count,
-                                              uint16_t pair_count,
-                                              uint16_t valid_shot_count)
+/* HAL_CAN_AddTxMessage only proves that a
+ * mailbox accepted the frame, not that it won arbitration and received a CAN
+ * ACK. The shot queue may be popped only after TXOK. */
+static HAL_StatusTypeDef send_frame_confirmed(const CAN_TxHeaderTypeDef *header,
+                                              uint8_t *payload)
 {
-    CAN_TxHeaderTypeDef tx_header = {0};
-    uint8_t payload[8];
-    uint32_t tx_mailbox = 0;
+    uint32_t mailbox = 0U;
+    uint32_t rqcp;
+    uint32_t txok;
+    uint32_t started;
 
-    if (can_handle == NULL || HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
+    if (can_handle == NULL || header == NULL ||
+        HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING ||
+        (can_handle->Instance->ESR & CAN_ESR_BOFF) != 0U) {
         return HAL_ERROR;
     }
-
-    payload[0] = (uint8_t)(rear_trigger_count >> 0);
-    payload[1] = (uint8_t)(rear_trigger_count >> 8);
-    payload[2] = (uint8_t)(front_trigger_count >> 0);
-    payload[3] = (uint8_t)(front_trigger_count >> 8);
-    payload[4] = (uint8_t)(pair_count >> 0);
-    payload[5] = (uint8_t)(pair_count >> 8);
-    payload[6] = (uint8_t)(valid_shot_count >> 0);
-    payload[7] = (uint8_t)(valid_shot_count >> 8);
-
-    tx_header.StdId = CAN_DEBUG_COUNT_ID;
-    tx_header.IDE = CAN_ID_STD;
-    tx_header.RTR = CAN_RTR_DATA;
-    tx_header.DLC = 8;
-    tx_header.TransmitGlobalTime = DISABLE;
-    return HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
+    if (HAL_CAN_AddTxMessage(can_handle, (CAN_TxHeaderTypeDef *)header,
+                             payload, &mailbox) != HAL_OK) {
+        return HAL_ERROR;
+    }
+    if (mailbox == CAN_TX_MAILBOX0) {
+        rqcp = CAN_TSR_RQCP0; txok = CAN_TSR_TXOK0;
+    } else if (mailbox == CAN_TX_MAILBOX1) {
+        rqcp = CAN_TSR_RQCP1; txok = CAN_TSR_TXOK1;
+    } else if (mailbox == CAN_TX_MAILBOX2) {
+        rqcp = CAN_TSR_RQCP2; txok = CAN_TSR_TXOK2;
+    } else {
+        return HAL_ERROR;
+    }
+    started = HAL_GetTick();
+    while ((can_handle->Instance->TSR & rqcp) == 0U) {
+        if ((can_handle->Instance->ESR & CAN_ESR_BOFF) != 0U ||
+            (uint32_t)(HAL_GetTick() - started) >= CAN_PROTOCOL_TX_TIMEOUT_MS) {
+            (void)HAL_CAN_AbortTxRequest(can_handle, mailbox);
+            return HAL_TIMEOUT;
+        }
+    }
+    if ((can_handle->Instance->TSR & txok) == 0U) {
+        can_handle->Instance->TSR = rqcp;
+        return HAL_ERROR;
+    }
+    can_handle->Instance->TSR = rqcp;
+    return HAL_OK;
 }
 
 /* ---- Send one valid-shot event (0x230) ------------------------------- */
@@ -196,7 +217,6 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
 {
     CAN_TxHeaderTypeDef tx_header = {0};
     uint8_t payload[8] = {0};
-    uint32_t tx_mailbox = 0;
     uint16_t speed_cmps;
 
     if (event == NULL || can_handle == NULL ||
@@ -221,8 +241,7 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
     tx_header.DLC = 8;
     tx_header.TransmitGlobalTime = DISABLE;
 
-    HAL_StatusTypeDef status =
-        HAL_CAN_AddTxMessage(can_handle, &tx_header, payload, &tx_mailbox);
+    HAL_StatusTypeDef status = send_frame_confirmed(&tx_header, payload);
     if (status == HAL_OK) {
         g_can_stats.tx_shot_event_ok++;
     } else {
@@ -232,11 +251,10 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
 }
 
 /* ---- Send shoot status response (0x232) --------------------------------- */
-static void send_shoot_report(CAN_HandleTypeDef *hcan)
+static HAL_StatusTypeDef send_shoot_report(void)
 {
     CAN_TxHeaderTypeDef  tx_header;
     CAN_ShootReport_t    payload;
-    uint32_t             tx_mailbox;
     uint32_t             primask;
 
     /* Snapshot all fields together; this function is called from CAN IRQ while
@@ -257,12 +275,34 @@ static void send_shoot_report(CAN_HandleTypeDef *hcan)
     tx_header.DLC                = sizeof(CAN_ShootReport_t);
     tx_header.TransmitGlobalTime = DISABLE;
 
-    if (HAL_CAN_AddTxMessage(hcan, &tx_header, (uint8_t *)&payload,
-                             &tx_mailbox) == HAL_OK) {
+    HAL_StatusTypeDef status = send_frame_confirmed(&tx_header, (uint8_t *)&payload);
+    if (status == HAL_OK) {
         g_can_stats.tx_status_ok++;
     } else {
         g_can_stats.tx_status_fail++;
     }
+    return status;
+}
+
+void CANProtocol_Task(void)
+{
+    uint32_t primask;
+    uint8_t have_request;
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    have_request = shoot_report_request_count;
+    __set_PRIMASK(primask);
+    if (have_request == 0U || send_shoot_report() != HAL_OK) {
+        return;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    if (shoot_report_request_count != 0U) {
+        shoot_report_request_count--;
+    }
+    __set_PRIMASK(primask);
 }
 
 /* ---- LED command handler ------------------------------------------------ */
@@ -353,7 +393,9 @@ void CANProtocol_RxCallback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
         rx_header.IDE   == CAN_ID_STD &&
         rx_header.RTR   == CAN_RTR_DATA &&
         (rx_header.DLC == 0U || rx_header.DLC == 8U)) {
-        send_shoot_report(hcan);
+        if (shoot_report_request_count != 0xFFU) {
+            shoot_report_request_count++;
+        }
         g_can_stats.rx_query_0x231++;
         return;
     }

@@ -166,7 +166,6 @@ void ShootDetect_FrontTrigger(ShootDetect_t *det)
     int slot = barrel_find_oldest(det->barrel_mask);
     if (slot < 0) return;   /* no projectile in barrel — spurious front event */
 
-    det->pair_count++;
     det->timer_wrapped = (now < det->rear_tick[slot]);
 
     uint16_t delta = now - det->rear_tick[slot];   /* unsigned handles wrap */
@@ -298,20 +297,4 @@ uint32_t ShootDetect_TakeShotEffectPending(ShootDetect_t *det)
     det->shot_effect_pending = 0U;
     __set_PRIMASK(primask);
     return pending;
-}
-
-void ShootDetect_GetCountSnapshot(const ShootDetect_t *det,
-                                  uint32_t *rear_trigger_count,
-                                  uint32_t *front_trigger_count,
-                                  uint32_t *pair_count,
-                                  uint32_t *valid_shot_count)
-{
-    uint32_t primask = __get_PRIMASK();
-
-    __disable_irq();
-    *rear_trigger_count = det->rear_int_count;
-    *front_trigger_count = det->front_int_count;
-    *pair_count = det->pair_count;
-    *valid_shot_count = det->shot_count;
-    __set_PRIMASK(primask);
 }

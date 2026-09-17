@@ -21,7 +21,7 @@ extern "C" {
 /* ========================== CAN Message IDs ================================= */
 
 #define CAN_HEARTBEAT_ID           0x200   /* Tx: debug heartbeat, once per sec   */
-#define CAN_DEBUG_COUNT_ID          0x201   /* Tx: 2 Hz trigger/pair/shot counters */
+#define CAN_DEBUG_COUNT_ID         0x201   /* Tx: 2 Hz trigger/pair/shot counters */
 #define CAN_STRONG_FAULT_ID        0x210   /* Tx: post-reset strong-fault mask    */
 #define CAN_WEAK_FAULT_ID          0x211   /* Tx: weak-fault mask                 */
 #define CAN_BOOT_ID                0x212   /* Tx: initialization complete         */
@@ -116,12 +116,15 @@ typedef struct {
 /* ========================== Public API ====================================== */
 
 void CANProtocol_Init(CAN_HandleTypeDef *hcan);
+/* Run from the main loop. Deferred query replies must never transmit in CAN
+ * RX interrupt context. */
+void CANProtocol_Task(void);
 void CANProtocol_UpdateData(const ShootData_Report_t *data);
-HAL_StatusTypeDef CANProtocol_SendHeartbeat(void);
 HAL_StatusTypeDef CANProtocol_SendDebugCounts(uint16_t rear_trigger_count,
                                               uint16_t front_trigger_count,
                                               uint16_t pair_count,
                                               uint16_t valid_shot_count);
+HAL_StatusTypeDef CANProtocol_SendHeartbeat(void);
 HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event);
 HAL_StatusTypeDef CANProtocol_SendWeakFault(uint8_t weak_mask);
 HAL_StatusTypeDef CANProtocol_SendStrongFault(uint8_t strong_mask);
