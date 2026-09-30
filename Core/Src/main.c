@@ -21,8 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "vcnl4040.h"
 #include "shoot_detect.h"
+#include "ir_acquisition.h"
 #include "can_protocol.h"
 #include "led_rgb.h"
 #include "ws2812_uart.h"
@@ -49,14 +49,19 @@
 CAN_HandleTypeDef hcan;
 
 DAC_HandleTypeDef hdac;
+ADC_HandleTypeDef hadc;
+DMA_HandleTypeDef hdma_adc;
 
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
+
+TIM_HandleTypeDef htim3;
 
 TIM_HandleTypeDef htim14;
 TIM_HandleTypeDef htim15;
 TIM_HandleTypeDef htim16;
 
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_tx;
 IWDG_HandleTypeDef hiwdg;
@@ -95,6 +100,9 @@ volatile uint16_t g_dbg_front_baseline = 0;
 volatile uint16_t g_dbg_rear_baseline  = 0;
 volatile uint16_t g_dbg_front_threshold = 0;
 volatile uint16_t g_dbg_rear_threshold  = 0;
+/* Threshold crossings reported directly by the ADC DMA ISR. */
+volatile uint32_t g_dbg_front_int_count = 0;
+volatile uint32_t g_dbg_rear_int_count  = 0;
 /* Debug watch variable: valid shots counted since the latest power-up/reset. */
 volatile uint32_t gbd_shoot_count = 0;
 
@@ -137,18 +145,19 @@ volatile uint8_t  g_dbg_can_bus_off = 0U;
 volatile uint8_t  g_led_cmd        = 0;
 volatile uint8_t  g_led_cmd_count  = 0;
 volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–200           */
+/* Raw-only migration intentionally does not enable the legacy detector. */
+static const bool sensor_calibration_ready = false;
 /* USER CODE END PV */
 
-/* USER CODE END PV */
+
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_CAN_Init(void);
+static void MX_USART1_UART_Init(void);
 static void MX_DAC_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_I2C2_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM15_Init(void);
@@ -198,8 +207,7 @@ int main(void)
   MX_DMA_Init();
   MX_CAN_Init();
   MX_DAC_Init();
-  MX_I2C1_Init();
-  MX_I2C2_Init();
+  MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_TIM14_Init();
   MX_TIM15_Init();
@@ -207,8 +215,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* ---- NVIC configuration ---- */
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);   /* EXTI: PB5/PB12 (highest)   */
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+  Thermal_Init(HAL_GetTick());
+  HAL_NVIC_DisableIRQ(EXTI4_15_IRQn);
   HAL_NVIC_SetPriority(TIM14_IRQn, 3, 0);      /* TIM14: 10 Hz sensor tick   */
   HAL_NVIC_EnableIRQ(TIM14_IRQn);
   HAL_NVIC_SetPriority(TIM15_IRQn, 3, 0);      /* TIM15: 10 Hz LED tick       */
@@ -219,37 +227,12 @@ int main(void)
   /* Start TIM16 free-running counter (PSC/ARR set by MX_TIM16_Init) */
   __HAL_TIM_ENABLE(&htim16);
 
-  /* ---- Init VCNL4040 sensors ---- */
-  bool front_sensor_ready = false;
-  front_sensor_ready = (VCNL4040_Init(&hi2c1) == HAL_OK);
-  bool rear_sensor_ready  = (VCNL4040_Init(&hi2c2) == HAL_OK);
-  Reliability_SetWeakFault(REL_WEAK_FRONT_SENSOR, !front_sensor_ready);
-  Reliability_SetWeakFault(REL_WEAK_REAR_SENSOR, !rear_sensor_ready);
-
-  /* ---- Init projectile detection ---- */
-  /* front_i2c=hi2c1 (PB6/PB7, 2nd in path), rear_i2c=hi2c2 (PB13/PB14, 1st) */
-  ShootDetect_Init(&g_shoot_detect, &hi2c1, &hi2c2);
-  ShootDetect_SetParams(&g_shoot_detect,
-                        DEFAULT_SPEED_MIN_MPS,
-                        DEFAULT_SPEED_MAX_MPS,
-                        DEFAULT_TIMEOUT_MS);
-  Thermal_Init(HAL_GetTick());
-
-  /* ---- Calibrate baseline & set thresholds ---- */
-  bool sensor_calibration_ready = false;
-  if (front_sensor_ready && rear_sensor_ready &&
-      ShootDetect_Calibrate(&g_shoot_detect)) {
-      sensor_calibration_ready = true;
-  } else {
-      Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+  /* ---- Start fixed-code DAC emitters and timer-triggered raw acquisition ---- */
+  if (IR_Acquisition_Init() != HAL_OK) {
+      Error_Handler();
   }
-  g_dbg_front_baseline = g_shoot_detect.front_baseline;
-  g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
-
-
-  /* ---- Init success: light IND_1 (PA5 DAC_OUT2, max = on) ---- */
-  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 4095);
-  HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
+  /* Detection is intentionally unavailable in this raw-only migration. */
+  Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
 
   /* ---- Init LED strip (WS2812 via USART3 PB10) ---- */
   LedStrip_Init();
@@ -303,85 +286,35 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t sensor_rate_window_tick = HAL_GetTick();
-  uint32_t sensor_rate_window_pairs = 0U;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* Always check timeout + clear sensor interrupts (fast) */
-    /* Do not process stale/noisy interrupt state unless both sensors completed
-       initialization and calibration. Raw diagnostics remain available. */
-    if (sensor_calibration_ready) {
-        ShootDetect_Process(&g_shoot_detect);
-    }
-
-    /* A 0x220 request is deferred from the CAN ISR because calibration reads
-       both sensors 20 times and must never block CAN interrupt handling. */
+    /* The legacy calibration request remains observable but has no valid ADC
+       calibration contract yet; consume it without sending a success ACK. */
     if (CANProtocol_TakeCalibrationRequest()) {
-        uint16_t old_front_baseline = g_shoot_detect.front_baseline;
-        uint16_t old_rear_baseline  = g_shoot_detect.rear_baseline;
-        bool calibration_ok = front_sensor_ready && rear_sensor_ready &&
-                              ShootDetect_Calibrate(&g_shoot_detect);
-        sensor_calibration_ready = calibration_ok;
-        Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, !calibration_ok);
-        g_dbg_front_baseline  = g_shoot_detect.front_baseline;
-        g_dbg_rear_baseline   = g_shoot_detect.rear_baseline;
-        g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
-        g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
-        (void)CANProtocol_SendCalibrationAck(
-            old_front_baseline,
-            calibration_ok ? g_shoot_detect.front_baseline : 0xFFFFU,
-            old_rear_baseline,
-            calibration_ok ? g_shoot_detect.rear_baseline : 0xFFFFU);
+        Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
     }
 
-    /* Fast threshold-debug sampling.  Each current/min/max update comes from
-       the same I2C read, so extrema have exactly the sampling rate of PS_DATA. */
-    g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
-    if (g_dbg_front_prox != 0xFFFFU) {
-        if (g_dbg_front_prox > g_dbg_front_prox_max) {
-            g_dbg_front_prox_max = g_dbg_front_prox;
-        }
-        if (g_dbg_front_prox < g_dbg_front_prox_min) {
-            g_dbg_front_prox_min = g_dbg_front_prox;
-        }
+    IR_Acquisition_PublishLatest();
+    /* Legacy Ozone names are physically reversed: g_dbg_rear_prox is the
+       front sensor, while g_dbg_front_prox is the rear sensor. */
+    g_dbg_rear_prox = et1_raw;
+    g_dbg_front_prox = et2_raw;
+    g_dbg_sensor_sample_count = adc_half_count + adc_full_count;
+    g_dbg_sensor_pair_rate_hz = 0U;
+
+    /* DMA ISR reports only a lightweight threshold crossing.  Keep the
+       application action out of the ISR until the sensor direction and shot
+       protocol are finalized. */
+    if (IR_Acquisition_TakeRearEvent()) {
+        g_dbg_front_int_count = ir_rear_event_count;
+    }
+    if (IR_Acquisition_TakeFrontEvent()) {
+        g_dbg_rear_int_count = ir_front_event_count;
     }
 
-    g_dbg_rear_prox = VCNL4040_GetProximity(&hi2c2);
-    if (g_dbg_rear_prox != 0xFFFFU) {
-        if (g_dbg_rear_prox > g_dbg_rear_prox_max) {
-            g_dbg_rear_prox_max = g_dbg_rear_prox;
-        }
-        if (g_dbg_rear_prox < g_dbg_rear_prox_min) {
-            g_dbg_rear_prox_min = g_dbg_rear_prox;
-        }
-    }
-    g_dbg_front_int_pin_low =
-        (HAL_GPIO_ReadPin(IR_IIC1_INT_GPIO_Port, IR_IIC1_INT_Pin) ==
-         GPIO_PIN_RESET);
-    g_dbg_rear_int_pin_low =
-        (HAL_GPIO_ReadPin(IR_IIC2_INT_GPIO_Port, IR_IIC2_INT_Pin) ==
-         GPIO_PIN_RESET);
-    g_dbg_sensor_sample_count++;
-    sensor_rate_window_pairs++;
-    uint32_t sensor_rate_now = HAL_GetTick();
-    uint32_t sensor_rate_elapsed = sensor_rate_now - sensor_rate_window_tick;
-    if (sensor_rate_elapsed >= 1000U) {
-        g_dbg_sensor_pair_rate_hz =
-            (sensor_rate_window_pairs * 1000U) / sensor_rate_elapsed;
-        sensor_rate_window_pairs = 0U;
-        sensor_rate_window_tick = sensor_rate_now;
-    }
-
-    /* Keep the requested boot-calibrated baseline - 20 threshold fixed.
-       A large positive reflection must not move the baseline and turn its
-       departure into a false low-threshold event. */
-    g_dbg_front_baseline = g_shoot_detect.front_baseline;
-    g_dbg_rear_baseline  = g_shoot_detect.rear_baseline;
-    g_dbg_front_threshold = g_shoot_detect.front_threshold_low;
-    g_dbg_rear_threshold  = g_shoot_detect.rear_threshold_low;
 
     uint32_t now_tick = HAL_GetTick();
     Thermal_Update(now_tick);
@@ -438,8 +371,8 @@ int main(void)
     if (g_sensor_tick_10hz) {
         g_sensor_tick_10hz = false;
 
-        Reliability_ObserveSensors(g_dbg_front_prox != 0xFFFFU,
-                                   g_dbg_rear_prox != 0xFFFFU);
+        Reliability_ObserveSensors(ir_acquisition_ready && adc_half_count != 0U,
+                                   ir_acquisition_ready && adc_full_count != 0U);
         /* A valid raw read alone is not enough to re-enable detection after
            startup/calibration failure. Keep this fault asserted until a
            successful calibration establishes valid thresholds. */
@@ -462,7 +395,8 @@ int main(void)
 
     bool boot_effect_active = LedStrip_ProcessBootEffect(now_tick);
     bool shot_effect_active = false;
-    if (!boot_effect_active && !Reliability_IsFaultAlertActive() &&
+    if (!boot_effect_active &&
+        (Reliability_GetWeakMask() & (uint8_t)~REL_WEAK_SHOOT_DETECT) == 0U &&
         g_led_cmd == 0 && CANProtocol_GetLedCommand()->source != LED_SRC_DEBUG) {
         shot_effect_active = LedStrip_ProcessShotEffect(now_tick);
     }
@@ -475,7 +409,7 @@ int main(void)
             /* LedStrip_ProcessBootEffect() has already sent this frame. */
         }
         /* Priority 2: any active fault overrides ordinary LED control. */
-        else if (Reliability_IsFaultAlertActive()) {
+        else if ((Reliability_GetWeakMask() & (uint8_t)~REL_WEAK_SHOOT_DETECT) != 0U) {
             LedStrip_ShowFaultAlert(HAL_GetTick());
         }
         /* Priority 3: debugger override (g_led_cmd = 1~5) */
@@ -630,8 +564,23 @@ static void MX_IWDG_Init(void)
   }
 }
 
+static void MX_USART1_UART_Init(void)
+{
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK) Error_Handler();
+}
+
 /**
-  * @brief DAC Initialization Function
+  * @brief DAC initialization.
   * @param None
   * @retval None
   */
@@ -670,6 +619,7 @@ static void MX_DAC_Init(void)
 
 }
 
+#if 0 /* Retained legacy VCNL4040 wiring; never initialize on the new board. */
 /**
   * @brief I2C1 Initialization Function
   * @param None
@@ -765,6 +715,7 @@ static void MX_I2C2_Init(void)
   /* USER CODE END I2C2_Init 2 */
 
 }
+#endif /* legacy VCNL4040 wiring */
 
 /**
   * @brief TIM14 Initialization Function
@@ -972,13 +923,17 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 3000000;
+  /* GL5050RGB01H-T uses the WS2812-style 1.25 us bit cell.  The UART
+     encoder emits five UART bits per LED bit, so 4 Mbps is required. */
+  huart3.Init.BaudRate = 4000000;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
   huart3.Init.Mode = UART_MODE_TX_RX;
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  /* 16x oversampling would produce BRR=12 at 48 MHz/4 Mbps, which this
+     STM32F0 HAL rejects (minimum BRR is 0x10).  8x keeps the same baud. */
+  huart3.Init.OverSampling = UART_OVERSAMPLING_8;
   huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT;
   huart3.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
@@ -1002,6 +957,9 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
   /* DMA1_Channel2_3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
@@ -1015,7 +973,6 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -1025,23 +982,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pins : IR_IIC2_INT_Pin IR_IIC1_INT_Pin */
-  GPIO_InitStruct.Pin = IR_IIC2_INT_Pin|IR_IIC1_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-  /* VCNL4040 INT open-drain → PULLUP for clean rising edge (leave event) */
-  GPIO_InitStruct.Pin  = IR_IIC1_INT_Pin | IR_IIC2_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-  /* USER CODE END MX_GPIO_Init_2 */
+  /* Old PB5/PB12 sensor interrupts are not configured on the new board. */
+  HAL_NVIC_DisableIRQ(EXTI4_15_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

@@ -2,8 +2,8 @@
   ******************************************************************************
   * @file           : ws2812_uart.h
   * @brief          : WS2812B LED driver via USART3 + TX inversion + DMA
-  * @description    : Each color byte becomes 4 UART bytes, encoding 2 WS2812
-  *                   bits per UART frame. USART3 runs at 3.75 Mbaud on PB10.
+  * @description    : Each color byte becomes 4 UART bytes, encoding 2 LED
+  *                   bits per UART frame. USART3 runs at 4 Mbaud on PB10.
   *                   TX inversion makes idle low for the WS2812 reset pulse.
   ******************************************************************************
   */
@@ -17,7 +17,8 @@ extern "C" {
 #include "stm32f0xx_hal.h"
 #include <stdbool.h>
 
-/* WS2812B expects color data in GRB order: [G, R, B]. */
+/* The LED driver stores colors as GRB for legacy callers; the GL5050 device
+   receives them on the wire as RGB (the encoder performs that conversion). */
 #define WS2812_COLOR(g, r, b)   (((uint32_t)(g) << 16) | ((uint32_t)(r) << 8) | (uint32_t)(b))
 
 void ws2812_uart_init(void);

@@ -36,6 +36,9 @@ BUILD_DIR = build
 ######################################
 # C sources
 C_SOURCES =  \
+Core/Src/ir_acquisition.c \
+Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc.c \
+Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc_ex.c \
 Core/Src/main.c \
 Core/Src/stm32f0xx_it.c \
 Core/Src/stm32f0xx_hal_msp.c \

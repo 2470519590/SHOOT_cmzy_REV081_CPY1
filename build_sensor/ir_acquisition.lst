@@ -1,0 +1,2722 @@
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 1
+
+
+   1              		.cpu cortex-m0
+   2              		.arch armv6s-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 0
+  12              		.eabi_attribute 18, 4
+  13              		.file	"ir_acquisition.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/ir_acquisition.c"
+  18              		.section	.text.IR_HistogramMedian,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.code	16
+  22              		.thumb_func
+  24              	IR_HistogramMedian:
+  25              	.LVL0:
+  26              	.LFB40:
+   1:Core/Src/ir_acquisition.c **** #include "ir_acquisition.h"
+   2:Core/Src/ir_acquisition.c **** 
+   3:Core/Src/ir_acquisition.c **** extern DAC_HandleTypeDef hdac;
+   4:Core/Src/ir_acquisition.c **** volatile uint16_t adc_dma_buf[IR_ADC_DMA_LENGTH] __attribute__((aligned(4)));
+   5:Core/Src/ir_acquisition.c **** volatile uint16_t et1_raw;
+   6:Core/Src/ir_acquisition.c **** volatile uint16_t et2_raw;
+   7:Core/Src/ir_acquisition.c **** volatile uint32_t adc_half_count;
+   8:Core/Src/ir_acquisition.c **** volatile uint32_t adc_full_count;
+   9:Core/Src/ir_acquisition.c **** volatile uint32_t adc_error_count;
+  10:Core/Src/ir_acquisition.c **** volatile uint16_t ir_dac1_code = IR_DAC1_DEFAULT_CODE;
+  11:Core/Src/ir_acquisition.c **** volatile uint16_t ir_dac2_code = IR_DAC2_DEFAULT_CODE;
+  12:Core/Src/ir_acquisition.c **** volatile bool ir_acquisition_ready;
+  13:Core/Src/ir_acquisition.c **** volatile bool g_sensor_detection_ready;
+  14:Core/Src/ir_acquisition.c **** volatile uint32_t ir_rear_event_count;
+  15:Core/Src/ir_acquisition.c **** volatile uint32_t ir_front_event_count;
+  16:Core/Src/ir_acquisition.c **** volatile uint32_t ir_rear_event_sample;
+  17:Core/Src/ir_acquisition.c **** volatile uint32_t ir_front_event_sample;
+  18:Core/Src/ir_acquisition.c **** volatile bool ir_rear_event_pending;
+  19:Core/Src/ir_acquisition.c **** volatile bool ir_front_event_pending;
+  20:Core/Src/ir_acquisition.c **** static volatile uint32_t completed_sequence;
+  21:Core/Src/ir_acquisition.c **** static volatile uint16_t completed_offset;
+  22:Core/Src/ir_acquisition.c **** static uint32_t published_sequence;
+  23:Core/Src/ir_acquisition.c **** static uint16_t applied_dac1;
+  24:Core/Src/ir_acquisition.c **** static uint16_t applied_dac2;
+  25:Core/Src/ir_acquisition.c **** static bool baseline_ready;
+  26:Core/Src/ir_acquisition.c **** static bool rear_armed;
+  27:Core/Src/ir_acquisition.c **** static bool front_armed;
+  28:Core/Src/ir_acquisition.c **** static uint32_t calibration_start_tick;
+  29:Core/Src/ir_acquisition.c **** static uint32_t calibration_sample_count;
+  30:Core/Src/ir_acquisition.c **** /* 8-bit bins retain enough precision for a +45-code trigger while keeping
+  31:Core/Src/ir_acquisition.c ****    the startup calibration footprint small on the 16 KiB SRAM part. */
+  32:Core/Src/ir_acquisition.c **** static uint16_t rear_histogram[256];
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 2
+
+
+  33:Core/Src/ir_acquisition.c **** static uint16_t front_histogram[256];
+  34:Core/Src/ir_acquisition.c **** static int32_t rear_baseline_q16;
+  35:Core/Src/ir_acquisition.c **** static int32_t front_baseline_q16;
+  36:Core/Src/ir_acquisition.c **** 
+  37:Core/Src/ir_acquisition.c **** /* These debugger-visible values are owned by main.c.  The first completed
+  38:Core/Src/ir_acquisition.c ****    DMA block establishes the static level; subsequent samples use +45. */
+  39:Core/Src/ir_acquisition.c **** extern volatile uint16_t g_dbg_rear_baseline;
+  40:Core/Src/ir_acquisition.c **** extern volatile uint16_t g_dbg_front_baseline;
+  41:Core/Src/ir_acquisition.c **** extern volatile uint16_t g_dbg_rear_threshold;
+  42:Core/Src/ir_acquisition.c **** extern volatile uint16_t g_dbg_front_threshold;
+  43:Core/Src/ir_acquisition.c **** 
+  44:Core/Src/ir_acquisition.c **** static uint16_t IR_HistogramMedian(const uint16_t *histogram, uint32_t total)
+  45:Core/Src/ir_acquisition.c **** {
+  27              		.loc 1 45 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		.loc 1 45 1 is_stmt 0 view .LVU1
+  32 0000 10B5     		push	{r4, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 8
+  35              		.cfi_offset 4, -8
+  36              		.cfi_offset 14, -4
+  37 0002 0400     		movs	r4, r0
+  46:Core/Src/ir_acquisition.c ****     uint32_t accumulated = 0U;
+  38              		.loc 1 46 5 is_stmt 1 view .LVU2
+  39              	.LVL1:
+  47:Core/Src/ir_acquisition.c ****     uint16_t value;
+  40              		.loc 1 47 5 view .LVU3
+  48:Core/Src/ir_acquisition.c ****     for (value = 0U; value < 256U; ++value) {
+  41              		.loc 1 48 5 view .LVU4
+  42              		.loc 1 48 16 is_stmt 0 view .LVU5
+  43 0004 0020     		movs	r0, #0
+  44              	.LVL2:
+  46:Core/Src/ir_acquisition.c ****     uint32_t accumulated = 0U;
+  45              		.loc 1 46 14 view .LVU6
+  46 0006 0022     		movs	r2, #0
+  47              	.LVL3:
+  48              	.L2:
+  49              		.loc 1 48 28 is_stmt 1 discriminator 1 view .LVU7
+  50 0008 FF28     		cmp	r0, #255
+  51 000a 09D8     		bhi	.L5
+  49:Core/Src/ir_acquisition.c ****         accumulated += histogram[value];
+  52              		.loc 1 49 9 view .LVU8
+  53              		.loc 1 49 33 is_stmt 0 view .LVU9
+  54 000c 4300     		lsls	r3, r0, #1
+  55 000e 1B5B     		ldrh	r3, [r3, r4]
+  56              		.loc 1 49 21 view .LVU10
+  57 0010 D218     		adds	r2, r2, r3
+  58              	.LVL4:
+  50:Core/Src/ir_acquisition.c ****         if (accumulated >= (total + 1U) / 2U) {
+  59              		.loc 1 50 9 is_stmt 1 view .LVU11
+  60              		.loc 1 50 35 is_stmt 0 view .LVU12
+  61 0012 4B1C     		adds	r3, r1, #1
+  62              		.loc 1 50 41 view .LVU13
+  63 0014 5B08     		lsrs	r3, r3, #1
+  64              		.loc 1 50 12 view .LVU14
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 3
+
+
+  65 0016 9342     		cmp	r3, r2
+  66 0018 03D9     		bls	.L3
+  48:Core/Src/ir_acquisition.c ****     for (value = 0U; value < 256U; ++value) {
+  67              		.loc 1 48 36 is_stmt 1 discriminator 2 view .LVU15
+  68 001a 0130     		adds	r0, r0, #1
+  69              	.LVL5:
+  48:Core/Src/ir_acquisition.c ****     for (value = 0U; value < 256U; ++value) {
+  70              		.loc 1 48 36 is_stmt 0 discriminator 2 view .LVU16
+  71 001c 80B2     		uxth	r0, r0
+  72              	.LVL6:
+  48:Core/Src/ir_acquisition.c ****     for (value = 0U; value < 256U; ++value) {
+  73              		.loc 1 48 36 discriminator 2 view .LVU17
+  74 001e F3E7     		b	.L2
+  75              	.LVL7:
+  76              	.L5:
+  51:Core/Src/ir_acquisition.c ****             return value;
+  52:Core/Src/ir_acquisition.c ****         }
+  53:Core/Src/ir_acquisition.c ****     }
+  54:Core/Src/ir_acquisition.c ****     return 0U;
+  77              		.loc 1 54 12 view .LVU18
+  78 0020 0020     		movs	r0, #0
+  79              	.LVL8:
+  80              	.L3:
+  55:Core/Src/ir_acquisition.c **** }
+  81              		.loc 1 55 1 view .LVU19
+  82              		@ sp needed
+  83              	.LVL9:
+  84              		.loc 1 55 1 view .LVU20
+  85 0022 10BD     		pop	{r4, pc}
+  86              		.cfi_endproc
+  87              	.LFE40:
+  89              		.section	.text.IR_FinishStartupCalibration,"ax",%progbits
+  90              		.align	1
+  91              		.syntax unified
+  92              		.code	16
+  93              		.thumb_func
+  95              	IR_FinishStartupCalibration:
+  96              	.LFB41:
+  56:Core/Src/ir_acquisition.c **** 
+  57:Core/Src/ir_acquisition.c **** static void IR_FinishStartupCalibration(void)
+  58:Core/Src/ir_acquisition.c **** {
+  97              		.loc 1 58 1 is_stmt 1 view -0
+  98              		.cfi_startproc
+  99              		@ args = 0, pretend = 0, frame = 0
+ 100              		@ frame_needed = 0, uses_anonymous_args = 0
+ 101 0000 70B5     		push	{r4, r5, r6, lr}
+ 102              	.LCFI1:
+ 103              		.cfi_def_cfa_offset 16
+ 104              		.cfi_offset 4, -16
+ 105              		.cfi_offset 5, -12
+ 106              		.cfi_offset 6, -8
+ 107              		.cfi_offset 14, -4
+  59:Core/Src/ir_acquisition.c ****     uint16_t rear = (uint16_t)(IR_HistogramMedian(rear_histogram, calibration_sample_count) * 16U +
+ 108              		.loc 1 59 5 view .LVU22
+ 109              		.loc 1 59 32 is_stmt 0 view .LVU23
+ 110 0002 1F4B     		ldr	r3, .L11
+ 111 0004 1E68     		ldr	r6, [r3]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 4
+
+
+ 112 0006 1F48     		ldr	r0, .L11+4
+ 113 0008 3100     		movs	r1, r6
+ 114 000a FFF7FEFF 		bl	IR_HistogramMedian
+ 115              	.LVL10:
+ 116              		.loc 1 59 93 discriminator 1 view .LVU24
+ 117 000e 0401     		lsls	r4, r0, #4
+ 118 0010 A4B2     		uxth	r4, r4
+ 119              		.loc 1 59 14 discriminator 1 view .LVU25
+ 120 0012 2500     		movs	r5, r4
+ 121 0014 0835     		adds	r5, r5, #8
+ 122 0016 ADB2     		uxth	r5, r5
+ 123              	.LVL11:
+  60:Core/Src/ir_acquisition.c ****     uint16_t front = (uint16_t)(IR_HistogramMedian(front_histogram, calibration_sample_count) * 16U
+ 124              		.loc 1 60 5 is_stmt 1 view .LVU26
+ 125              		.loc 1 60 33 is_stmt 0 view .LVU27
+ 126 0018 1B48     		ldr	r0, .L11+8
+ 127 001a 3100     		movs	r1, r6
+ 128 001c FFF7FEFF 		bl	IR_HistogramMedian
+ 129              	.LVL12:
+ 130              		.loc 1 60 95 discriminator 1 view .LVU28
+ 131 0020 0001     		lsls	r0, r0, #4
+ 132 0022 80B2     		uxth	r0, r0
+ 133              		.loc 1 60 14 discriminator 1 view .LVU29
+ 134 0024 0200     		movs	r2, r0
+ 135 0026 0832     		adds	r2, r2, #8
+ 136 0028 93B2     		uxth	r3, r2
+ 137              	.LVL13:
+  61:Core/Src/ir_acquisition.c ****     rear_baseline_q16 = (int32_t)rear << 16;
+ 138              		.loc 1 61 5 is_stmt 1 view .LVU30
+ 139              		.loc 1 61 39 is_stmt 0 view .LVU31
+ 140 002a 2E04     		lsls	r6, r5, #16
+ 141              		.loc 1 61 23 view .LVU32
+ 142 002c 1749     		ldr	r1, .L11+12
+ 143 002e 0E60     		str	r6, [r1]
+  62:Core/Src/ir_acquisition.c ****     front_baseline_q16 = (int32_t)front << 16;
+ 144              		.loc 1 62 5 is_stmt 1 view .LVU33
+ 145              		.loc 1 62 41 is_stmt 0 view .LVU34
+ 146 0030 1204     		lsls	r2, r2, #16
+ 147              		.loc 1 62 24 view .LVU35
+ 148 0032 1749     		ldr	r1, .L11+16
+ 149 0034 0A60     		str	r2, [r1]
+  63:Core/Src/ir_acquisition.c ****     /* Legacy debug names are reversed on this board: rear variable is front
+  64:Core/Src/ir_acquisition.c ****        sensor (ET2), front variable is rear sensor (ET1). */
+  65:Core/Src/ir_acquisition.c ****     g_dbg_rear_baseline = front;
+ 150              		.loc 1 65 5 is_stmt 1 view .LVU36
+ 151              		.loc 1 65 25 is_stmt 0 view .LVU37
+ 152 0036 174A     		ldr	r2, .L11+20
+ 153 0038 1380     		strh	r3, [r2]
+  66:Core/Src/ir_acquisition.c ****     g_dbg_front_baseline = rear;
+ 154              		.loc 1 66 5 is_stmt 1 view .LVU38
+ 155              		.loc 1 66 26 is_stmt 0 view .LVU39
+ 156 003a 174A     		ldr	r2, .L11+24
+ 157 003c 1580     		strh	r5, [r2]
+  67:Core/Src/ir_acquisition.c ****     g_dbg_rear_threshold = (uint16_t)(front + IR_TRIGGER_DELTA > 4095U ?
+ 158              		.loc 1 67 5 is_stmt 1 view .LVU40
+ 159              		.loc 1 67 45 is_stmt 0 view .LVU41
+ 160 003e 2D33     		adds	r3, r3, #45
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 5
+
+
+ 161              	.LVL14:
+ 162              		.loc 1 67 28 view .LVU42
+ 163 0040 8022     		movs	r2, #128
+ 164 0042 5201     		lsls	r2, r2, #5
+ 165 0044 9342     		cmp	r3, r2
+ 166 0046 16D2     		bcs	.L9
+ 167              		.loc 1 67 28 discriminator 1 view .LVU43
+ 168 0048 3530     		adds	r0, r0, #53
+ 169 004a 80B2     		uxth	r0, r0
+ 170              	.L7:
+ 171              		.loc 1 67 26 discriminator 4 view .LVU44
+ 172 004c 134B     		ldr	r3, .L11+28
+ 173              	.LVL15:
+ 174              		.loc 1 67 26 discriminator 4 view .LVU45
+ 175 004e 1880     		strh	r0, [r3]
+  68:Core/Src/ir_acquisition.c ****                                       4095U : front + IR_TRIGGER_DELTA);
+  69:Core/Src/ir_acquisition.c ****     g_dbg_front_threshold = (uint16_t)(rear + IR_TRIGGER_DELTA > 4095U ?
+ 176              		.loc 1 69 5 is_stmt 1 view .LVU46
+ 177              		.loc 1 69 45 is_stmt 0 view .LVU47
+ 178 0050 2D35     		adds	r5, r5, #45
+ 179              	.LVL16:
+ 180              		.loc 1 69 29 view .LVU48
+ 181 0052 8023     		movs	r3, #128
+ 182 0054 5B01     		lsls	r3, r3, #5
+ 183 0056 9D42     		cmp	r5, r3
+ 184 0058 0FD2     		bcs	.L10
+ 185              		.loc 1 69 29 discriminator 1 view .LVU49
+ 186 005a 3534     		adds	r4, r4, #53
+ 187 005c A4B2     		uxth	r4, r4
+ 188              	.L8:
+ 189              		.loc 1 69 27 discriminator 4 view .LVU50
+ 190 005e 104B     		ldr	r3, .L11+32
+ 191 0060 1C80     		strh	r4, [r3]
+  70:Core/Src/ir_acquisition.c ****                                        4095U : rear + IR_TRIGGER_DELTA);
+  71:Core/Src/ir_acquisition.c ****     baseline_ready = true;
+ 192              		.loc 1 71 5 is_stmt 1 view .LVU51
+ 193              		.loc 1 71 20 is_stmt 0 view .LVU52
+ 194 0062 104A     		ldr	r2, .L11+36
+ 195 0064 0123     		movs	r3, #1
+ 196 0066 1370     		strb	r3, [r2]
+  72:Core/Src/ir_acquisition.c ****     rear_armed = true;
+ 197              		.loc 1 72 5 is_stmt 1 view .LVU53
+ 198              		.loc 1 72 16 is_stmt 0 view .LVU54
+ 199 0068 0F4A     		ldr	r2, .L11+40
+ 200 006a 1370     		strb	r3, [r2]
+  73:Core/Src/ir_acquisition.c ****     front_armed = true;
+ 201              		.loc 1 73 5 is_stmt 1 view .LVU55
+ 202              		.loc 1 73 17 is_stmt 0 view .LVU56
+ 203 006c 0F4A     		ldr	r2, .L11+44
+ 204 006e 1370     		strb	r3, [r2]
+  74:Core/Src/ir_acquisition.c ****     g_sensor_detection_ready = true;
+ 205              		.loc 1 74 5 is_stmt 1 view .LVU57
+ 206              		.loc 1 74 30 is_stmt 0 view .LVU58
+ 207 0070 0F4A     		ldr	r2, .L11+48
+ 208 0072 1370     		strb	r3, [r2]
+  75:Core/Src/ir_acquisition.c **** }
+ 209              		.loc 1 75 1 view .LVU59
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 6
+
+
+ 210              		@ sp needed
+ 211              	.LVL17:
+ 212              		.loc 1 75 1 view .LVU60
+ 213 0074 70BD     		pop	{r4, r5, r6, pc}
+ 214              	.LVL18:
+ 215              	.L9:
+  67:Core/Src/ir_acquisition.c ****                                       4095U : front + IR_TRIGGER_DELTA);
+ 216              		.loc 1 67 28 discriminator 2 view .LVU61
+ 217 0076 0F48     		ldr	r0, .L11+52
+ 218 0078 E8E7     		b	.L7
+ 219              	.LVL19:
+ 220              	.L10:
+  69:Core/Src/ir_acquisition.c ****                                        4095U : rear + IR_TRIGGER_DELTA);
+ 221              		.loc 1 69 29 discriminator 2 view .LVU62
+ 222 007a 0E4C     		ldr	r4, .L11+52
+ 223 007c EFE7     		b	.L8
+ 224              	.L12:
+ 225 007e C046     		.align	2
+ 226              	.L11:
+ 227 0080 00000000 		.word	calibration_sample_count
+ 228 0084 00000000 		.word	rear_histogram
+ 229 0088 00000000 		.word	front_histogram
+ 230 008c 00000000 		.word	rear_baseline_q16
+ 231 0090 00000000 		.word	front_baseline_q16
+ 232 0094 00000000 		.word	g_dbg_rear_baseline
+ 233 0098 00000000 		.word	g_dbg_front_baseline
+ 234 009c 00000000 		.word	g_dbg_rear_threshold
+ 235 00a0 00000000 		.word	g_dbg_front_threshold
+ 236 00a4 00000000 		.word	baseline_ready
+ 237 00a8 00000000 		.word	rear_armed
+ 238 00ac 00000000 		.word	front_armed
+ 239 00b0 00000000 		.word	g_sensor_detection_ready
+ 240 00b4 FF0F0000 		.word	4095
+ 241              		.cfi_endproc
+ 242              	.LFE41:
+ 244              		.section	.text.IR_ScanCompletedBlock,"ax",%progbits
+ 245              		.align	1
+ 246              		.syntax unified
+ 247              		.code	16
+ 248              		.thumb_func
+ 250              	IR_ScanCompletedBlock:
+ 251              	.LVL20:
+ 252              	.LFB42:
+  76:Core/Src/ir_acquisition.c **** 
+  77:Core/Src/ir_acquisition.c **** static void IR_ScanCompletedBlock(uint16_t offset)
+  78:Core/Src/ir_acquisition.c **** {
+ 253              		.loc 1 78 1 is_stmt 1 view -0
+ 254              		.cfi_startproc
+ 255              		@ args = 0, pretend = 0, frame = 8
+ 256              		@ frame_needed = 0, uses_anonymous_args = 0
+ 257              		.loc 1 78 1 is_stmt 0 view .LVU64
+ 258 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 259              	.LCFI2:
+ 260              		.cfi_def_cfa_offset 20
+ 261              		.cfi_offset 4, -20
+ 262              		.cfi_offset 5, -16
+ 263              		.cfi_offset 6, -12
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 7
+
+
+ 264              		.cfi_offset 7, -8
+ 265              		.cfi_offset 14, -4
+ 266 0002 DE46     		mov	lr, fp
+ 267 0004 5746     		mov	r7, r10
+ 268 0006 4E46     		mov	r6, r9
+ 269 0008 4546     		mov	r5, r8
+ 270 000a E0B5     		push	{r5, r6, r7, lr}
+ 271              	.LCFI3:
+ 272              		.cfi_def_cfa_offset 36
+ 273              		.cfi_offset 8, -36
+ 274              		.cfi_offset 9, -32
+ 275              		.cfi_offset 10, -28
+ 276              		.cfi_offset 11, -24
+ 277 000c 83B0     		sub	sp, sp, #12
+ 278              	.LCFI4:
+ 279              		.cfi_def_cfa_offset 48
+ 280 000e 0190     		str	r0, [sp, #4]
+  79:Core/Src/ir_acquisition.c ****     const uint16_t pairs = IR_ADC_DMA_LENGTH / 4U;
+ 281              		.loc 1 79 5 is_stmt 1 view .LVU65
+ 282              	.LVL21:
+  80:Core/Src/ir_acquisition.c ****     uint16_t i;
+ 283              		.loc 1 80 5 view .LVU66
+  81:Core/Src/ir_acquisition.c **** 
+  82:Core/Src/ir_acquisition.c ****     if (!baseline_ready) {
+ 284              		.loc 1 82 5 view .LVU67
+ 285              		.loc 1 82 9 is_stmt 0 view .LVU68
+ 286 0010 614B     		ldr	r3, .L34
+ 287 0012 1B78     		ldrb	r3, [r3]
+ 288              		.loc 1 82 8 view .LVU69
+ 289 0014 002B     		cmp	r3, #0
+ 290 0016 01D0     		beq	.L31
+  83:Core/Src/ir_acquisition.c ****         for (i = 0U; i < pairs; ++i) {
+  84:Core/Src/ir_acquisition.c ****             uint16_t front = adc_dma_buf[offset + (uint16_t)(2U * i)];
+  85:Core/Src/ir_acquisition.c ****             uint16_t rear = adc_dma_buf[offset + (uint16_t)(2U * i + 1U)];
+  86:Core/Src/ir_acquisition.c ****             if (front_histogram[front >> 4] != 0xFFFFU) {
+  87:Core/Src/ir_acquisition.c ****                 front_histogram[front >> 4]++;
+  88:Core/Src/ir_acquisition.c ****             }
+  89:Core/Src/ir_acquisition.c ****             if (rear_histogram[rear >> 4] != 0xFFFFU) {
+  90:Core/Src/ir_acquisition.c ****                 rear_histogram[rear >> 4]++;
+  91:Core/Src/ir_acquisition.c ****             }
+  92:Core/Src/ir_acquisition.c ****             calibration_sample_count++;
+  93:Core/Src/ir_acquisition.c ****         }
+  94:Core/Src/ir_acquisition.c ****         if ((HAL_GetTick() - calibration_start_tick) >= IR_STARTUP_CALIBRATION_MS) {
+  95:Core/Src/ir_acquisition.c ****             IR_FinishStartupCalibration();
+  96:Core/Src/ir_acquisition.c ****         }
+  97:Core/Src/ir_acquisition.c ****         return;
+  98:Core/Src/ir_acquisition.c ****     }
+  99:Core/Src/ir_acquisition.c **** 
+ 100:Core/Src/ir_acquisition.c ****     for (i = 0U; i < pairs; ++i) {
+ 291              		.loc 1 100 12 view .LVU70
+ 292 0018 0021     		movs	r1, #0
+ 293 001a 76E0     		b	.L14
+ 294              	.L31:
+  83:Core/Src/ir_acquisition.c ****         for (i = 0U; i < pairs; ++i) {
+ 295              		.loc 1 83 16 view .LVU71
+ 296 001c 0022     		movs	r2, #0
+ 297 001e 05E0     		b	.L15
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 8
+
+
+ 298              	.LVL22:
+ 299              	.L17:
+ 300              	.LBB2:
+  92:Core/Src/ir_acquisition.c ****         }
+ 301              		.loc 1 92 13 is_stmt 1 view .LVU72
+  92:Core/Src/ir_acquisition.c ****         }
+ 302              		.loc 1 92 37 is_stmt 0 view .LVU73
+ 303 0020 5E49     		ldr	r1, .L34+4
+ 304 0022 0B68     		ldr	r3, [r1]
+ 305 0024 0133     		adds	r3, r3, #1
+ 306 0026 0B60     		str	r3, [r1]
+ 307              	.LBE2:
+  83:Core/Src/ir_acquisition.c ****         for (i = 0U; i < pairs; ++i) {
+ 308              		.loc 1 83 33 is_stmt 1 discriminator 2 view .LVU74
+ 309 0028 0132     		adds	r2, r2, #1
+ 310              	.LVL23:
+  83:Core/Src/ir_acquisition.c ****         for (i = 0U; i < pairs; ++i) {
+ 311              		.loc 1 83 33 is_stmt 0 discriminator 2 view .LVU75
+ 312 002a 92B2     		uxth	r2, r2
+ 313              	.LVL24:
+ 314              	.L15:
+  83:Core/Src/ir_acquisition.c ****         for (i = 0U; i < pairs; ++i) {
+ 315              		.loc 1 83 24 is_stmt 1 discriminator 1 view .LVU76
+ 316 002c 072A     		cmp	r2, #7
+ 317 002e 24D8     		bhi	.L32
+ 318              	.LBB3:
+  84:Core/Src/ir_acquisition.c ****             uint16_t rear = adc_dma_buf[offset + (uint16_t)(2U * i + 1U)];
+ 319              		.loc 1 84 13 view .LVU77
+  84:Core/Src/ir_acquisition.c ****             uint16_t rear = adc_dma_buf[offset + (uint16_t)(2U * i + 1U)];
+ 320              		.loc 1 84 51 is_stmt 0 view .LVU78
+ 321 0030 5300     		lsls	r3, r2, #1
+ 322 0032 9BB2     		uxth	r3, r3
+  84:Core/Src/ir_acquisition.c ****             uint16_t rear = adc_dma_buf[offset + (uint16_t)(2U * i + 1U)];
+ 323              		.loc 1 84 49 view .LVU79
+ 324 0034 0198     		ldr	r0, [sp, #4]
+ 325 0036 C118     		adds	r1, r0, r3
+  84:Core/Src/ir_acquisition.c ****             uint16_t rear = adc_dma_buf[offset + (uint16_t)(2U * i + 1U)];
+ 326              		.loc 1 84 22 view .LVU80
+ 327 0038 594C     		ldr	r4, .L34+8
+ 328 003a 4900     		lsls	r1, r1, #1
+ 329 003c 095B     		ldrh	r1, [r1, r4]
+ 330              	.LVL25:
+  85:Core/Src/ir_acquisition.c ****             if (front_histogram[front >> 4] != 0xFFFFU) {
+ 331              		.loc 1 85 13 is_stmt 1 view .LVU81
+  85:Core/Src/ir_acquisition.c ****             if (front_histogram[front >> 4] != 0xFFFFU) {
+ 332              		.loc 1 85 50 is_stmt 0 view .LVU82
+ 333 003e 0133     		adds	r3, r3, #1
+ 334 0040 9BB2     		uxth	r3, r3
+  85:Core/Src/ir_acquisition.c ****             if (front_histogram[front >> 4] != 0xFFFFU) {
+ 335              		.loc 1 85 48 view .LVU83
+ 336 0042 8446     		mov	ip, r0
+ 337 0044 6344     		add	r3, r3, ip
+  85:Core/Src/ir_acquisition.c ****             if (front_histogram[front >> 4] != 0xFFFFU) {
+ 338              		.loc 1 85 22 view .LVU84
+ 339 0046 5B00     		lsls	r3, r3, #1
+ 340 0048 1B5B     		ldrh	r3, [r3, r4]
+ 341 004a 9BB2     		uxth	r3, r3
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 9
+
+
+ 342              	.LVL26:
+  86:Core/Src/ir_acquisition.c ****                 front_histogram[front >> 4]++;
+ 343              		.loc 1 86 13 is_stmt 1 view .LVU85
+  86:Core/Src/ir_acquisition.c ****                 front_histogram[front >> 4]++;
+ 344              		.loc 1 86 39 is_stmt 0 view .LVU86
+ 345 004c 0909     		lsrs	r1, r1, #4
+ 346              	.LVL27:
+  86:Core/Src/ir_acquisition.c ****                 front_histogram[front >> 4]++;
+ 347              		.loc 1 86 32 view .LVU87
+ 348 004e 554C     		ldr	r4, .L34+12
+ 349 0050 4D00     		lsls	r5, r1, #1
+ 350 0052 2C5B     		ldrh	r4, [r5, r4]
+  86:Core/Src/ir_acquisition.c ****                 front_histogram[front >> 4]++;
+ 351              		.loc 1 86 16 view .LVU88
+ 352 0054 544D     		ldr	r5, .L34+16
+ 353 0056 AC42     		cmp	r4, r5
+ 354 0058 03D0     		beq	.L16
+  87:Core/Src/ir_acquisition.c ****             }
+ 355              		.loc 1 87 17 is_stmt 1 view .LVU89
+  87:Core/Src/ir_acquisition.c ****             }
+ 356              		.loc 1 87 44 is_stmt 0 view .LVU90
+ 357 005a 524D     		ldr	r5, .L34+12
+ 358 005c 4900     		lsls	r1, r1, #1
+ 359 005e 0134     		adds	r4, r4, #1
+ 360 0060 4C53     		strh	r4, [r1, r5]
+ 361              	.L16:
+  89:Core/Src/ir_acquisition.c ****                 rear_histogram[rear >> 4]++;
+ 362              		.loc 1 89 13 is_stmt 1 view .LVU91
+  89:Core/Src/ir_acquisition.c ****                 rear_histogram[rear >> 4]++;
+ 363              		.loc 1 89 37 is_stmt 0 view .LVU92
+ 364 0062 1B09     		lsrs	r3, r3, #4
+ 365              	.LVL28:
+  89:Core/Src/ir_acquisition.c ****                 rear_histogram[rear >> 4]++;
+ 366              		.loc 1 89 31 view .LVU93
+ 367 0064 5149     		ldr	r1, .L34+20
+ 368 0066 5C00     		lsls	r4, r3, #1
+ 369 0068 615A     		ldrh	r1, [r4, r1]
+  89:Core/Src/ir_acquisition.c ****                 rear_histogram[rear >> 4]++;
+ 370              		.loc 1 89 16 view .LVU94
+ 371 006a 4F4C     		ldr	r4, .L34+16
+ 372 006c A142     		cmp	r1, r4
+ 373 006e D7D0     		beq	.L17
+  90:Core/Src/ir_acquisition.c ****             }
+ 374              		.loc 1 90 17 is_stmt 1 view .LVU95
+  90:Core/Src/ir_acquisition.c ****             }
+ 375              		.loc 1 90 42 is_stmt 0 view .LVU96
+ 376 0070 4E4C     		ldr	r4, .L34+20
+ 377 0072 5B00     		lsls	r3, r3, #1
+ 378 0074 0131     		adds	r1, r1, #1
+ 379 0076 1953     		strh	r1, [r3, r4]
+ 380 0078 D2E7     		b	.L17
+ 381              	.LVL29:
+ 382              	.L32:
+  90:Core/Src/ir_acquisition.c ****             }
+ 383              		.loc 1 90 42 view .LVU97
+ 384              	.LBE3:
+  94:Core/Src/ir_acquisition.c ****             IR_FinishStartupCalibration();
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 10
+
+
+ 385              		.loc 1 94 9 is_stmt 1 view .LVU98
+  94:Core/Src/ir_acquisition.c ****             IR_FinishStartupCalibration();
+ 386              		.loc 1 94 14 is_stmt 0 view .LVU99
+ 387 007a FFF7FEFF 		bl	HAL_GetTick
+ 388              	.LVL30:
+  94:Core/Src/ir_acquisition.c ****             IR_FinishStartupCalibration();
+ 389              		.loc 1 94 28 discriminator 1 view .LVU100
+ 390 007e 4C4B     		ldr	r3, .L34+24
+ 391 0080 1B68     		ldr	r3, [r3]
+ 392 0082 C01A     		subs	r0, r0, r3
+  94:Core/Src/ir_acquisition.c ****             IR_FinishStartupCalibration();
+ 393              		.loc 1 94 12 discriminator 1 view .LVU101
+ 394 0084 FA23     		movs	r3, #250
+ 395 0086 9B00     		lsls	r3, r3, #2
+ 396 0088 9842     		cmp	r0, r3
+ 397 008a 06D2     		bcs	.L33
+ 398              	.LVL31:
+ 399              	.L13:
+ 101:Core/Src/ir_acquisition.c ****         uint32_t sample_index = (uint32_t)offset + (uint32_t)(2U * i);
+ 102:Core/Src/ir_acquisition.c ****         uint16_t front = adc_dma_buf[sample_index];
+ 103:Core/Src/ir_acquisition.c ****         uint16_t rear = adc_dma_buf[sample_index + 1U];
+ 104:Core/Src/ir_acquisition.c ****         uint16_t rear_baseline = (uint16_t)(rear_baseline_q16 >> 16);
+ 105:Core/Src/ir_acquisition.c ****         uint16_t front_baseline = (uint16_t)(front_baseline_q16 >> 16);
+ 106:Core/Src/ir_acquisition.c ****         uint16_t rear_threshold = (uint16_t)(rear_baseline + IR_TRIGGER_DELTA > 4095U ?
+ 107:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ 108:Core/Src/ir_acquisition.c ****         uint16_t front_threshold = (uint16_t)(front_baseline + IR_TRIGGER_DELTA > 4095U ?
+ 109:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 110:Core/Src/ir_acquisition.c ****         g_dbg_rear_baseline = front_baseline;
+ 111:Core/Src/ir_acquisition.c ****         g_dbg_front_baseline = rear_baseline;
+ 112:Core/Src/ir_acquisition.c ****         g_dbg_rear_threshold = front_threshold;
+ 113:Core/Src/ir_acquisition.c ****         g_dbg_front_threshold = rear_threshold;
+ 114:Core/Src/ir_acquisition.c ****         if (front >= front_threshold) {
+ 115:Core/Src/ir_acquisition.c ****             if (front_armed) {
+ 116:Core/Src/ir_acquisition.c ****                 front_armed = false;
+ 117:Core/Src/ir_acquisition.c ****                 ir_front_event_count++;
+ 118:Core/Src/ir_acquisition.c ****                 ir_front_event_sample = sample_index;
+ 119:Core/Src/ir_acquisition.c ****                 ir_front_event_pending = true;
+ 120:Core/Src/ir_acquisition.c ****             }
+ 121:Core/Src/ir_acquisition.c ****         } else {
+ 122:Core/Src/ir_acquisition.c ****             front_armed = true;
+ 123:Core/Src/ir_acquisition.c ****         }
+ 124:Core/Src/ir_acquisition.c ****         if (rear >= rear_threshold) {
+ 125:Core/Src/ir_acquisition.c ****             if (rear_armed) {
+ 126:Core/Src/ir_acquisition.c ****                 rear_armed = false;
+ 127:Core/Src/ir_acquisition.c ****                 ir_rear_event_count++;
+ 128:Core/Src/ir_acquisition.c ****                 ir_rear_event_sample = sample_index;
+ 129:Core/Src/ir_acquisition.c ****                 ir_rear_event_pending = true;
+ 130:Core/Src/ir_acquisition.c ****             }
+ 131:Core/Src/ir_acquisition.c ****         } else {
+ 132:Core/Src/ir_acquisition.c ****             rear_armed = true;
+ 133:Core/Src/ir_acquisition.c ****         }
+ 134:Core/Src/ir_acquisition.c ****         /* Q16 prevents small environmental changes from being lost to
+ 135:Core/Src/ir_acquisition.c ****            integer truncation.  The slow EMA follows ambient drift while a
+ 136:Core/Src/ir_acquisition.c ****            short projectile pulse changes the baseline only negligibly. */
+ 137:Core/Src/ir_acquisition.c ****         front_baseline_q16 += (((int32_t)front << 16) - front_baseline_q16) /
+ 138:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 139:Core/Src/ir_acquisition.c ****         rear_baseline_q16 += (((int32_t)rear << 16) - rear_baseline_q16) /
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 11
+
+
+ 140:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 141:Core/Src/ir_acquisition.c ****     }
+ 142:Core/Src/ir_acquisition.c **** }
+ 400              		.loc 1 142 1 view .LVU102
+ 401 008c 03B0     		add	sp, sp, #12
+ 402              		@ sp needed
+ 403 008e F0BC     		pop	{r4, r5, r6, r7}
+ 404 0090 BB46     		mov	fp, r7
+ 405 0092 B246     		mov	r10, r6
+ 406 0094 A946     		mov	r9, r5
+ 407 0096 A046     		mov	r8, r4
+ 408 0098 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 409              	.LVL32:
+ 410              	.L33:
+  95:Core/Src/ir_acquisition.c ****         }
+ 411              		.loc 1 95 13 is_stmt 1 view .LVU103
+ 412 009a FFF7FEFF 		bl	IR_FinishStartupCalibration
+ 413              	.LVL33:
+  97:Core/Src/ir_acquisition.c ****     }
+ 414              		.loc 1 97 9 view .LVU104
+ 415 009e F5E7     		b	.L13
+ 416              	.LVL34:
+ 417              	.L29:
+ 418              	.LBB4:
+ 106:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ 419              		.loc 1 106 35 is_stmt 0 discriminator 2 view .LVU105
+ 420 00a0 4448     		ldr	r0, .L34+28
+ 421 00a2 8446     		mov	ip, r0
+ 422 00a4 50E0     		b	.L21
+ 423              	.LVL35:
+ 424              	.L30:
+ 108:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 425              		.loc 1 108 36 discriminator 2 view .LVU106
+ 426 00a6 434F     		ldr	r7, .L34+28
+ 427 00a8 57E0     		b	.L22
+ 428              	.LVL36:
+ 429              	.L23:
+ 122:Core/Src/ir_acquisition.c ****         }
+ 430              		.loc 1 122 13 is_stmt 1 view .LVU107
+ 122:Core/Src/ir_acquisition.c ****         }
+ 431              		.loc 1 122 25 is_stmt 0 view .LVU108
+ 432 00aa 434F     		ldr	r7, .L34+32
+ 433              	.LVL37:
+ 122:Core/Src/ir_acquisition.c ****         }
+ 434              		.loc 1 122 25 view .LVU109
+ 435 00ac 0120     		movs	r0, #1
+ 436 00ae 3870     		strb	r0, [r7]
+ 437              	.L24:
+ 124:Core/Src/ir_acquisition.c ****             if (rear_armed) {
+ 438              		.loc 1 124 9 is_stmt 1 view .LVU110
+ 124:Core/Src/ir_acquisition.c ****             if (rear_armed) {
+ 439              		.loc 1 124 12 is_stmt 0 view .LVU111
+ 440 00b0 DC45     		cmp	ip, fp
+ 441 00b2 10D8     		bhi	.L25
+ 125:Core/Src/ir_acquisition.c ****                 rear_armed = false;
+ 442              		.loc 1 125 13 is_stmt 1 view .LVU112
+ 125:Core/Src/ir_acquisition.c ****                 rear_armed = false;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 12
+
+
+ 443              		.loc 1 125 17 is_stmt 0 view .LVU113
+ 444 00b4 414F     		ldr	r7, .L34+36
+ 445 00b6 3F78     		ldrb	r7, [r7]
+ 125:Core/Src/ir_acquisition.c ****                 rear_armed = false;
+ 446              		.loc 1 125 16 view .LVU114
+ 447 00b8 002F     		cmp	r7, #0
+ 448 00ba 0FD0     		beq	.L26
+ 126:Core/Src/ir_acquisition.c ****                 ir_rear_event_count++;
+ 449              		.loc 1 126 17 is_stmt 1 view .LVU115
+ 126:Core/Src/ir_acquisition.c ****                 ir_rear_event_count++;
+ 450              		.loc 1 126 28 is_stmt 0 view .LVU116
+ 451 00bc 3F4F     		ldr	r7, .L34+36
+ 452 00be 0020     		movs	r0, #0
+ 453 00c0 3870     		strb	r0, [r7]
+ 127:Core/Src/ir_acquisition.c ****                 ir_rear_event_sample = sample_index;
+ 454              		.loc 1 127 17 is_stmt 1 view .LVU117
+ 127:Core/Src/ir_acquisition.c ****                 ir_rear_event_sample = sample_index;
+ 455              		.loc 1 127 36 is_stmt 0 view .LVU118
+ 456 00c2 3F48     		ldr	r0, .L34+40
+ 457 00c4 0768     		ldr	r7, [r0]
+ 458 00c6 0137     		adds	r7, r7, #1
+ 459 00c8 0760     		str	r7, [r0]
+ 128:Core/Src/ir_acquisition.c ****                 ir_rear_event_pending = true;
+ 460              		.loc 1 128 17 is_stmt 1 view .LVU119
+ 128:Core/Src/ir_acquisition.c ****                 ir_rear_event_pending = true;
+ 461              		.loc 1 128 38 is_stmt 0 view .LVU120
+ 462 00ca 3E4F     		ldr	r7, .L34+44
+ 463 00cc 3B60     		str	r3, [r7]
+ 129:Core/Src/ir_acquisition.c ****             }
+ 464              		.loc 1 129 17 is_stmt 1 view .LVU121
+ 129:Core/Src/ir_acquisition.c ****             }
+ 465              		.loc 1 129 39 is_stmt 0 view .LVU122
+ 466 00ce 3E4B     		ldr	r3, .L34+48
+ 467              	.LVL38:
+ 129:Core/Src/ir_acquisition.c ****             }
+ 468              		.loc 1 129 39 view .LVU123
+ 469 00d0 0127     		movs	r7, #1
+ 129:Core/Src/ir_acquisition.c ****             }
+ 470              		.loc 1 129 39 view .LVU124
+ 471 00d2 1F70     		strb	r7, [r3]
+ 472              	.LVL39:
+ 129:Core/Src/ir_acquisition.c ****             }
+ 473              		.loc 1 129 39 view .LVU125
+ 474 00d4 02E0     		b	.L26
+ 475              	.LVL40:
+ 476              	.L25:
+ 132:Core/Src/ir_acquisition.c ****         }
+ 477              		.loc 1 132 13 is_stmt 1 view .LVU126
+ 132:Core/Src/ir_acquisition.c ****         }
+ 478              		.loc 1 132 24 is_stmt 0 view .LVU127
+ 479 00d6 394B     		ldr	r3, .L34+36
+ 480              	.LVL41:
+ 132:Core/Src/ir_acquisition.c ****         }
+ 481              		.loc 1 132 24 view .LVU128
+ 482 00d8 0127     		movs	r7, #1
+ 483 00da 1F70     		strb	r7, [r3]
+ 484              	.L26:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 13
+
+
+ 137:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 485              		.loc 1 137 9 is_stmt 1 view .LVU129
+ 137:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 486              		.loc 1 137 48 is_stmt 0 view .LVU130
+ 487 00dc 2D04     		lsls	r5, r5, #16
+ 488              	.LVL42:
+ 137:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 489              		.loc 1 137 55 view .LVU131
+ 490 00de AD1B     		subs	r5, r5, r6
+ 137:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 491              		.loc 1 137 77 view .LVU132
+ 492 00e0 EB17     		asrs	r3, r5, #31
+ 493 00e2 5B05     		lsls	r3, r3, #21
+ 494 00e4 5B0D     		lsrs	r3, r3, #21
+ 495 00e6 5B19     		adds	r3, r3, r5
+ 496 00e8 DB12     		asrs	r3, r3, #11
+ 137:Core/Src/ir_acquisition.c ****                               IR_BASELINE_TRACK_DIVISOR;
+ 497              		.loc 1 137 28 view .LVU133
+ 498 00ea 384D     		ldr	r5, .L34+52
+ 499 00ec F618     		adds	r6, r6, r3
+ 500 00ee 2E60     		str	r6, [r5]
+ 139:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 501              		.loc 1 139 9 is_stmt 1 view .LVU134
+ 139:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 502              		.loc 1 139 46 is_stmt 0 view .LVU135
+ 503 00f0 5B46     		mov	r3, fp
+ 504 00f2 1C04     		lsls	r4, r3, #16
+ 139:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 505              		.loc 1 139 53 view .LVU136
+ 506 00f4 A41A     		subs	r4, r4, r2
+ 139:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 507              		.loc 1 139 74 view .LVU137
+ 508 00f6 E317     		asrs	r3, r4, #31
+ 509 00f8 5B05     		lsls	r3, r3, #21
+ 510 00fa 5B0D     		lsrs	r3, r3, #21
+ 511 00fc 1B19     		adds	r3, r3, r4
+ 512 00fe DB12     		asrs	r3, r3, #11
+ 139:Core/Src/ir_acquisition.c ****                              IR_BASELINE_TRACK_DIVISOR;
+ 513              		.loc 1 139 27 view .LVU138
+ 514 0100 334C     		ldr	r4, .L34+56
+ 515 0102 D218     		adds	r2, r2, r3
+ 516 0104 2260     		str	r2, [r4]
+ 517              	.LBE4:
+ 100:Core/Src/ir_acquisition.c ****         uint32_t sample_index = (uint32_t)offset + (uint32_t)(2U * i);
+ 518              		.loc 1 100 29 is_stmt 1 discriminator 2 view .LVU139
+ 519 0106 0131     		adds	r1, r1, #1
+ 520              	.LVL43:
+ 100:Core/Src/ir_acquisition.c ****         uint32_t sample_index = (uint32_t)offset + (uint32_t)(2U * i);
+ 521              		.loc 1 100 29 is_stmt 0 discriminator 2 view .LVU140
+ 522 0108 89B2     		uxth	r1, r1
+ 523              	.LVL44:
+ 524              	.L14:
+ 100:Core/Src/ir_acquisition.c ****         uint32_t sample_index = (uint32_t)offset + (uint32_t)(2U * i);
+ 525              		.loc 1 100 20 is_stmt 1 discriminator 1 view .LVU141
+ 526 010a 0729     		cmp	r1, #7
+ 527 010c BED8     		bhi	.L13
+ 528              	.LBB5:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 14
+
+
+ 101:Core/Src/ir_acquisition.c ****         uint16_t front = adc_dma_buf[sample_index];
+ 529              		.loc 1 101 9 view .LVU142
+ 101:Core/Src/ir_acquisition.c ****         uint16_t front = adc_dma_buf[sample_index];
+ 530              		.loc 1 101 66 is_stmt 0 view .LVU143
+ 531 010e 4B00     		lsls	r3, r1, #1
+ 101:Core/Src/ir_acquisition.c ****         uint16_t front = adc_dma_buf[sample_index];
+ 532              		.loc 1 101 18 view .LVU144
+ 533 0110 019A     		ldr	r2, [sp, #4]
+ 534 0112 9446     		mov	ip, r2
+ 535 0114 6344     		add	r3, r3, ip
+ 536              	.LVL45:
+ 102:Core/Src/ir_acquisition.c ****         uint16_t rear = adc_dma_buf[sample_index + 1U];
+ 537              		.loc 1 102 9 is_stmt 1 view .LVU145
+ 102:Core/Src/ir_acquisition.c ****         uint16_t rear = adc_dma_buf[sample_index + 1U];
+ 538              		.loc 1 102 18 is_stmt 0 view .LVU146
+ 539 0116 224A     		ldr	r2, .L34+8
+ 540 0118 5C00     		lsls	r4, r3, #1
+ 541 011a A55A     		ldrh	r5, [r4, r2]
+ 542 011c ADB2     		uxth	r5, r5
+ 543              	.LVL46:
+ 103:Core/Src/ir_acquisition.c ****         uint16_t rear_baseline = (uint16_t)(rear_baseline_q16 >> 16);
+ 544              		.loc 1 103 9 is_stmt 1 view .LVU147
+ 103:Core/Src/ir_acquisition.c ****         uint16_t rear_baseline = (uint16_t)(rear_baseline_q16 >> 16);
+ 545              		.loc 1 103 50 is_stmt 0 view .LVU148
+ 546 011e 5C1C     		adds	r4, r3, #1
+ 103:Core/Src/ir_acquisition.c ****         uint16_t rear_baseline = (uint16_t)(rear_baseline_q16 >> 16);
+ 547              		.loc 1 103 18 view .LVU149
+ 548 0120 6400     		lsls	r4, r4, #1
+ 549 0122 A45A     		ldrh	r4, [r4, r2]
+ 550 0124 A2B2     		uxth	r2, r4
+ 551 0126 9346     		mov	fp, r2
+ 552              	.LVL47:
+ 104:Core/Src/ir_acquisition.c ****         uint16_t front_baseline = (uint16_t)(front_baseline_q16 >> 16);
+ 553              		.loc 1 104 9 is_stmt 1 view .LVU150
+ 104:Core/Src/ir_acquisition.c ****         uint16_t front_baseline = (uint16_t)(front_baseline_q16 >> 16);
+ 554              		.loc 1 104 63 is_stmt 0 view .LVU151
+ 555 0128 294A     		ldr	r2, .L34+56
+ 556 012a 1268     		ldr	r2, [r2]
+ 104:Core/Src/ir_acquisition.c ****         uint16_t front_baseline = (uint16_t)(front_baseline_q16 >> 16);
+ 557              		.loc 1 104 18 view .LVU152
+ 558 012c 160C     		lsrs	r6, r2, #16
+ 559 012e B046     		mov	r8, r6
+ 560              	.LVL48:
+ 105:Core/Src/ir_acquisition.c ****         uint16_t rear_threshold = (uint16_t)(rear_baseline + IR_TRIGGER_DELTA > 4095U ?
+ 561              		.loc 1 105 9 is_stmt 1 view .LVU153
+ 105:Core/Src/ir_acquisition.c ****         uint16_t rear_threshold = (uint16_t)(rear_baseline + IR_TRIGGER_DELTA > 4095U ?
+ 562              		.loc 1 105 65 is_stmt 0 view .LVU154
+ 563 0130 264E     		ldr	r6, .L34+52
+ 564 0132 3668     		ldr	r6, [r6]
+ 105:Core/Src/ir_acquisition.c ****         uint16_t rear_threshold = (uint16_t)(rear_baseline + IR_TRIGGER_DELTA > 4095U ?
+ 565              		.loc 1 105 18 view .LVU155
+ 566 0134 370C     		lsrs	r7, r6, #16
+ 567 0136 B946     		mov	r9, r7
+ 568              	.LVL49:
+ 106:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ 569              		.loc 1 106 9 is_stmt 1 view .LVU156
+ 106:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 15
+
+
+ 570              		.loc 1 106 60 is_stmt 0 view .LVU157
+ 571 0138 4746     		mov	r7, r8
+ 572 013a 2D37     		adds	r7, r7, #45
+ 106:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ 573              		.loc 1 106 35 view .LVU158
+ 574 013c 8020     		movs	r0, #128
+ 575 013e 4001     		lsls	r0, r0, #5
+ 576 0140 8742     		cmp	r7, r0
+ 577 0142 ADD2     		bcs	.L29
+ 106:Core/Src/ir_acquisition.c ****                                              4095U : rear_baseline + IR_TRIGGER_DELTA);
+ 578              		.loc 1 106 35 discriminator 1 view .LVU159
+ 579 0144 B8B2     		uxth	r0, r7
+ 580 0146 8446     		mov	ip, r0
+ 581              	.L21:
+ 582              	.LVL50:
+ 108:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 583              		.loc 1 108 9 is_stmt 1 view .LVU160
+ 108:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 584              		.loc 1 108 62 is_stmt 0 view .LVU161
+ 585 0148 370C     		lsrs	r7, r6, #16
+ 586 014a 2D37     		adds	r7, r7, #45
+ 108:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 587              		.loc 1 108 36 view .LVU162
+ 588 014c 8020     		movs	r0, #128
+ 589 014e 4001     		lsls	r0, r0, #5
+ 590 0150 8742     		cmp	r7, r0
+ 591 0152 A8D2     		bcs	.L30
+ 108:Core/Src/ir_acquisition.c ****                                               4095U : front_baseline + IR_TRIGGER_DELTA);
+ 592              		.loc 1 108 36 discriminator 1 view .LVU163
+ 593 0154 4F46     		mov	r7, r9
+ 594 0156 2D37     		adds	r7, r7, #45
+ 595 0158 BFB2     		uxth	r7, r7
+ 596              	.L22:
+ 597              	.LVL51:
+ 110:Core/Src/ir_acquisition.c ****         g_dbg_front_baseline = rear_baseline;
+ 598              		.loc 1 110 9 is_stmt 1 view .LVU164
+ 110:Core/Src/ir_acquisition.c ****         g_dbg_front_baseline = rear_baseline;
+ 599              		.loc 1 110 29 is_stmt 0 view .LVU165
+ 600 015a 1E48     		ldr	r0, .L34+60
+ 601 015c 4C46     		mov	r4, r9
+ 602 015e 0480     		strh	r4, [r0]
+ 111:Core/Src/ir_acquisition.c ****         g_dbg_rear_threshold = front_threshold;
+ 603              		.loc 1 111 9 is_stmt 1 view .LVU166
+ 111:Core/Src/ir_acquisition.c ****         g_dbg_rear_threshold = front_threshold;
+ 604              		.loc 1 111 30 is_stmt 0 view .LVU167
+ 605 0160 1D48     		ldr	r0, .L34+64
+ 606 0162 4446     		mov	r4, r8
+ 607 0164 0480     		strh	r4, [r0]
+ 112:Core/Src/ir_acquisition.c ****         g_dbg_front_threshold = rear_threshold;
+ 608              		.loc 1 112 9 is_stmt 1 view .LVU168
+ 112:Core/Src/ir_acquisition.c ****         g_dbg_front_threshold = rear_threshold;
+ 609              		.loc 1 112 30 is_stmt 0 view .LVU169
+ 610 0166 1D48     		ldr	r0, .L34+68
+ 611 0168 0780     		strh	r7, [r0]
+ 113:Core/Src/ir_acquisition.c ****         if (front >= front_threshold) {
+ 612              		.loc 1 113 9 is_stmt 1 view .LVU170
+ 113:Core/Src/ir_acquisition.c ****         if (front >= front_threshold) {
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 16
+
+
+ 613              		.loc 1 113 31 is_stmt 0 view .LVU171
+ 614 016a 1D48     		ldr	r0, .L34+72
+ 615 016c 6446     		mov	r4, ip
+ 616 016e 0480     		strh	r4, [r0]
+ 114:Core/Src/ir_acquisition.c ****             if (front_armed) {
+ 617              		.loc 1 114 9 is_stmt 1 view .LVU172
+ 114:Core/Src/ir_acquisition.c ****             if (front_armed) {
+ 618              		.loc 1 114 12 is_stmt 0 view .LVU173
+ 619 0170 AF42     		cmp	r7, r5
+ 620 0172 9AD8     		bhi	.L23
+ 115:Core/Src/ir_acquisition.c ****                 front_armed = false;
+ 621              		.loc 1 115 13 is_stmt 1 view .LVU174
+ 115:Core/Src/ir_acquisition.c ****                 front_armed = false;
+ 622              		.loc 1 115 17 is_stmt 0 view .LVU175
+ 623 0174 104F     		ldr	r7, .L34+32
+ 624              	.LVL52:
+ 115:Core/Src/ir_acquisition.c ****                 front_armed = false;
+ 625              		.loc 1 115 17 view .LVU176
+ 626 0176 3F78     		ldrb	r7, [r7]
+ 115:Core/Src/ir_acquisition.c ****                 front_armed = false;
+ 627              		.loc 1 115 16 view .LVU177
+ 628 0178 002F     		cmp	r7, #0
+ 629 017a 99D0     		beq	.L24
+ 116:Core/Src/ir_acquisition.c ****                 ir_front_event_count++;
+ 630              		.loc 1 116 17 is_stmt 1 view .LVU178
+ 116:Core/Src/ir_acquisition.c ****                 ir_front_event_count++;
+ 631              		.loc 1 116 29 is_stmt 0 view .LVU179
+ 632 017c 0E4F     		ldr	r7, .L34+32
+ 633 017e 0020     		movs	r0, #0
+ 634 0180 3870     		strb	r0, [r7]
+ 117:Core/Src/ir_acquisition.c ****                 ir_front_event_sample = sample_index;
+ 635              		.loc 1 117 17 is_stmt 1 view .LVU180
+ 117:Core/Src/ir_acquisition.c ****                 ir_front_event_sample = sample_index;
+ 636              		.loc 1 117 37 is_stmt 0 view .LVU181
+ 637 0182 1848     		ldr	r0, .L34+76
+ 638 0184 0768     		ldr	r7, [r0]
+ 639 0186 0137     		adds	r7, r7, #1
+ 640 0188 0760     		str	r7, [r0]
+ 118:Core/Src/ir_acquisition.c ****                 ir_front_event_pending = true;
+ 641              		.loc 1 118 17 is_stmt 1 view .LVU182
+ 118:Core/Src/ir_acquisition.c ****                 ir_front_event_pending = true;
+ 642              		.loc 1 118 39 is_stmt 0 view .LVU183
+ 643 018a 174F     		ldr	r7, .L34+80
+ 644 018c 3B60     		str	r3, [r7]
+ 119:Core/Src/ir_acquisition.c ****             }
+ 645              		.loc 1 119 17 is_stmt 1 view .LVU184
+ 119:Core/Src/ir_acquisition.c ****             }
+ 646              		.loc 1 119 40 is_stmt 0 view .LVU185
+ 647 018e 174F     		ldr	r7, .L34+84
+ 648 0190 0120     		movs	r0, #1
+ 649 0192 3870     		strb	r0, [r7]
+ 650 0194 8CE7     		b	.L24
+ 651              	.L35:
+ 652 0196 C046     		.align	2
+ 653              	.L34:
+ 654 0198 00000000 		.word	baseline_ready
+ 655 019c 00000000 		.word	calibration_sample_count
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 17
+
+
+ 656 01a0 00000000 		.word	adc_dma_buf
+ 657 01a4 00000000 		.word	front_histogram
+ 658 01a8 FFFF0000 		.word	65535
+ 659 01ac 00000000 		.word	rear_histogram
+ 660 01b0 00000000 		.word	calibration_start_tick
+ 661 01b4 FF0F0000 		.word	4095
+ 662 01b8 00000000 		.word	front_armed
+ 663 01bc 00000000 		.word	rear_armed
+ 664 01c0 00000000 		.word	ir_rear_event_count
+ 665 01c4 00000000 		.word	ir_rear_event_sample
+ 666 01c8 00000000 		.word	ir_rear_event_pending
+ 667 01cc 00000000 		.word	front_baseline_q16
+ 668 01d0 00000000 		.word	rear_baseline_q16
+ 669 01d4 00000000 		.word	g_dbg_rear_baseline
+ 670 01d8 00000000 		.word	g_dbg_front_baseline
+ 671 01dc 00000000 		.word	g_dbg_rear_threshold
+ 672 01e0 00000000 		.word	g_dbg_front_threshold
+ 673 01e4 00000000 		.word	ir_front_event_count
+ 674 01e8 00000000 		.word	ir_front_event_sample
+ 675 01ec 00000000 		.word	ir_front_event_pending
+ 676              	.LBE5:
+ 677              		.cfi_endproc
+ 678              	.LFE42:
+ 680              		.section	.text.IR_Acquisition_SetDacCodes,"ax",%progbits
+ 681              		.align	1
+ 682              		.global	IR_Acquisition_SetDacCodes
+ 683              		.syntax unified
+ 684              		.code	16
+ 685              		.thumb_func
+ 687              	IR_Acquisition_SetDacCodes:
+ 688              	.LVL53:
+ 689              	.LFB44:
+ 143:Core/Src/ir_acquisition.c **** 
+ 144:Core/Src/ir_acquisition.c **** HAL_StatusTypeDef IR_Acquisition_Init(void)
+ 145:Core/Src/ir_acquisition.c **** {
+ 146:Core/Src/ir_acquisition.c ****     ADC_ChannelConfTypeDef channel = {0};
+ 147:Core/Src/ir_acquisition.c ****     DAC_ChannelConfTypeDef dac = {0};
+ 148:Core/Src/ir_acquisition.c ****     TIM_MasterConfigTypeDef master = {0};
+ 149:Core/Src/ir_acquisition.c ****     dac.DAC_Trigger = DAC_TRIGGER_NONE;
+ 150:Core/Src/ir_acquisition.c ****     dac.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+ 151:Core/Src/ir_acquisition.c ****     if (HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_1) != HAL_OK ||
+ 152:Core/Src/ir_acquisition.c ****         HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 153:Core/Src/ir_acquisition.c ****     if (IR_Acquisition_SetDacCodes(ir_dac1_code, ir_dac2_code) != HAL_OK) {
+ 154:Core/Src/ir_acquisition.c ****         return HAL_ERROR;
+ 155:Core/Src/ir_acquisition.c ****     }
+ 156:Core/Src/ir_acquisition.c ****     if (HAL_DAC_Start(&hdac, DAC_CHANNEL_1) != HAL_OK ||
+ 157:Core/Src/ir_acquisition.c ****         HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 158:Core/Src/ir_acquisition.c **** 
+ 159:Core/Src/ir_acquisition.c ****     __HAL_RCC_TIM3_CLK_ENABLE();
+ 160:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 161:Core/Src/ir_acquisition.c ****     htim3.Init.Prescaler = 0U;
+ 162:Core/Src/ir_acquisition.c ****     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+ 163:Core/Src/ir_acquisition.c ****     htim3.Init.Period = 2399U; /* 48 MHz / 2400 = 20 kHz per channel. */
+ 164:Core/Src/ir_acquisition.c ****     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+ 165:Core/Src/ir_acquisition.c ****     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+ 166:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Init(&htim3) != HAL_OK) return HAL_ERROR;
+ 167:Core/Src/ir_acquisition.c ****     master.MasterOutputTrigger = TIM_TRGO_UPDATE;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 18
+
+
+ 168:Core/Src/ir_acquisition.c ****     master.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+ 169:Core/Src/ir_acquisition.c ****     if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &master) != HAL_OK) return HAL_ERROR;
+ 170:Core/Src/ir_acquisition.c **** 
+ 171:Core/Src/ir_acquisition.c ****     hadc.Instance = ADC1;
+ 172:Core/Src/ir_acquisition.c ****     hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+ 173:Core/Src/ir_acquisition.c ****     hadc.Init.Resolution = ADC_RESOLUTION_12B;
+ 174:Core/Src/ir_acquisition.c ****     hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+ 175:Core/Src/ir_acquisition.c ****     hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+ 176:Core/Src/ir_acquisition.c ****     hadc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+ 177:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoWait = DISABLE;
+ 178:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoPowerOff = DISABLE;
+ 179:Core/Src/ir_acquisition.c ****     hadc.Init.ContinuousConvMode = DISABLE;
+ 180:Core/Src/ir_acquisition.c ****     hadc.Init.DiscontinuousConvMode = DISABLE;
+ 181:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+ 182:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+ 183:Core/Src/ir_acquisition.c ****     hadc.Init.DMAContinuousRequests = ENABLE;
+ 184:Core/Src/ir_acquisition.c ****     hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+ 185:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Init(&hadc) != HAL_OK) return HAL_ERROR;
+ 186:Core/Src/ir_acquisition.c ****     /* 2 * (239.5 + 12.5) / 12 MHz = 42 us, below the 50 us trigger period. */
+ 187:Core/Src/ir_acquisition.c ****     channel.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+ 188:Core/Src/ir_acquisition.c ****     channel.Rank = ADC_RANK_CHANNEL_NUMBER;
+ 189:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_1;
+ 190:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 191:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_3;
+ 192:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 193:Core/Src/ir_acquisition.c ****     if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK) return HAL_ERROR;
+ 194:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Start_DMA(&hadc, (uint32_t *)adc_dma_buf, IR_ADC_DMA_LENGTH) != HAL_OK) return HAL_
+ 195:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Start(&htim3) != HAL_OK) return HAL_ERROR;
+ 196:Core/Src/ir_acquisition.c ****     ir_acquisition_ready = true;
+ 197:Core/Src/ir_acquisition.c ****     g_sensor_detection_ready = false;
+ 198:Core/Src/ir_acquisition.c ****     baseline_ready = false;
+ 199:Core/Src/ir_acquisition.c ****     rear_armed = false;
+ 200:Core/Src/ir_acquisition.c ****     front_armed = false;
+ 201:Core/Src/ir_acquisition.c ****     calibration_start_tick = HAL_GetTick();
+ 202:Core/Src/ir_acquisition.c ****     calibration_sample_count = 0U;
+ 203:Core/Src/ir_acquisition.c ****     for (uint16_t i = 0U; i < 256U; ++i) {
+ 204:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 205:Core/Src/ir_acquisition.c ****         front_histogram[i] = 0U;
+ 206:Core/Src/ir_acquisition.c ****     }
+ 207:Core/Src/ir_acquisition.c ****     ir_rear_event_pending = false;
+ 208:Core/Src/ir_acquisition.c ****     ir_front_event_pending = false;
+ 209:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 210:Core/Src/ir_acquisition.c **** }
+ 211:Core/Src/ir_acquisition.c **** 
+ 212:Core/Src/ir_acquisition.c **** HAL_StatusTypeDef IR_Acquisition_SetDacCodes(uint16_t dac1_code, uint16_t dac2_code)
+ 213:Core/Src/ir_acquisition.c **** {
+ 690              		.loc 1 213 1 is_stmt 1 view -0
+ 691              		.cfi_startproc
+ 692              		@ args = 0, pretend = 0, frame = 0
+ 693              		@ frame_needed = 0, uses_anonymous_args = 0
+ 694              		.loc 1 213 1 is_stmt 0 view .LVU187
+ 695 0000 10B5     		push	{r4, lr}
+ 696              	.LCFI5:
+ 697              		.cfi_def_cfa_offset 8
+ 698              		.cfi_offset 4, -8
+ 699              		.cfi_offset 14, -4
+ 214:Core/Src/ir_acquisition.c ****     ir_dac1_code = dac1_code > 4095U ? 4095U : dac1_code;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 19
+
+
+ 700              		.loc 1 214 5 is_stmt 1 view .LVU188
+ 701              		.loc 1 214 46 is_stmt 0 view .LVU189
+ 702 0002 031C     		adds	r3, r0, #0
+ 703 0004 8022     		movs	r2, #128
+ 704 0006 5201     		lsls	r2, r2, #5
+ 705 0008 9042     		cmp	r0, r2
+ 706 000a 00D3     		bcc	.L37
+ 707 000c 184B     		ldr	r3, .L43
+ 708              	.L37:
+ 709              		.loc 1 214 18 view .LVU190
+ 710 000e 194A     		ldr	r2, .L43+4
+ 711 0010 1380     		strh	r3, [r2]
+ 215:Core/Src/ir_acquisition.c ****     ir_dac2_code = dac2_code > 4095U ? 4095U : dac2_code;
+ 712              		.loc 1 215 5 is_stmt 1 view .LVU191
+ 713              		.loc 1 215 46 is_stmt 0 view .LVU192
+ 714 0012 0B1C     		adds	r3, r1, #0
+ 715 0014 8022     		movs	r2, #128
+ 716 0016 5201     		lsls	r2, r2, #5
+ 717 0018 9142     		cmp	r1, r2
+ 718 001a 00D3     		bcc	.L38
+ 719              		.loc 1 215 46 view .LVU193
+ 720 001c 144B     		ldr	r3, .L43
+ 721              	.L38:
+ 722              		.loc 1 215 18 view .LVU194
+ 723 001e 164A     		ldr	r2, .L43+8
+ 724 0020 1380     		strh	r3, [r2]
+ 216:Core/Src/ir_acquisition.c ****     if (HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1, DAC_ALIGN_12B_R, ir_dac1_code) != HAL_OK ||
+ 725              		.loc 1 216 5 is_stmt 1 view .LVU195
+ 726              		.loc 1 216 9 is_stmt 0 view .LVU196
+ 727 0022 144B     		ldr	r3, .L43+4
+ 728 0024 1B88     		ldrh	r3, [r3]
+ 729 0026 9BB2     		uxth	r3, r3
+ 730 0028 1448     		ldr	r0, .L43+12
+ 731              	.LVL54:
+ 732              		.loc 1 216 9 view .LVU197
+ 733 002a 0022     		movs	r2, #0
+ 734 002c 0021     		movs	r1, #0
+ 735              	.LVL55:
+ 736              		.loc 1 216 9 view .LVU198
+ 737 002e FFF7FEFF 		bl	HAL_DAC_SetValue
+ 738              	.LVL56:
+ 739              		.loc 1 216 8 discriminator 1 view .LVU199
+ 740 0032 0028     		cmp	r0, #0
+ 741 0034 08D0     		beq	.L42
+ 742              	.L39:
+ 217:Core/Src/ir_acquisition.c ****         HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, ir_dac2_code) != HAL_OK) {
+ 218:Core/Src/ir_acquisition.c ****         adc_error_count++;
+ 743              		.loc 1 218 9 is_stmt 1 view .LVU200
+ 744              		.loc 1 218 24 is_stmt 0 view .LVU201
+ 745 0036 124A     		ldr	r2, .L43+16
+ 746 0038 1368     		ldr	r3, [r2]
+ 747 003a 0133     		adds	r3, r3, #1
+ 748 003c 1360     		str	r3, [r2]
+ 219:Core/Src/ir_acquisition.c ****         ir_acquisition_ready = false;
+ 749              		.loc 1 219 9 is_stmt 1 view .LVU202
+ 750              		.loc 1 219 30 is_stmt 0 view .LVU203
+ 751 003e 114B     		ldr	r3, .L43+20
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 20
+
+
+ 752 0040 0022     		movs	r2, #0
+ 753 0042 1A70     		strb	r2, [r3]
+ 220:Core/Src/ir_acquisition.c ****         return HAL_ERROR;
+ 754              		.loc 1 220 9 is_stmt 1 view .LVU204
+ 755              		.loc 1 220 16 is_stmt 0 view .LVU205
+ 756 0044 0120     		movs	r0, #1
+ 757              	.L41:
+ 221:Core/Src/ir_acquisition.c ****     }
+ 222:Core/Src/ir_acquisition.c ****     applied_dac1 = ir_dac1_code;
+ 223:Core/Src/ir_acquisition.c ****     applied_dac2 = ir_dac2_code;
+ 224:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 225:Core/Src/ir_acquisition.c **** }
+ 758              		.loc 1 225 1 view .LVU206
+ 759              		@ sp needed
+ 760 0046 10BD     		pop	{r4, pc}
+ 761              	.L42:
+ 217:Core/Src/ir_acquisition.c ****         adc_error_count++;
+ 762              		.loc 1 217 9 view .LVU207
+ 763 0048 0B4B     		ldr	r3, .L43+8
+ 764 004a 1B88     		ldrh	r3, [r3]
+ 765 004c 9BB2     		uxth	r3, r3
+ 766 004e 0B48     		ldr	r0, .L43+12
+ 767 0050 0022     		movs	r2, #0
+ 768 0052 1021     		movs	r1, #16
+ 769 0054 FFF7FEFF 		bl	HAL_DAC_SetValue
+ 770              	.LVL57:
+ 216:Core/Src/ir_acquisition.c ****         HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, ir_dac2_code) != HAL_OK) {
+ 771              		.loc 1 216 89 discriminator 1 view .LVU208
+ 772 0058 0028     		cmp	r0, #0
+ 773 005a ECD1     		bne	.L39
+ 222:Core/Src/ir_acquisition.c ****     applied_dac2 = ir_dac2_code;
+ 774              		.loc 1 222 5 is_stmt 1 view .LVU209
+ 222:Core/Src/ir_acquisition.c ****     applied_dac2 = ir_dac2_code;
+ 775              		.loc 1 222 18 is_stmt 0 view .LVU210
+ 776 005c 054B     		ldr	r3, .L43+4
+ 777 005e 1A88     		ldrh	r2, [r3]
+ 778 0060 094B     		ldr	r3, .L43+24
+ 779 0062 1A80     		strh	r2, [r3]
+ 223:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 780              		.loc 1 223 5 is_stmt 1 view .LVU211
+ 223:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 781              		.loc 1 223 18 is_stmt 0 view .LVU212
+ 782 0064 044B     		ldr	r3, .L43+8
+ 783 0066 1A88     		ldrh	r2, [r3]
+ 784 0068 084B     		ldr	r3, .L43+28
+ 785 006a 1A80     		strh	r2, [r3]
+ 224:Core/Src/ir_acquisition.c **** }
+ 786              		.loc 1 224 5 is_stmt 1 view .LVU213
+ 224:Core/Src/ir_acquisition.c **** }
+ 787              		.loc 1 224 12 is_stmt 0 view .LVU214
+ 788 006c EBE7     		b	.L41
+ 789              	.L44:
+ 790 006e C046     		.align	2
+ 791              	.L43:
+ 792 0070 FF0F0000 		.word	4095
+ 793 0074 00000000 		.word	ir_dac1_code
+ 794 0078 00000000 		.word	ir_dac2_code
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 21
+
+
+ 795 007c 00000000 		.word	hdac
+ 796 0080 00000000 		.word	adc_error_count
+ 797 0084 00000000 		.word	ir_acquisition_ready
+ 798 0088 00000000 		.word	applied_dac1
+ 799 008c 00000000 		.word	applied_dac2
+ 800              		.cfi_endproc
+ 801              	.LFE44:
+ 803              		.section	.text.IR_Acquisition_Init,"ax",%progbits
+ 804              		.align	1
+ 805              		.global	IR_Acquisition_Init
+ 806              		.syntax unified
+ 807              		.code	16
+ 808              		.thumb_func
+ 810              	IR_Acquisition_Init:
+ 811              	.LFB43:
+ 145:Core/Src/ir_acquisition.c ****     ADC_ChannelConfTypeDef channel = {0};
+ 812              		.loc 1 145 1 is_stmt 1 view -0
+ 813              		.cfi_startproc
+ 814              		@ args = 0, pretend = 0, frame = 32
+ 815              		@ frame_needed = 0, uses_anonymous_args = 0
+ 816 0000 30B5     		push	{r4, r5, lr}
+ 817              	.LCFI6:
+ 818              		.cfi_def_cfa_offset 12
+ 819              		.cfi_offset 4, -12
+ 820              		.cfi_offset 5, -8
+ 821              		.cfi_offset 14, -4
+ 822 0002 89B0     		sub	sp, sp, #36
+ 823              	.LCFI7:
+ 824              		.cfi_def_cfa_offset 48
+ 146:Core/Src/ir_acquisition.c ****     DAC_ChannelConfTypeDef dac = {0};
+ 825              		.loc 1 146 5 view .LVU216
+ 146:Core/Src/ir_acquisition.c ****     DAC_ChannelConfTypeDef dac = {0};
+ 826              		.loc 1 146 28 is_stmt 0 view .LVU217
+ 827 0004 0C22     		movs	r2, #12
+ 828 0006 0021     		movs	r1, #0
+ 829 0008 05A8     		add	r0, sp, #20
+ 830 000a FFF7FEFF 		bl	memset
+ 831              	.LVL58:
+ 147:Core/Src/ir_acquisition.c ****     TIM_MasterConfigTypeDef master = {0};
+ 832              		.loc 1 147 5 is_stmt 1 view .LVU218
+ 147:Core/Src/ir_acquisition.c ****     TIM_MasterConfigTypeDef master = {0};
+ 833              		.loc 1 147 28 is_stmt 0 view .LVU219
+ 834 000e 03AC     		add	r4, sp, #12
+ 835 0010 0822     		movs	r2, #8
+ 836 0012 0021     		movs	r1, #0
+ 837 0014 2000     		movs	r0, r4
+ 838 0016 FFF7FEFF 		bl	memset
+ 839              	.LVL59:
+ 148:Core/Src/ir_acquisition.c ****     dac.DAC_Trigger = DAC_TRIGGER_NONE;
+ 840              		.loc 1 148 5 is_stmt 1 view .LVU220
+ 148:Core/Src/ir_acquisition.c ****     dac.DAC_Trigger = DAC_TRIGGER_NONE;
+ 841              		.loc 1 148 29 is_stmt 0 view .LVU221
+ 842 001a 0822     		movs	r2, #8
+ 843 001c 0021     		movs	r1, #0
+ 844 001e 01A8     		add	r0, sp, #4
+ 845 0020 FFF7FEFF 		bl	memset
+ 846              	.LVL60:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 22
+
+
+ 149:Core/Src/ir_acquisition.c ****     dac.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+ 847              		.loc 1 149 5 is_stmt 1 view .LVU222
+ 150:Core/Src/ir_acquisition.c ****     if (HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_1) != HAL_OK ||
+ 848              		.loc 1 150 5 view .LVU223
+ 151:Core/Src/ir_acquisition.c ****         HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 849              		.loc 1 151 5 view .LVU224
+ 151:Core/Src/ir_acquisition.c ****         HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 850              		.loc 1 151 9 is_stmt 0 view .LVU225
+ 851 0024 6148     		ldr	r0, .L73
+ 852 0026 0022     		movs	r2, #0
+ 853 0028 2100     		movs	r1, r4
+ 854 002a FFF7FEFF 		bl	HAL_DAC_ConfigChannel
+ 855              	.LVL61:
+ 151:Core/Src/ir_acquisition.c ****         HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 856              		.loc 1 151 8 discriminator 1 view .LVU226
+ 857 002e 0028     		cmp	r0, #0
+ 858 0030 03D0     		beq	.L62
+ 859              	.L46:
+ 152:Core/Src/ir_acquisition.c ****     if (IR_Acquisition_SetDacCodes(ir_dac1_code, ir_dac2_code) != HAL_OK) {
+ 860              		.loc 1 152 70 is_stmt 1 view .LVU227
+ 152:Core/Src/ir_acquisition.c ****     if (IR_Acquisition_SetDacCodes(ir_dac1_code, ir_dac2_code) != HAL_OK) {
+ 861              		.loc 1 152 77 is_stmt 0 view .LVU228
+ 862 0032 0124     		movs	r4, #1
+ 863              	.L48:
+ 210:Core/Src/ir_acquisition.c **** 
+ 864              		.loc 1 210 1 view .LVU229
+ 865 0034 2000     		movs	r0, r4
+ 866 0036 09B0     		add	sp, sp, #36
+ 867              		@ sp needed
+ 868 0038 30BD     		pop	{r4, r5, pc}
+ 869              	.L62:
+ 152:Core/Src/ir_acquisition.c ****     if (IR_Acquisition_SetDacCodes(ir_dac1_code, ir_dac2_code) != HAL_OK) {
+ 870              		.loc 1 152 9 view .LVU230
+ 871 003a 5C48     		ldr	r0, .L73
+ 872 003c 1022     		movs	r2, #16
+ 873 003e 2100     		movs	r1, r4
+ 874 0040 FFF7FEFF 		bl	HAL_DAC_ConfigChannel
+ 875              	.LVL62:
+ 151:Core/Src/ir_acquisition.c ****         HAL_DAC_ConfigChannel(&hdac, &dac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 876              		.loc 1 151 69 discriminator 1 view .LVU231
+ 877 0044 0028     		cmp	r0, #0
+ 878 0046 F4D1     		bne	.L46
+ 153:Core/Src/ir_acquisition.c ****         return HAL_ERROR;
+ 879              		.loc 1 153 5 is_stmt 1 view .LVU232
+ 153:Core/Src/ir_acquisition.c ****         return HAL_ERROR;
+ 880              		.loc 1 153 9 is_stmt 0 view .LVU233
+ 881 0048 594B     		ldr	r3, .L73+4
+ 882 004a 1888     		ldrh	r0, [r3]
+ 883 004c 80B2     		uxth	r0, r0
+ 884 004e 594B     		ldr	r3, .L73+8
+ 885 0050 1988     		ldrh	r1, [r3]
+ 886 0052 89B2     		uxth	r1, r1
+ 887 0054 FFF7FEFF 		bl	IR_Acquisition_SetDacCodes
+ 888              	.LVL63:
+ 153:Core/Src/ir_acquisition.c ****         return HAL_ERROR;
+ 889              		.loc 1 153 8 discriminator 1 view .LVU234
+ 890 0058 0028     		cmp	r0, #0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 23
+
+
+ 891 005a 01D0     		beq	.L63
+ 154:Core/Src/ir_acquisition.c ****     }
+ 892              		.loc 1 154 16 view .LVU235
+ 893 005c 0124     		movs	r4, #1
+ 894 005e E9E7     		b	.L48
+ 895              	.L63:
+ 156:Core/Src/ir_acquisition.c ****         HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 896              		.loc 1 156 5 is_stmt 1 view .LVU236
+ 156:Core/Src/ir_acquisition.c ****         HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 897              		.loc 1 156 9 is_stmt 0 view .LVU237
+ 898 0060 5248     		ldr	r0, .L73
+ 899 0062 0021     		movs	r1, #0
+ 900 0064 FFF7FEFF 		bl	HAL_DAC_Start
+ 901              	.LVL64:
+ 156:Core/Src/ir_acquisition.c ****         HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 902              		.loc 1 156 8 discriminator 1 view .LVU238
+ 903 0068 0028     		cmp	r0, #0
+ 904 006a 01D0     		beq	.L64
+ 905              	.L49:
+ 157:Core/Src/ir_acquisition.c **** 
+ 906              		.loc 1 157 56 is_stmt 1 view .LVU239
+ 157:Core/Src/ir_acquisition.c **** 
+ 907              		.loc 1 157 63 is_stmt 0 view .LVU240
+ 908 006c 0124     		movs	r4, #1
+ 909 006e E1E7     		b	.L48
+ 910              	.L64:
+ 157:Core/Src/ir_acquisition.c **** 
+ 911              		.loc 1 157 9 view .LVU241
+ 912 0070 4E48     		ldr	r0, .L73
+ 913 0072 1021     		movs	r1, #16
+ 914 0074 FFF7FEFF 		bl	HAL_DAC_Start
+ 915              	.LVL65:
+ 156:Core/Src/ir_acquisition.c ****         HAL_DAC_Start(&hdac, DAC_CHANNEL_2) != HAL_OK) return HAL_ERROR;
+ 916              		.loc 1 156 55 discriminator 1 view .LVU242
+ 917 0078 0028     		cmp	r0, #0
+ 918 007a F7D1     		bne	.L49
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 919              		.loc 1 159 5 is_stmt 1 view .LVU243
+ 920              	.LBB6:
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 921              		.loc 1 159 5 view .LVU244
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 922              		.loc 1 159 5 view .LVU245
+ 923 007c 4E4A     		ldr	r2, .L73+12
+ 924 007e D169     		ldr	r1, [r2, #28]
+ 925 0080 0223     		movs	r3, #2
+ 926 0082 1943     		orrs	r1, r3
+ 927 0084 D161     		str	r1, [r2, #28]
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 928              		.loc 1 159 5 view .LVU246
+ 929 0086 D269     		ldr	r2, [r2, #28]
+ 930 0088 1340     		ands	r3, r2
+ 931 008a 0093     		str	r3, [sp]
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 932              		.loc 1 159 5 view .LVU247
+ 933 008c 009B     		ldr	r3, [sp]
+ 934              	.LBE6:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 24
+
+
+ 159:Core/Src/ir_acquisition.c ****     htim3.Instance = TIM3;
+ 935              		.loc 1 159 5 view .LVU248
+ 160:Core/Src/ir_acquisition.c ****     htim3.Init.Prescaler = 0U;
+ 936              		.loc 1 160 5 view .LVU249
+ 160:Core/Src/ir_acquisition.c ****     htim3.Init.Prescaler = 0U;
+ 937              		.loc 1 160 20 is_stmt 0 view .LVU250
+ 938 008e 4B48     		ldr	r0, .L73+16
+ 939 0090 4B4B     		ldr	r3, .L73+20
+ 940 0092 0360     		str	r3, [r0]
+ 161:Core/Src/ir_acquisition.c ****     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+ 941              		.loc 1 161 5 is_stmt 1 view .LVU251
+ 161:Core/Src/ir_acquisition.c ****     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+ 942              		.loc 1 161 26 is_stmt 0 view .LVU252
+ 943 0094 0023     		movs	r3, #0
+ 944 0096 4360     		str	r3, [r0, #4]
+ 162:Core/Src/ir_acquisition.c ****     htim3.Init.Period = 2399U; /* 48 MHz / 2400 = 20 kHz per channel. */
+ 945              		.loc 1 162 5 is_stmt 1 view .LVU253
+ 162:Core/Src/ir_acquisition.c ****     htim3.Init.Period = 2399U; /* 48 MHz / 2400 = 20 kHz per channel. */
+ 946              		.loc 1 162 28 is_stmt 0 view .LVU254
+ 947 0098 8360     		str	r3, [r0, #8]
+ 163:Core/Src/ir_acquisition.c ****     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+ 948              		.loc 1 163 5 is_stmt 1 view .LVU255
+ 163:Core/Src/ir_acquisition.c ****     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+ 949              		.loc 1 163 23 is_stmt 0 view .LVU256
+ 950 009a 4A4A     		ldr	r2, .L73+24
+ 951 009c C260     		str	r2, [r0, #12]
+ 164:Core/Src/ir_acquisition.c ****     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+ 952              		.loc 1 164 5 is_stmt 1 view .LVU257
+ 164:Core/Src/ir_acquisition.c ****     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+ 953              		.loc 1 164 30 is_stmt 0 view .LVU258
+ 954 009e 0361     		str	r3, [r0, #16]
+ 165:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Init(&htim3) != HAL_OK) return HAL_ERROR;
+ 955              		.loc 1 165 5 is_stmt 1 view .LVU259
+ 165:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Init(&htim3) != HAL_OK) return HAL_ERROR;
+ 956              		.loc 1 165 34 is_stmt 0 view .LVU260
+ 957 00a0 8361     		str	r3, [r0, #24]
+ 166:Core/Src/ir_acquisition.c ****     master.MasterOutputTrigger = TIM_TRGO_UPDATE;
+ 958              		.loc 1 166 5 is_stmt 1 view .LVU261
+ 166:Core/Src/ir_acquisition.c ****     master.MasterOutputTrigger = TIM_TRGO_UPDATE;
+ 959              		.loc 1 166 9 is_stmt 0 view .LVU262
+ 960 00a2 FFF7FEFF 		bl	HAL_TIM_Base_Init
+ 961              	.LVL66:
+ 166:Core/Src/ir_acquisition.c ****     master.MasterOutputTrigger = TIM_TRGO_UPDATE;
+ 962              		.loc 1 166 8 discriminator 1 view .LVU263
+ 963 00a6 0028     		cmp	r0, #0
+ 964 00a8 01D0     		beq	.L65
+ 166:Core/Src/ir_acquisition.c ****     master.MasterOutputTrigger = TIM_TRGO_UPDATE;
+ 965              		.loc 1 166 53 discriminator 1 view .LVU264
+ 966 00aa 0124     		movs	r4, #1
+ 967 00ac C2E7     		b	.L48
+ 968              	.L65:
+ 167:Core/Src/ir_acquisition.c ****     master.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+ 969              		.loc 1 167 5 is_stmt 1 view .LVU265
+ 167:Core/Src/ir_acquisition.c ****     master.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+ 970              		.loc 1 167 32 is_stmt 0 view .LVU266
+ 971 00ae 01A9     		add	r1, sp, #4
+ 972 00b0 2023     		movs	r3, #32
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 25
+
+
+ 973 00b2 0193     		str	r3, [sp, #4]
+ 168:Core/Src/ir_acquisition.c ****     if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &master) != HAL_OK) return HAL_ERROR;
+ 974              		.loc 1 168 5 is_stmt 1 view .LVU267
+ 168:Core/Src/ir_acquisition.c ****     if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &master) != HAL_OK) return HAL_ERROR;
+ 975              		.loc 1 168 28 is_stmt 0 view .LVU268
+ 976 00b4 0023     		movs	r3, #0
+ 977 00b6 4B60     		str	r3, [r1, #4]
+ 169:Core/Src/ir_acquisition.c **** 
+ 978              		.loc 1 169 5 is_stmt 1 view .LVU269
+ 169:Core/Src/ir_acquisition.c **** 
+ 979              		.loc 1 169 9 is_stmt 0 view .LVU270
+ 980 00b8 4048     		ldr	r0, .L73+16
+ 981 00ba FFF7FEFF 		bl	HAL_TIMEx_MasterConfigSynchronization
+ 982              	.LVL67:
+ 169:Core/Src/ir_acquisition.c **** 
+ 983              		.loc 1 169 8 discriminator 1 view .LVU271
+ 984 00be 0028     		cmp	r0, #0
+ 985 00c0 01D0     		beq	.L66
+ 169:Core/Src/ir_acquisition.c **** 
+ 986              		.loc 1 169 82 discriminator 1 view .LVU272
+ 987 00c2 0124     		movs	r4, #1
+ 988 00c4 B6E7     		b	.L48
+ 989              	.L66:
+ 171:Core/Src/ir_acquisition.c ****     hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+ 990              		.loc 1 171 5 is_stmt 1 view .LVU273
+ 171:Core/Src/ir_acquisition.c ****     hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+ 991              		.loc 1 171 19 is_stmt 0 view .LVU274
+ 992 00c6 4048     		ldr	r0, .L73+28
+ 993 00c8 404B     		ldr	r3, .L73+32
+ 994 00ca 0360     		str	r3, [r0]
+ 172:Core/Src/ir_acquisition.c ****     hadc.Init.Resolution = ADC_RESOLUTION_12B;
+ 995              		.loc 1 172 5 is_stmt 1 view .LVU275
+ 172:Core/Src/ir_acquisition.c ****     hadc.Init.Resolution = ADC_RESOLUTION_12B;
+ 996              		.loc 1 172 30 is_stmt 0 view .LVU276
+ 997 00cc 8023     		movs	r3, #128
+ 998 00ce 1B06     		lsls	r3, r3, #24
+ 999 00d0 4360     		str	r3, [r0, #4]
+ 173:Core/Src/ir_acquisition.c ****     hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+ 1000              		.loc 1 173 5 is_stmt 1 view .LVU277
+ 173:Core/Src/ir_acquisition.c ****     hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+ 1001              		.loc 1 173 26 is_stmt 0 view .LVU278
+ 1002 00d2 0023     		movs	r3, #0
+ 1003 00d4 8360     		str	r3, [r0, #8]
+ 174:Core/Src/ir_acquisition.c ****     hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+ 1004              		.loc 1 174 5 is_stmt 1 view .LVU279
+ 174:Core/Src/ir_acquisition.c ****     hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+ 1005              		.loc 1 174 25 is_stmt 0 view .LVU280
+ 1006 00d6 C360     		str	r3, [r0, #12]
+ 175:Core/Src/ir_acquisition.c ****     hadc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+ 1007              		.loc 1 175 5 is_stmt 1 view .LVU281
+ 175:Core/Src/ir_acquisition.c ****     hadc.Init.EOCSelection = ADC_EOC_SEQ_CONV;
+ 1008              		.loc 1 175 28 is_stmt 0 view .LVU282
+ 1009 00d8 0122     		movs	r2, #1
+ 1010 00da 0261     		str	r2, [r0, #16]
+ 176:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoWait = DISABLE;
+ 1011              		.loc 1 176 5 is_stmt 1 view .LVU283
+ 176:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoWait = DISABLE;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 26
+
+
+ 1012              		.loc 1 176 28 is_stmt 0 view .LVU284
+ 1013 00dc 0821     		movs	r1, #8
+ 1014 00de 4161     		str	r1, [r0, #20]
+ 177:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoPowerOff = DISABLE;
+ 1015              		.loc 1 177 5 is_stmt 1 view .LVU285
+ 177:Core/Src/ir_acquisition.c ****     hadc.Init.LowPowerAutoPowerOff = DISABLE;
+ 1016              		.loc 1 177 32 is_stmt 0 view .LVU286
+ 1017 00e0 0376     		strb	r3, [r0, #24]
+ 178:Core/Src/ir_acquisition.c ****     hadc.Init.ContinuousConvMode = DISABLE;
+ 1018              		.loc 1 178 5 is_stmt 1 view .LVU287
+ 178:Core/Src/ir_acquisition.c ****     hadc.Init.ContinuousConvMode = DISABLE;
+ 1019              		.loc 1 178 36 is_stmt 0 view .LVU288
+ 1020 00e2 4376     		strb	r3, [r0, #25]
+ 179:Core/Src/ir_acquisition.c ****     hadc.Init.DiscontinuousConvMode = DISABLE;
+ 1021              		.loc 1 179 5 is_stmt 1 view .LVU289
+ 179:Core/Src/ir_acquisition.c ****     hadc.Init.DiscontinuousConvMode = DISABLE;
+ 1022              		.loc 1 179 34 is_stmt 0 view .LVU290
+ 1023 00e4 8376     		strb	r3, [r0, #26]
+ 180:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+ 1024              		.loc 1 180 5 is_stmt 1 view .LVU291
+ 180:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+ 1025              		.loc 1 180 37 is_stmt 0 view .LVU292
+ 1026 00e6 C376     		strb	r3, [r0, #27]
+ 181:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+ 1027              		.loc 1 181 5 is_stmt 1 view .LVU293
+ 181:Core/Src/ir_acquisition.c ****     hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+ 1028              		.loc 1 181 32 is_stmt 0 view .LVU294
+ 1029 00e8 C033     		adds	r3, r3, #192
+ 1030 00ea C361     		str	r3, [r0, #28]
+ 182:Core/Src/ir_acquisition.c ****     hadc.Init.DMAContinuousRequests = ENABLE;
+ 1031              		.loc 1 182 5 is_stmt 1 view .LVU295
+ 182:Core/Src/ir_acquisition.c ****     hadc.Init.DMAContinuousRequests = ENABLE;
+ 1032              		.loc 1 182 36 is_stmt 0 view .LVU296
+ 1033 00ec 8023     		movs	r3, #128
+ 1034 00ee DB00     		lsls	r3, r3, #3
+ 1035 00f0 0362     		str	r3, [r0, #32]
+ 183:Core/Src/ir_acquisition.c ****     hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+ 1036              		.loc 1 183 5 is_stmt 1 view .LVU297
+ 183:Core/Src/ir_acquisition.c ****     hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+ 1037              		.loc 1 183 37 is_stmt 0 view .LVU298
+ 1038 00f2 2423     		movs	r3, #36
+ 1039 00f4 C254     		strb	r2, [r0, r3]
+ 184:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Init(&hadc) != HAL_OK) return HAL_ERROR;
+ 1040              		.loc 1 184 5 is_stmt 1 view .LVU299
+ 184:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Init(&hadc) != HAL_OK) return HAL_ERROR;
+ 1041              		.loc 1 184 23 is_stmt 0 view .LVU300
+ 1042 00f6 8262     		str	r2, [r0, #40]
+ 185:Core/Src/ir_acquisition.c ****     /* 2 * (239.5 + 12.5) / 12 MHz = 42 us, below the 50 us trigger period. */
+ 1043              		.loc 1 185 5 is_stmt 1 view .LVU301
+ 185:Core/Src/ir_acquisition.c ****     /* 2 * (239.5 + 12.5) / 12 MHz = 42 us, below the 50 us trigger period. */
+ 1044              		.loc 1 185 9 is_stmt 0 view .LVU302
+ 1045 00f8 FFF7FEFF 		bl	HAL_ADC_Init
+ 1046              	.LVL68:
+ 185:Core/Src/ir_acquisition.c ****     /* 2 * (239.5 + 12.5) / 12 MHz = 42 us, below the 50 us trigger period. */
+ 1047              		.loc 1 185 8 discriminator 1 view .LVU303
+ 1048 00fc 0028     		cmp	r0, #0
+ 1049 00fe 01D0     		beq	.L67
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 27
+
+
+ 185:Core/Src/ir_acquisition.c ****     /* 2 * (239.5 + 12.5) / 12 MHz = 42 us, below the 50 us trigger period. */
+ 1050              		.loc 1 185 47 discriminator 1 view .LVU304
+ 1051 0100 0124     		movs	r4, #1
+ 1052 0102 97E7     		b	.L48
+ 1053              	.L67:
+ 187:Core/Src/ir_acquisition.c ****     channel.Rank = ADC_RANK_CHANNEL_NUMBER;
+ 1054              		.loc 1 187 5 is_stmt 1 view .LVU305
+ 187:Core/Src/ir_acquisition.c ****     channel.Rank = ADC_RANK_CHANNEL_NUMBER;
+ 1055              		.loc 1 187 26 is_stmt 0 view .LVU306
+ 1056 0104 05A9     		add	r1, sp, #20
+ 1057 0106 0723     		movs	r3, #7
+ 1058 0108 8B60     		str	r3, [r1, #8]
+ 188:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_1;
+ 1059              		.loc 1 188 5 is_stmt 1 view .LVU307
+ 188:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_1;
+ 1060              		.loc 1 188 18 is_stmt 0 view .LVU308
+ 1061 010a 8023     		movs	r3, #128
+ 1062 010c 5B01     		lsls	r3, r3, #5
+ 1063 010e 4B60     		str	r3, [r1, #4]
+ 189:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 1064              		.loc 1 189 5 is_stmt 1 view .LVU309
+ 189:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 1065              		.loc 1 189 21 is_stmt 0 view .LVU310
+ 1066 0110 0123     		movs	r3, #1
+ 1067 0112 0593     		str	r3, [sp, #20]
+ 190:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_3;
+ 1068              		.loc 1 190 5 is_stmt 1 view .LVU311
+ 190:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_3;
+ 1069              		.loc 1 190 9 is_stmt 0 view .LVU312
+ 1070 0114 2C48     		ldr	r0, .L73+28
+ 1071 0116 FFF7FEFF 		bl	HAL_ADC_ConfigChannel
+ 1072              	.LVL69:
+ 190:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_3;
+ 1073              		.loc 1 190 8 discriminator 1 view .LVU313
+ 1074 011a 0028     		cmp	r0, #0
+ 1075 011c 01D0     		beq	.L68
+ 190:Core/Src/ir_acquisition.c ****     channel.Channel = ADC_CHANNEL_3;
+ 1076              		.loc 1 190 66 discriminator 1 view .LVU314
+ 1077 011e 0124     		movs	r4, #1
+ 1078 0120 88E7     		b	.L48
+ 1079              	.L68:
+ 191:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 1080              		.loc 1 191 5 is_stmt 1 view .LVU315
+ 191:Core/Src/ir_acquisition.c ****     if (HAL_ADC_ConfigChannel(&hadc, &channel) != HAL_OK) return HAL_ERROR;
+ 1081              		.loc 1 191 21 is_stmt 0 view .LVU316
+ 1082 0122 0323     		movs	r3, #3
+ 1083 0124 0593     		str	r3, [sp, #20]
+ 192:Core/Src/ir_acquisition.c ****     if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK) return HAL_ERROR;
+ 1084              		.loc 1 192 5 is_stmt 1 view .LVU317
+ 192:Core/Src/ir_acquisition.c ****     if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK) return HAL_ERROR;
+ 1085              		.loc 1 192 9 is_stmt 0 view .LVU318
+ 1086 0126 2848     		ldr	r0, .L73+28
+ 1087 0128 05A9     		add	r1, sp, #20
+ 1088 012a FFF7FEFF 		bl	HAL_ADC_ConfigChannel
+ 1089              	.LVL70:
+ 192:Core/Src/ir_acquisition.c ****     if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK) return HAL_ERROR;
+ 1090              		.loc 1 192 8 discriminator 1 view .LVU319
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 28
+
+
+ 1091 012e 0028     		cmp	r0, #0
+ 1092 0130 01D0     		beq	.L69
+ 192:Core/Src/ir_acquisition.c ****     if (HAL_ADCEx_Calibration_Start(&hadc) != HAL_OK) return HAL_ERROR;
+ 1093              		.loc 1 192 66 discriminator 1 view .LVU320
+ 1094 0132 0124     		movs	r4, #1
+ 1095 0134 7EE7     		b	.L48
+ 1096              	.L69:
+ 193:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Start_DMA(&hadc, (uint32_t *)adc_dma_buf, IR_ADC_DMA_LENGTH) != HAL_OK) return HAL_
+ 1097              		.loc 1 193 5 is_stmt 1 view .LVU321
+ 193:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Start_DMA(&hadc, (uint32_t *)adc_dma_buf, IR_ADC_DMA_LENGTH) != HAL_OK) return HAL_
+ 1098              		.loc 1 193 9 is_stmt 0 view .LVU322
+ 1099 0136 2448     		ldr	r0, .L73+28
+ 1100 0138 FFF7FEFF 		bl	HAL_ADCEx_Calibration_Start
+ 1101              	.LVL71:
+ 193:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Start_DMA(&hadc, (uint32_t *)adc_dma_buf, IR_ADC_DMA_LENGTH) != HAL_OK) return HAL_
+ 1102              		.loc 1 193 8 discriminator 1 view .LVU323
+ 1103 013c 0028     		cmp	r0, #0
+ 1104 013e 01D0     		beq	.L70
+ 193:Core/Src/ir_acquisition.c ****     if (HAL_ADC_Start_DMA(&hadc, (uint32_t *)adc_dma_buf, IR_ADC_DMA_LENGTH) != HAL_OK) return HAL_
+ 1105              		.loc 1 193 62 discriminator 1 view .LVU324
+ 1106 0140 0124     		movs	r4, #1
+ 1107 0142 77E7     		b	.L48
+ 1108              	.L70:
+ 194:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Start(&htim3) != HAL_OK) return HAL_ERROR;
+ 1109              		.loc 1 194 5 is_stmt 1 view .LVU325
+ 194:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Start(&htim3) != HAL_OK) return HAL_ERROR;
+ 1110              		.loc 1 194 9 is_stmt 0 view .LVU326
+ 1111 0144 2249     		ldr	r1, .L73+36
+ 1112 0146 2048     		ldr	r0, .L73+28
+ 1113 0148 2022     		movs	r2, #32
+ 1114 014a FFF7FEFF 		bl	HAL_ADC_Start_DMA
+ 1115              	.LVL72:
+ 194:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Start(&htim3) != HAL_OK) return HAL_ERROR;
+ 1116              		.loc 1 194 8 discriminator 1 view .LVU327
+ 1117 014e 0028     		cmp	r0, #0
+ 1118 0150 01D0     		beq	.L71
+ 194:Core/Src/ir_acquisition.c ****     if (HAL_TIM_Base_Start(&htim3) != HAL_OK) return HAL_ERROR;
+ 1119              		.loc 1 194 96 discriminator 1 view .LVU328
+ 1120 0152 0124     		movs	r4, #1
+ 1121 0154 6EE7     		b	.L48
+ 1122              	.L71:
+ 195:Core/Src/ir_acquisition.c ****     ir_acquisition_ready = true;
+ 1123              		.loc 1 195 5 is_stmt 1 view .LVU329
+ 195:Core/Src/ir_acquisition.c ****     ir_acquisition_ready = true;
+ 1124              		.loc 1 195 9 is_stmt 0 view .LVU330
+ 1125 0156 1948     		ldr	r0, .L73+16
+ 1126 0158 FFF7FEFF 		bl	HAL_TIM_Base_Start
+ 1127              	.LVL73:
+ 1128 015c 041E     		subs	r4, r0, #0
+ 195:Core/Src/ir_acquisition.c ****     ir_acquisition_ready = true;
+ 1129              		.loc 1 195 8 discriminator 1 view .LVU331
+ 1130 015e 01D0     		beq	.L72
+ 195:Core/Src/ir_acquisition.c ****     ir_acquisition_ready = true;
+ 1131              		.loc 1 195 54 discriminator 1 view .LVU332
+ 1132 0160 0124     		movs	r4, #1
+ 1133 0162 67E7     		b	.L48
+ 1134              	.L72:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 29
+
+
+ 196:Core/Src/ir_acquisition.c ****     g_sensor_detection_ready = false;
+ 1135              		.loc 1 196 5 is_stmt 1 view .LVU333
+ 196:Core/Src/ir_acquisition.c ****     g_sensor_detection_ready = false;
+ 1136              		.loc 1 196 26 is_stmt 0 view .LVU334
+ 1137 0164 1B4B     		ldr	r3, .L73+40
+ 1138 0166 0122     		movs	r2, #1
+ 1139 0168 1A70     		strb	r2, [r3]
+ 197:Core/Src/ir_acquisition.c ****     baseline_ready = false;
+ 1140              		.loc 1 197 5 is_stmt 1 view .LVU335
+ 197:Core/Src/ir_acquisition.c ****     baseline_ready = false;
+ 1141              		.loc 1 197 30 is_stmt 0 view .LVU336
+ 1142 016a 1B4B     		ldr	r3, .L73+44
+ 1143 016c 0025     		movs	r5, #0
+ 1144 016e 1D70     		strb	r5, [r3]
+ 198:Core/Src/ir_acquisition.c ****     rear_armed = false;
+ 1145              		.loc 1 198 5 is_stmt 1 view .LVU337
+ 198:Core/Src/ir_acquisition.c ****     rear_armed = false;
+ 1146              		.loc 1 198 20 is_stmt 0 view .LVU338
+ 1147 0170 1A4B     		ldr	r3, .L73+48
+ 1148 0172 1D70     		strb	r5, [r3]
+ 199:Core/Src/ir_acquisition.c ****     front_armed = false;
+ 1149              		.loc 1 199 5 is_stmt 1 view .LVU339
+ 199:Core/Src/ir_acquisition.c ****     front_armed = false;
+ 1150              		.loc 1 199 16 is_stmt 0 view .LVU340
+ 1151 0174 1A4B     		ldr	r3, .L73+52
+ 1152 0176 1D70     		strb	r5, [r3]
+ 200:Core/Src/ir_acquisition.c ****     calibration_start_tick = HAL_GetTick();
+ 1153              		.loc 1 200 5 is_stmt 1 view .LVU341
+ 200:Core/Src/ir_acquisition.c ****     calibration_start_tick = HAL_GetTick();
+ 1154              		.loc 1 200 17 is_stmt 0 view .LVU342
+ 1155 0178 1A4B     		ldr	r3, .L73+56
+ 1156 017a 1D70     		strb	r5, [r3]
+ 201:Core/Src/ir_acquisition.c ****     calibration_sample_count = 0U;
+ 1157              		.loc 1 201 5 is_stmt 1 view .LVU343
+ 201:Core/Src/ir_acquisition.c ****     calibration_sample_count = 0U;
+ 1158              		.loc 1 201 30 is_stmt 0 view .LVU344
+ 1159 017c FFF7FEFF 		bl	HAL_GetTick
+ 1160              	.LVL74:
+ 201:Core/Src/ir_acquisition.c ****     calibration_sample_count = 0U;
+ 1161              		.loc 1 201 28 discriminator 1 view .LVU345
+ 1162 0180 194B     		ldr	r3, .L73+60
+ 1163 0182 1860     		str	r0, [r3]
+ 202:Core/Src/ir_acquisition.c ****     for (uint16_t i = 0U; i < 256U; ++i) {
+ 1164              		.loc 1 202 5 is_stmt 1 view .LVU346
+ 202:Core/Src/ir_acquisition.c ****     for (uint16_t i = 0U; i < 256U; ++i) {
+ 1165              		.loc 1 202 30 is_stmt 0 view .LVU347
+ 1166 0184 194B     		ldr	r3, .L73+64
+ 1167 0186 1D60     		str	r5, [r3]
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1168              		.loc 1 203 5 is_stmt 1 view .LVU348
+ 1169              	.LBB7:
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1170              		.loc 1 203 10 view .LVU349
+ 1171              	.LVL75:
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1172              		.loc 1 203 19 is_stmt 0 view .LVU350
+ 1173 0188 2B00     		movs	r3, r5
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 30
+
+
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1174              		.loc 1 203 5 view .LVU351
+ 1175 018a 07E0     		b	.L51
+ 1176              	.LVL76:
+ 1177              	.L52:
+ 204:Core/Src/ir_acquisition.c ****         front_histogram[i] = 0U;
+ 1178              		.loc 1 204 9 is_stmt 1 view .LVU352
+ 204:Core/Src/ir_acquisition.c ****         front_histogram[i] = 0U;
+ 1179              		.loc 1 204 27 is_stmt 0 view .LVU353
+ 1180 018c 184A     		ldr	r2, .L73+68
+ 1181 018e 5900     		lsls	r1, r3, #1
+ 1182 0190 0020     		movs	r0, #0
+ 1183 0192 8852     		strh	r0, [r1, r2]
+ 205:Core/Src/ir_acquisition.c ****     }
+ 1184              		.loc 1 205 9 is_stmt 1 view .LVU354
+ 205:Core/Src/ir_acquisition.c ****     }
+ 1185              		.loc 1 205 28 is_stmt 0 view .LVU355
+ 1186 0194 174A     		ldr	r2, .L73+72
+ 1187 0196 8852     		strh	r0, [r1, r2]
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1188              		.loc 1 203 37 is_stmt 1 discriminator 3 view .LVU356
+ 1189 0198 0133     		adds	r3, r3, #1
+ 1190              	.LVL77:
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1191              		.loc 1 203 37 is_stmt 0 discriminator 3 view .LVU357
+ 1192 019a 9BB2     		uxth	r3, r3
+ 1193              	.LVL78:
+ 1194              	.L51:
+ 203:Core/Src/ir_acquisition.c ****         rear_histogram[i] = 0U;
+ 1195              		.loc 1 203 29 is_stmt 1 discriminator 1 view .LVU358
+ 1196 019c FF2B     		cmp	r3, #255
+ 1197 019e F5D9     		bls	.L52
+ 1198              	.LBE7:
+ 207:Core/Src/ir_acquisition.c ****     ir_front_event_pending = false;
+ 1199              		.loc 1 207 5 view .LVU359
+ 207:Core/Src/ir_acquisition.c ****     ir_front_event_pending = false;
+ 1200              		.loc 1 207 27 is_stmt 0 view .LVU360
+ 1201 01a0 154B     		ldr	r3, .L73+76
+ 1202              	.LVL79:
+ 207:Core/Src/ir_acquisition.c ****     ir_front_event_pending = false;
+ 1203              		.loc 1 207 27 view .LVU361
+ 1204 01a2 0022     		movs	r2, #0
+ 1205 01a4 1A70     		strb	r2, [r3]
+ 208:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 1206              		.loc 1 208 5 is_stmt 1 view .LVU362
+ 208:Core/Src/ir_acquisition.c ****     return HAL_OK;
+ 1207              		.loc 1 208 28 is_stmt 0 view .LVU363
+ 1208 01a6 154B     		ldr	r3, .L73+80
+ 1209 01a8 1A70     		strb	r2, [r3]
+ 209:Core/Src/ir_acquisition.c **** }
+ 1210              		.loc 1 209 5 is_stmt 1 view .LVU364
+ 209:Core/Src/ir_acquisition.c **** }
+ 1211              		.loc 1 209 12 is_stmt 0 view .LVU365
+ 1212 01aa 43E7     		b	.L48
+ 1213              	.L74:
+ 1214              		.align	2
+ 1215              	.L73:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 31
+
+
+ 1216 01ac 00000000 		.word	hdac
+ 1217 01b0 00000000 		.word	ir_dac1_code
+ 1218 01b4 00000000 		.word	ir_dac2_code
+ 1219 01b8 00100240 		.word	1073876992
+ 1220 01bc 00000000 		.word	htim3
+ 1221 01c0 00040040 		.word	1073742848
+ 1222 01c4 5F090000 		.word	2399
+ 1223 01c8 00000000 		.word	hadc
+ 1224 01cc 00240140 		.word	1073816576
+ 1225 01d0 00000000 		.word	adc_dma_buf
+ 1226 01d4 00000000 		.word	ir_acquisition_ready
+ 1227 01d8 00000000 		.word	g_sensor_detection_ready
+ 1228 01dc 00000000 		.word	baseline_ready
+ 1229 01e0 00000000 		.word	rear_armed
+ 1230 01e4 00000000 		.word	front_armed
+ 1231 01e8 00000000 		.word	calibration_start_tick
+ 1232 01ec 00000000 		.word	calibration_sample_count
+ 1233 01f0 00000000 		.word	rear_histogram
+ 1234 01f4 00000000 		.word	front_histogram
+ 1235 01f8 00000000 		.word	ir_rear_event_pending
+ 1236 01fc 00000000 		.word	ir_front_event_pending
+ 1237              		.cfi_endproc
+ 1238              	.LFE43:
+ 1240              		.section	.text.IR_Acquisition_PublishLatest,"ax",%progbits
+ 1241              		.align	1
+ 1242              		.global	IR_Acquisition_PublishLatest
+ 1243              		.syntax unified
+ 1244              		.code	16
+ 1245              		.thumb_func
+ 1247              	IR_Acquisition_PublishLatest:
+ 1248              	.LFB45:
+ 226:Core/Src/ir_acquisition.c **** 
+ 227:Core/Src/ir_acquisition.c **** void IR_Acquisition_PublishLatest(void)
+ 228:Core/Src/ir_acquisition.c **** {
+ 1249              		.loc 1 228 1 is_stmt 1 view -0
+ 1250              		.cfi_startproc
+ 1251              		@ args = 0, pretend = 0, frame = 0
+ 1252              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1253 0000 70B5     		push	{r4, r5, r6, lr}
+ 1254              	.LCFI8:
+ 1255              		.cfi_def_cfa_offset 16
+ 1256              		.cfi_offset 4, -16
+ 1257              		.cfi_offset 5, -12
+ 1258              		.cfi_offset 6, -8
+ 1259              		.cfi_offset 14, -4
+ 229:Core/Src/ir_acquisition.c ****     uint32_t sequence = completed_sequence;
+ 1260              		.loc 1 229 5 view .LVU367
+ 1261              		.loc 1 229 14 is_stmt 0 view .LVU368
+ 1262 0002 2E4B     		ldr	r3, .L84
+ 1263 0004 1868     		ldr	r0, [r3]
+ 1264              	.LVL80:
+ 230:Core/Src/ir_acquisition.c ****     uint16_t offset = completed_offset;
+ 1265              		.loc 1 230 5 is_stmt 1 view .LVU369
+ 1266              		.loc 1 230 14 is_stmt 0 view .LVU370
+ 1267 0006 2E4B     		ldr	r3, .L84+4
+ 1268 0008 1A88     		ldrh	r2, [r3]
+ 1269 000a 94B2     		uxth	r4, r2
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 32
+
+
+ 1270              	.LVL81:
+ 231:Core/Src/ir_acquisition.c ****     uint16_t remaining = (uint16_t)__HAL_DMA_GET_COUNTER(&hdma_adc);
+ 1271              		.loc 1 231 5 is_stmt 1 view .LVU371
+ 1272              		.loc 1 231 36 is_stmt 0 view .LVU372
+ 1273 000c 2D4B     		ldr	r3, .L84+8
+ 1274 000e 1968     		ldr	r1, [r3]
+ 1275 0010 4B68     		ldr	r3, [r1, #4]
+ 1276              		.loc 1 231 14 view .LVU373
+ 1277 0012 9BB2     		uxth	r3, r3
+ 1278              	.LVL82:
+ 232:Core/Src/ir_acquisition.c ****     /* Never read a half that DMA has already begun overwriting. */
+ 233:Core/Src/ir_acquisition.c ****     bool half_safe = offset == 0U ? (remaining > 0U && remaining <= IR_ADC_DMA_LENGTH / 2U)
+ 1279              		.loc 1 233 5 is_stmt 1 view .LVU374
+ 234:Core/Src/ir_acquisition.c ****                                  : (remaining > IR_ADC_DMA_LENGTH / 2U);
+ 1280              		.loc 1 234 34 is_stmt 0 view .LVU375
+ 1281 0014 002A     		cmp	r2, #0
+ 1282 0016 40D1     		bne	.L76
+ 233:Core/Src/ir_acquisition.c ****                                  : (remaining > IR_ADC_DMA_LENGTH / 2U);
+ 1283              		.loc 1 233 53 view .LVU376
+ 1284 0018 013B     		subs	r3, r3, #1
+ 1285              	.LVL83:
+ 233:Core/Src/ir_acquisition.c ****                                  : (remaining > IR_ADC_DMA_LENGTH / 2U);
+ 1286              		.loc 1 233 53 view .LVU377
+ 1287 001a 9BB2     		uxth	r3, r3
+ 1288              	.LVL84:
+ 1289              		.loc 1 234 34 discriminator 1 view .LVU378
+ 1290 001c 0F25     		movs	r5, #15
+ 1291 001e 9D42     		cmp	r5, r3
+ 1292 0020 5241     		adcs	r2, r2, r2
+ 1293 0022 D2B2     		uxtb	r2, r2
+ 1294              	.L77:
+ 1295              	.LVL85:
+ 235:Core/Src/ir_acquisition.c ****     if (ir_acquisition_ready && sequence != published_sequence && half_safe) {
+ 1296              		.loc 1 235 5 is_stmt 1 view .LVU379
+ 1297              		.loc 1 235 9 is_stmt 0 view .LVU380
+ 1298 0024 284B     		ldr	r3, .L84+12
+ 1299 0026 1B78     		ldrb	r3, [r3]
+ 1300              		.loc 1 235 8 view .LVU381
+ 1301 0028 002B     		cmp	r3, #0
+ 1302 002a 21D0     		beq	.L78
+ 1303              		.loc 1 235 42 discriminator 1 view .LVU382
+ 1304 002c 274B     		ldr	r3, .L84+16
+ 1305 002e 1B68     		ldr	r3, [r3]
+ 1306              		.loc 1 235 30 discriminator 1 view .LVU383
+ 1307 0030 8342     		cmp	r3, r0
+ 1308 0032 1DD0     		beq	.L78
+ 1309              		.loc 1 235 64 discriminator 2 view .LVU384
+ 1310 0034 002A     		cmp	r2, #0
+ 1311 0036 1BD0     		beq	.L78
+ 1312              	.LBB8:
+ 236:Core/Src/ir_acquisition.c ****         uint16_t first = adc_dma_buf[offset + IR_ADC_DMA_LENGTH / 2U - 2U];
+ 1313              		.loc 1 236 9 is_stmt 1 view .LVU385
+ 1314              		.loc 1 236 70 is_stmt 0 view .LVU386
+ 1315 0038 2200     		movs	r2, r4
+ 1316              	.LVL86:
+ 1317              		.loc 1 236 70 view .LVU387
+ 1318 003a 0E32     		adds	r2, r2, #14
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 33
+
+
+ 1319              		.loc 1 236 18 view .LVU388
+ 1320 003c 244B     		ldr	r3, .L84+20
+ 1321 003e 5200     		lsls	r2, r2, #1
+ 1322 0040 D65A     		ldrh	r6, [r2, r3]
+ 1323 0042 B6B2     		uxth	r6, r6
+ 1324              	.LVL87:
+ 237:Core/Src/ir_acquisition.c ****         uint16_t second = adc_dma_buf[offset + IR_ADC_DMA_LENGTH / 2U - 1U];
+ 1325              		.loc 1 237 9 is_stmt 1 view .LVU389
+ 1326              		.loc 1 237 71 is_stmt 0 view .LVU390
+ 1327 0044 2200     		movs	r2, r4
+ 1328 0046 0F32     		adds	r2, r2, #15
+ 1329              		.loc 1 237 18 view .LVU391
+ 1330 0048 5200     		lsls	r2, r2, #1
+ 1331 004a D55A     		ldrh	r5, [r2, r3]
+ 1332 004c ADB2     		uxth	r5, r5
+ 1333              	.LVL88:
+ 238:Core/Src/ir_acquisition.c ****         uint16_t after = (uint16_t)__HAL_DMA_GET_COUNTER(&hdma_adc);
+ 1334              		.loc 1 238 9 is_stmt 1 view .LVU392
+ 1335              		.loc 1 238 36 is_stmt 0 view .LVU393
+ 1336 004e 4A68     		ldr	r2, [r1, #4]
+ 1337              		.loc 1 238 18 view .LVU394
+ 1338 0050 92B2     		uxth	r2, r2
+ 1339              	.LVL89:
+ 239:Core/Src/ir_acquisition.c ****         bool still_safe = offset == 0U ? (after > 0U && after <= IR_ADC_DMA_LENGTH / 2U)
+ 1340              		.loc 1 239 9 is_stmt 1 view .LVU395
+ 240:Core/Src/ir_acquisition.c ****                                       : (after > IR_ADC_DMA_LENGTH / 2U);
+ 1341              		.loc 1 240 39 is_stmt 0 view .LVU396
+ 1342 0052 002C     		cmp	r4, #0
+ 1343 0054 26D1     		bne	.L79
+ 239:Core/Src/ir_acquisition.c ****         bool still_safe = offset == 0U ? (after > 0U && after <= IR_ADC_DMA_LENGTH / 2U)
+ 1344              		.loc 1 239 54 view .LVU397
+ 1345 0056 013A     		subs	r2, r2, #1
+ 1346              	.LVL90:
+ 239:Core/Src/ir_acquisition.c ****         bool still_safe = offset == 0U ? (after > 0U && after <= IR_ADC_DMA_LENGTH / 2U)
+ 1347              		.loc 1 239 54 view .LVU398
+ 1348 0058 92B2     		uxth	r2, r2
+ 1349              	.LVL91:
+ 1350              		.loc 1 240 39 discriminator 1 view .LVU399
+ 1351 005a 0023     		movs	r3, #0
+ 1352 005c 0F21     		movs	r1, #15
+ 1353 005e 9142     		cmp	r1, r2
+ 1354 0060 5B41     		adcs	r3, r3, r3
+ 1355 0062 DBB2     		uxtb	r3, r3
+ 1356              	.L80:
+ 1357              	.LVL92:
+ 241:Core/Src/ir_acquisition.c ****         if (still_safe && completed_sequence == sequence) {
+ 1358              		.loc 1 241 9 is_stmt 1 view .LVU400
+ 1359              		.loc 1 241 12 is_stmt 0 view .LVU401
+ 1360 0064 002B     		cmp	r3, #0
+ 1361 0066 03D0     		beq	.L78
+ 1362              		.loc 1 241 46 discriminator 1 view .LVU402
+ 1363 0068 144B     		ldr	r3, .L84
+ 1364              	.LVL93:
+ 1365              		.loc 1 241 46 discriminator 1 view .LVU403
+ 1366 006a 1B68     		ldr	r3, [r3]
+ 1367              		.loc 1 241 24 discriminator 1 view .LVU404
+ 1368 006c 8342     		cmp	r3, r0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 34
+
+
+ 1369 006e 1ED0     		beq	.L83
+ 1370              	.LVL94:
+ 1371              	.L78:
+ 1372              		.loc 1 241 24 discriminator 1 view .LVU405
+ 1373              	.LBE8:
+ 242:Core/Src/ir_acquisition.c ****             et1_raw = first;
+ 243:Core/Src/ir_acquisition.c ****             et2_raw = second;
+ 244:Core/Src/ir_acquisition.c ****             published_sequence = sequence;
+ 245:Core/Src/ir_acquisition.c ****         }
+ 246:Core/Src/ir_acquisition.c ****     }
+ 247:Core/Src/ir_acquisition.c ****     if (applied_dac1 != ir_dac1_code || applied_dac2 != ir_dac2_code) {
+ 1374              		.loc 1 247 5 is_stmt 1 view .LVU406
+ 1375              		.loc 1 247 22 is_stmt 0 view .LVU407
+ 1376 0070 184B     		ldr	r3, .L84+24
+ 1377 0072 1B88     		ldrh	r3, [r3]
+ 1378 0074 184A     		ldr	r2, .L84+28
+ 1379 0076 1288     		ldrh	r2, [r2]
+ 1380              		.loc 1 247 8 view .LVU408
+ 1381 0078 9A42     		cmp	r2, r3
+ 1382 007a 05D1     		bne	.L81
+ 1383              		.loc 1 247 54 discriminator 1 view .LVU409
+ 1384 007c 174B     		ldr	r3, .L84+32
+ 1385 007e 1B88     		ldrh	r3, [r3]
+ 1386 0080 174A     		ldr	r2, .L84+36
+ 1387 0082 1288     		ldrh	r2, [r2]
+ 1388              		.loc 1 247 38 discriminator 1 view .LVU410
+ 1389 0084 9A42     		cmp	r2, r3
+ 1390 0086 07D0     		beq	.L75
+ 1391              	.L81:
+ 248:Core/Src/ir_acquisition.c ****         (void)IR_Acquisition_SetDacCodes(ir_dac1_code, ir_dac2_code);
+ 1392              		.loc 1 248 9 is_stmt 1 view .LVU411
+ 1393              		.loc 1 248 15 is_stmt 0 view .LVU412
+ 1394 0088 134B     		ldr	r3, .L84+28
+ 1395 008a 1888     		ldrh	r0, [r3]
+ 1396              	.LVL95:
+ 1397              		.loc 1 248 15 view .LVU413
+ 1398 008c 80B2     		uxth	r0, r0
+ 1399 008e 144B     		ldr	r3, .L84+36
+ 1400 0090 1988     		ldrh	r1, [r3]
+ 1401 0092 89B2     		uxth	r1, r1
+ 1402 0094 FFF7FEFF 		bl	IR_Acquisition_SetDacCodes
+ 1403              	.LVL96:
+ 1404              	.L75:
+ 249:Core/Src/ir_acquisition.c ****     }
+ 250:Core/Src/ir_acquisition.c **** }
+ 1405              		.loc 1 250 1 view .LVU414
+ 1406              		@ sp needed
+ 1407              	.LVL97:
+ 1408              		.loc 1 250 1 view .LVU415
+ 1409 0098 70BD     		pop	{r4, r5, r6, pc}
+ 1410              	.LVL98:
+ 1411              	.L76:
+ 234:Core/Src/ir_acquisition.c ****     if (ir_acquisition_ready && sequence != published_sequence && half_safe) {
+ 1412              		.loc 1 234 34 discriminator 2 view .LVU416
+ 1413 009a 1022     		movs	r2, #16
+ 1414 009c 9A42     		cmp	r2, r3
+ 1415 009e 9241     		sbcs	r2, r2, r2
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 35
+
+
+ 1416 00a0 5242     		rsbs	r2, r2, #0
+ 1417 00a2 BFE7     		b	.L77
+ 1418              	.LVL99:
+ 1419              	.L79:
+ 1420              	.LBB9:
+ 240:Core/Src/ir_acquisition.c ****         if (still_safe && completed_sequence == sequence) {
+ 1421              		.loc 1 240 39 discriminator 2 view .LVU417
+ 1422 00a4 1023     		movs	r3, #16
+ 1423 00a6 9342     		cmp	r3, r2
+ 1424 00a8 9B41     		sbcs	r3, r3, r3
+ 1425 00aa 5B42     		rsbs	r3, r3, #0
+ 1426 00ac DAE7     		b	.L80
+ 1427              	.LVL100:
+ 1428              	.L83:
+ 242:Core/Src/ir_acquisition.c ****             et2_raw = second;
+ 1429              		.loc 1 242 13 is_stmt 1 view .LVU418
+ 242:Core/Src/ir_acquisition.c ****             et2_raw = second;
+ 1430              		.loc 1 242 21 is_stmt 0 view .LVU419
+ 1431 00ae 0D4B     		ldr	r3, .L84+40
+ 1432 00b0 1E80     		strh	r6, [r3]
+ 243:Core/Src/ir_acquisition.c ****             published_sequence = sequence;
+ 1433              		.loc 1 243 13 is_stmt 1 view .LVU420
+ 243:Core/Src/ir_acquisition.c ****             published_sequence = sequence;
+ 1434              		.loc 1 243 21 is_stmt 0 view .LVU421
+ 1435 00b2 0D4B     		ldr	r3, .L84+44
+ 1436 00b4 1D80     		strh	r5, [r3]
+ 244:Core/Src/ir_acquisition.c ****         }
+ 1437              		.loc 1 244 13 is_stmt 1 view .LVU422
+ 244:Core/Src/ir_acquisition.c ****         }
+ 1438              		.loc 1 244 32 is_stmt 0 view .LVU423
+ 1439 00b6 054B     		ldr	r3, .L84+16
+ 1440 00b8 1860     		str	r0, [r3]
+ 1441 00ba D9E7     		b	.L78
+ 1442              	.L85:
+ 1443              		.align	2
+ 1444              	.L84:
+ 1445 00bc 00000000 		.word	completed_sequence
+ 1446 00c0 00000000 		.word	completed_offset
+ 1447 00c4 00000000 		.word	hdma_adc
+ 1448 00c8 00000000 		.word	ir_acquisition_ready
+ 1449 00cc 00000000 		.word	published_sequence
+ 1450 00d0 00000000 		.word	adc_dma_buf
+ 1451 00d4 00000000 		.word	applied_dac1
+ 1452 00d8 00000000 		.word	ir_dac1_code
+ 1453 00dc 00000000 		.word	applied_dac2
+ 1454 00e0 00000000 		.word	ir_dac2_code
+ 1455 00e4 00000000 		.word	et1_raw
+ 1456 00e8 00000000 		.word	et2_raw
+ 1457              	.LBE9:
+ 1458              		.cfi_endproc
+ 1459              	.LFE45:
+ 1461              		.section	.text.IR_Acquisition_TakeRearEvent,"ax",%progbits
+ 1462              		.align	1
+ 1463              		.global	IR_Acquisition_TakeRearEvent
+ 1464              		.syntax unified
+ 1465              		.code	16
+ 1466              		.thumb_func
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 36
+
+
+ 1468              	IR_Acquisition_TakeRearEvent:
+ 1469              	.LFB46:
+ 251:Core/Src/ir_acquisition.c **** 
+ 252:Core/Src/ir_acquisition.c **** bool IR_Acquisition_TakeRearEvent(void)
+ 253:Core/Src/ir_acquisition.c **** {
+ 1470              		.loc 1 253 1 is_stmt 1 view -0
+ 1471              		.cfi_startproc
+ 1472              		@ args = 0, pretend = 0, frame = 0
+ 1473              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1474              		@ link register save eliminated.
+ 254:Core/Src/ir_acquisition.c ****     bool pending = ir_rear_event_pending;
+ 1475              		.loc 1 254 5 view .LVU425
+ 1476              		.loc 1 254 10 is_stmt 0 view .LVU426
+ 1477 0000 044B     		ldr	r3, .L88
+ 1478 0002 1B78     		ldrb	r3, [r3]
+ 1479 0004 D8B2     		uxtb	r0, r3
+ 1480              	.LVL101:
+ 255:Core/Src/ir_acquisition.c ****     if (pending) {
+ 1481              		.loc 1 255 5 is_stmt 1 view .LVU427
+ 1482              		.loc 1 255 8 is_stmt 0 view .LVU428
+ 1483 0006 002B     		cmp	r3, #0
+ 1484 0008 02D0     		beq	.L87
+ 256:Core/Src/ir_acquisition.c ****         ir_rear_event_pending = false;
+ 1485              		.loc 1 256 9 is_stmt 1 view .LVU429
+ 1486              		.loc 1 256 31 is_stmt 0 view .LVU430
+ 1487 000a 024B     		ldr	r3, .L88
+ 1488 000c 0022     		movs	r2, #0
+ 1489 000e 1A70     		strb	r2, [r3]
+ 1490              	.L87:
+ 257:Core/Src/ir_acquisition.c ****     }
+ 258:Core/Src/ir_acquisition.c ****     return pending;
+ 1491              		.loc 1 258 5 is_stmt 1 view .LVU431
+ 259:Core/Src/ir_acquisition.c **** }
+ 1492              		.loc 1 259 1 is_stmt 0 view .LVU432
+ 1493              		@ sp needed
+ 1494 0010 7047     		bx	lr
+ 1495              	.L89:
+ 1496 0012 C046     		.align	2
+ 1497              	.L88:
+ 1498 0014 00000000 		.word	ir_rear_event_pending
+ 1499              		.cfi_endproc
+ 1500              	.LFE46:
+ 1502              		.section	.text.IR_Acquisition_TakeFrontEvent,"ax",%progbits
+ 1503              		.align	1
+ 1504              		.global	IR_Acquisition_TakeFrontEvent
+ 1505              		.syntax unified
+ 1506              		.code	16
+ 1507              		.thumb_func
+ 1509              	IR_Acquisition_TakeFrontEvent:
+ 1510              	.LFB47:
+ 260:Core/Src/ir_acquisition.c **** 
+ 261:Core/Src/ir_acquisition.c **** bool IR_Acquisition_TakeFrontEvent(void)
+ 262:Core/Src/ir_acquisition.c **** {
+ 1511              		.loc 1 262 1 is_stmt 1 view -0
+ 1512              		.cfi_startproc
+ 1513              		@ args = 0, pretend = 0, frame = 0
+ 1514              		@ frame_needed = 0, uses_anonymous_args = 0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 37
+
+
+ 1515              		@ link register save eliminated.
+ 263:Core/Src/ir_acquisition.c ****     bool pending = ir_front_event_pending;
+ 1516              		.loc 1 263 5 view .LVU434
+ 1517              		.loc 1 263 10 is_stmt 0 view .LVU435
+ 1518 0000 044B     		ldr	r3, .L92
+ 1519 0002 1B78     		ldrb	r3, [r3]
+ 1520 0004 D8B2     		uxtb	r0, r3
+ 1521              	.LVL102:
+ 264:Core/Src/ir_acquisition.c ****     if (pending) {
+ 1522              		.loc 1 264 5 is_stmt 1 view .LVU436
+ 1523              		.loc 1 264 8 is_stmt 0 view .LVU437
+ 1524 0006 002B     		cmp	r3, #0
+ 1525 0008 02D0     		beq	.L91
+ 265:Core/Src/ir_acquisition.c ****         ir_front_event_pending = false;
+ 1526              		.loc 1 265 9 is_stmt 1 view .LVU438
+ 1527              		.loc 1 265 32 is_stmt 0 view .LVU439
+ 1528 000a 024B     		ldr	r3, .L92
+ 1529 000c 0022     		movs	r2, #0
+ 1530 000e 1A70     		strb	r2, [r3]
+ 1531              	.L91:
+ 266:Core/Src/ir_acquisition.c ****     }
+ 267:Core/Src/ir_acquisition.c ****     return pending;
+ 1532              		.loc 1 267 5 is_stmt 1 view .LVU440
+ 268:Core/Src/ir_acquisition.c **** }
+ 1533              		.loc 1 268 1 is_stmt 0 view .LVU441
+ 1534              		@ sp needed
+ 1535 0010 7047     		bx	lr
+ 1536              	.L93:
+ 1537 0012 C046     		.align	2
+ 1538              	.L92:
+ 1539 0014 00000000 		.word	ir_front_event_pending
+ 1540              		.cfi_endproc
+ 1541              	.LFE47:
+ 1543              		.section	.text.HAL_ADC_ConvHalfCpltCallback,"ax",%progbits
+ 1544              		.align	1
+ 1545              		.global	HAL_ADC_ConvHalfCpltCallback
+ 1546              		.syntax unified
+ 1547              		.code	16
+ 1548              		.thumb_func
+ 1550              	HAL_ADC_ConvHalfCpltCallback:
+ 1551              	.LVL103:
+ 1552              	.LFB48:
+ 269:Core/Src/ir_acquisition.c **** 
+ 270:Core/Src/ir_acquisition.c **** void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *handle)
+ 271:Core/Src/ir_acquisition.c **** {
+ 1553              		.loc 1 271 1 is_stmt 1 view -0
+ 1554              		.cfi_startproc
+ 1555              		@ args = 0, pretend = 0, frame = 0
+ 1556              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1557              		.loc 1 271 1 is_stmt 0 view .LVU443
+ 1558 0000 10B5     		push	{r4, lr}
+ 1559              	.LCFI9:
+ 1560              		.cfi_def_cfa_offset 8
+ 1561              		.cfi_offset 4, -8
+ 1562              		.cfi_offset 14, -4
+ 272:Core/Src/ir_acquisition.c ****     if (handle == &hadc) {
+ 1563              		.loc 1 272 5 is_stmt 1 view .LVU444
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 38
+
+
+ 1564              		.loc 1 272 8 is_stmt 0 view .LVU445
+ 1565 0002 094B     		ldr	r3, .L97
+ 1566 0004 8342     		cmp	r3, r0
+ 1567 0006 00D0     		beq	.L96
+ 1568              	.LVL104:
+ 1569              	.L94:
+ 273:Core/Src/ir_acquisition.c ****         adc_half_count++;
+ 274:Core/Src/ir_acquisition.c ****         completed_offset = 0U;
+ 275:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 276:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(0U);
+ 277:Core/Src/ir_acquisition.c ****     }
+ 278:Core/Src/ir_acquisition.c **** }
+ 1570              		.loc 1 278 1 view .LVU446
+ 1571              		@ sp needed
+ 1572 0008 10BD     		pop	{r4, pc}
+ 1573              	.LVL105:
+ 1574              	.L96:
+ 273:Core/Src/ir_acquisition.c ****         adc_half_count++;
+ 1575              		.loc 1 273 9 is_stmt 1 view .LVU447
+ 273:Core/Src/ir_acquisition.c ****         adc_half_count++;
+ 1576              		.loc 1 273 23 is_stmt 0 view .LVU448
+ 1577 000a 084A     		ldr	r2, .L97+4
+ 1578 000c 1368     		ldr	r3, [r2]
+ 1579 000e 0133     		adds	r3, r3, #1
+ 1580 0010 1360     		str	r3, [r2]
+ 274:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 1581              		.loc 1 274 9 is_stmt 1 view .LVU449
+ 274:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 1582              		.loc 1 274 26 is_stmt 0 view .LVU450
+ 1583 0012 074B     		ldr	r3, .L97+8
+ 1584 0014 0022     		movs	r2, #0
+ 1585 0016 1A80     		strh	r2, [r3]
+ 275:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(0U);
+ 1586              		.loc 1 275 9 is_stmt 1 view .LVU451
+ 275:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(0U);
+ 1587              		.loc 1 275 27 is_stmt 0 view .LVU452
+ 1588 0018 064A     		ldr	r2, .L97+12
+ 1589 001a 1368     		ldr	r3, [r2]
+ 1590 001c 0133     		adds	r3, r3, #1
+ 1591 001e 1360     		str	r3, [r2]
+ 276:Core/Src/ir_acquisition.c ****     }
+ 1592              		.loc 1 276 9 is_stmt 1 view .LVU453
+ 1593 0020 0020     		movs	r0, #0
+ 1594              	.LVL106:
+ 276:Core/Src/ir_acquisition.c ****     }
+ 1595              		.loc 1 276 9 is_stmt 0 view .LVU454
+ 1596 0022 FFF7FEFF 		bl	IR_ScanCompletedBlock
+ 1597              	.LVL107:
+ 1598              		.loc 1 278 1 view .LVU455
+ 1599 0026 EFE7     		b	.L94
+ 1600              	.L98:
+ 1601              		.align	2
+ 1602              	.L97:
+ 1603 0028 00000000 		.word	hadc
+ 1604 002c 00000000 		.word	adc_half_count
+ 1605 0030 00000000 		.word	completed_offset
+ 1606 0034 00000000 		.word	completed_sequence
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 39
+
+
+ 1607              		.cfi_endproc
+ 1608              	.LFE48:
+ 1610              		.section	.text.HAL_ADC_ConvCpltCallback,"ax",%progbits
+ 1611              		.align	1
+ 1612              		.global	HAL_ADC_ConvCpltCallback
+ 1613              		.syntax unified
+ 1614              		.code	16
+ 1615              		.thumb_func
+ 1617              	HAL_ADC_ConvCpltCallback:
+ 1618              	.LVL108:
+ 1619              	.LFB49:
+ 279:Core/Src/ir_acquisition.c **** 
+ 280:Core/Src/ir_acquisition.c **** void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *handle)
+ 281:Core/Src/ir_acquisition.c **** {
+ 1620              		.loc 1 281 1 is_stmt 1 view -0
+ 1621              		.cfi_startproc
+ 1622              		@ args = 0, pretend = 0, frame = 0
+ 1623              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1624              		.loc 1 281 1 is_stmt 0 view .LVU457
+ 1625 0000 10B5     		push	{r4, lr}
+ 1626              	.LCFI10:
+ 1627              		.cfi_def_cfa_offset 8
+ 1628              		.cfi_offset 4, -8
+ 1629              		.cfi_offset 14, -4
+ 282:Core/Src/ir_acquisition.c ****     if (handle == &hadc) {
+ 1630              		.loc 1 282 5 is_stmt 1 view .LVU458
+ 1631              		.loc 1 282 8 is_stmt 0 view .LVU459
+ 1632 0002 094B     		ldr	r3, .L102
+ 1633 0004 8342     		cmp	r3, r0
+ 1634 0006 00D0     		beq	.L101
+ 1635              	.LVL109:
+ 1636              	.L99:
+ 283:Core/Src/ir_acquisition.c ****         adc_full_count++;
+ 284:Core/Src/ir_acquisition.c ****         completed_offset = IR_ADC_DMA_LENGTH / 2U;
+ 285:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 286:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(IR_ADC_DMA_LENGTH / 2U);
+ 287:Core/Src/ir_acquisition.c ****     }
+ 288:Core/Src/ir_acquisition.c **** }
+ 1637              		.loc 1 288 1 view .LVU460
+ 1638              		@ sp needed
+ 1639 0008 10BD     		pop	{r4, pc}
+ 1640              	.LVL110:
+ 1641              	.L101:
+ 283:Core/Src/ir_acquisition.c ****         adc_full_count++;
+ 1642              		.loc 1 283 9 is_stmt 1 view .LVU461
+ 283:Core/Src/ir_acquisition.c ****         adc_full_count++;
+ 1643              		.loc 1 283 23 is_stmt 0 view .LVU462
+ 1644 000a 084A     		ldr	r2, .L102+4
+ 1645 000c 1368     		ldr	r3, [r2]
+ 1646 000e 0133     		adds	r3, r3, #1
+ 1647 0010 1360     		str	r3, [r2]
+ 284:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 1648              		.loc 1 284 9 is_stmt 1 view .LVU463
+ 284:Core/Src/ir_acquisition.c ****         completed_sequence++;
+ 1649              		.loc 1 284 26 is_stmt 0 view .LVU464
+ 1650 0012 074B     		ldr	r3, .L102+8
+ 1651 0014 1022     		movs	r2, #16
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 40
+
+
+ 1652 0016 1A80     		strh	r2, [r3]
+ 285:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(IR_ADC_DMA_LENGTH / 2U);
+ 1653              		.loc 1 285 9 is_stmt 1 view .LVU465
+ 285:Core/Src/ir_acquisition.c ****         IR_ScanCompletedBlock(IR_ADC_DMA_LENGTH / 2U);
+ 1654              		.loc 1 285 27 is_stmt 0 view .LVU466
+ 1655 0018 064A     		ldr	r2, .L102+12
+ 1656 001a 1368     		ldr	r3, [r2]
+ 1657 001c 0133     		adds	r3, r3, #1
+ 1658 001e 1360     		str	r3, [r2]
+ 286:Core/Src/ir_acquisition.c ****     }
+ 1659              		.loc 1 286 9 is_stmt 1 view .LVU467
+ 1660 0020 1020     		movs	r0, #16
+ 1661              	.LVL111:
+ 286:Core/Src/ir_acquisition.c ****     }
+ 1662              		.loc 1 286 9 is_stmt 0 view .LVU468
+ 1663 0022 FFF7FEFF 		bl	IR_ScanCompletedBlock
+ 1664              	.LVL112:
+ 1665              		.loc 1 288 1 view .LVU469
+ 1666 0026 EFE7     		b	.L99
+ 1667              	.L103:
+ 1668              		.align	2
+ 1669              	.L102:
+ 1670 0028 00000000 		.word	hadc
+ 1671 002c 00000000 		.word	adc_full_count
+ 1672 0030 00000000 		.word	completed_offset
+ 1673 0034 00000000 		.word	completed_sequence
+ 1674              		.cfi_endproc
+ 1675              	.LFE49:
+ 1677              		.section	.text.HAL_ADC_ErrorCallback,"ax",%progbits
+ 1678              		.align	1
+ 1679              		.global	HAL_ADC_ErrorCallback
+ 1680              		.syntax unified
+ 1681              		.code	16
+ 1682              		.thumb_func
+ 1684              	HAL_ADC_ErrorCallback:
+ 1685              	.LVL113:
+ 1686              	.LFB50:
+ 289:Core/Src/ir_acquisition.c **** 
+ 290:Core/Src/ir_acquisition.c **** void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *handle)
+ 291:Core/Src/ir_acquisition.c **** {
+ 1687              		.loc 1 291 1 is_stmt 1 view -0
+ 1688              		.cfi_startproc
+ 1689              		@ args = 0, pretend = 0, frame = 0
+ 1690              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1691              		@ link register save eliminated.
+ 292:Core/Src/ir_acquisition.c ****     if (handle == &hadc) {
+ 1692              		.loc 1 292 5 view .LVU471
+ 1693              		.loc 1 292 8 is_stmt 0 view .LVU472
+ 1694 0000 054B     		ldr	r3, .L107
+ 1695 0002 8342     		cmp	r3, r0
+ 1696 0004 00D0     		beq	.L106
+ 1697              	.L104:
+ 293:Core/Src/ir_acquisition.c ****         adc_error_count++;
+ 294:Core/Src/ir_acquisition.c ****         ir_acquisition_ready = false;
+ 295:Core/Src/ir_acquisition.c ****     }
+ 296:Core/Src/ir_acquisition.c **** }
+ 1698              		.loc 1 296 1 view .LVU473
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 41
+
+
+ 1699              		@ sp needed
+ 1700 0006 7047     		bx	lr
+ 1701              	.L106:
+ 293:Core/Src/ir_acquisition.c ****         adc_error_count++;
+ 1702              		.loc 1 293 9 is_stmt 1 view .LVU474
+ 293:Core/Src/ir_acquisition.c ****         adc_error_count++;
+ 1703              		.loc 1 293 24 is_stmt 0 view .LVU475
+ 1704 0008 044A     		ldr	r2, .L107+4
+ 1705 000a 1368     		ldr	r3, [r2]
+ 1706 000c 0133     		adds	r3, r3, #1
+ 1707 000e 1360     		str	r3, [r2]
+ 294:Core/Src/ir_acquisition.c ****     }
+ 1708              		.loc 1 294 9 is_stmt 1 view .LVU476
+ 294:Core/Src/ir_acquisition.c ****     }
+ 1709              		.loc 1 294 30 is_stmt 0 view .LVU477
+ 1710 0010 034B     		ldr	r3, .L107+8
+ 1711 0012 0022     		movs	r2, #0
+ 1712 0014 1A70     		strb	r2, [r3]
+ 1713              		.loc 1 296 1 view .LVU478
+ 1714 0016 F6E7     		b	.L104
+ 1715              	.L108:
+ 1716              		.align	2
+ 1717              	.L107:
+ 1718 0018 00000000 		.word	hadc
+ 1719 001c 00000000 		.word	adc_error_count
+ 1720 0020 00000000 		.word	ir_acquisition_ready
+ 1721              		.cfi_endproc
+ 1722              	.LFE50:
+ 1724              		.section	.bss.front_baseline_q16,"aw",%nobits
+ 1725              		.align	2
+ 1728              	front_baseline_q16:
+ 1729 0000 00000000 		.space	4
+ 1730              		.section	.bss.rear_baseline_q16,"aw",%nobits
+ 1731              		.align	2
+ 1734              	rear_baseline_q16:
+ 1735 0000 00000000 		.space	4
+ 1736              		.section	.bss.front_histogram,"aw",%nobits
+ 1737              		.align	2
+ 1740              	front_histogram:
+ 1741 0000 00000000 		.space	512
+ 1741      00000000 
+ 1741      00000000 
+ 1741      00000000 
+ 1741      00000000 
+ 1742              		.section	.bss.rear_histogram,"aw",%nobits
+ 1743              		.align	2
+ 1746              	rear_histogram:
+ 1747 0000 00000000 		.space	512
+ 1747      00000000 
+ 1747      00000000 
+ 1747      00000000 
+ 1747      00000000 
+ 1748              		.section	.bss.calibration_sample_count,"aw",%nobits
+ 1749              		.align	2
+ 1752              	calibration_sample_count:
+ 1753 0000 00000000 		.space	4
+ 1754              		.section	.bss.calibration_start_tick,"aw",%nobits
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 42
+
+
+ 1755              		.align	2
+ 1758              	calibration_start_tick:
+ 1759 0000 00000000 		.space	4
+ 1760              		.section	.bss.front_armed,"aw",%nobits
+ 1763              	front_armed:
+ 1764 0000 00       		.space	1
+ 1765              		.section	.bss.rear_armed,"aw",%nobits
+ 1768              	rear_armed:
+ 1769 0000 00       		.space	1
+ 1770              		.section	.bss.baseline_ready,"aw",%nobits
+ 1773              	baseline_ready:
+ 1774 0000 00       		.space	1
+ 1775              		.section	.bss.applied_dac2,"aw",%nobits
+ 1776              		.align	1
+ 1779              	applied_dac2:
+ 1780 0000 0000     		.space	2
+ 1781              		.section	.bss.applied_dac1,"aw",%nobits
+ 1782              		.align	1
+ 1785              	applied_dac1:
+ 1786 0000 0000     		.space	2
+ 1787              		.section	.bss.published_sequence,"aw",%nobits
+ 1788              		.align	2
+ 1791              	published_sequence:
+ 1792 0000 00000000 		.space	4
+ 1793              		.section	.bss.completed_offset,"aw",%nobits
+ 1794              		.align	1
+ 1797              	completed_offset:
+ 1798 0000 0000     		.space	2
+ 1799              		.section	.bss.completed_sequence,"aw",%nobits
+ 1800              		.align	2
+ 1803              	completed_sequence:
+ 1804 0000 00000000 		.space	4
+ 1805              		.global	ir_front_event_pending
+ 1806              		.section	.bss.ir_front_event_pending,"aw",%nobits
+ 1809              	ir_front_event_pending:
+ 1810 0000 00       		.space	1
+ 1811              		.global	ir_rear_event_pending
+ 1812              		.section	.bss.ir_rear_event_pending,"aw",%nobits
+ 1815              	ir_rear_event_pending:
+ 1816 0000 00       		.space	1
+ 1817              		.global	ir_front_event_sample
+ 1818              		.section	.bss.ir_front_event_sample,"aw",%nobits
+ 1819              		.align	2
+ 1822              	ir_front_event_sample:
+ 1823 0000 00000000 		.space	4
+ 1824              		.global	ir_rear_event_sample
+ 1825              		.section	.bss.ir_rear_event_sample,"aw",%nobits
+ 1826              		.align	2
+ 1829              	ir_rear_event_sample:
+ 1830 0000 00000000 		.space	4
+ 1831              		.global	ir_front_event_count
+ 1832              		.section	.bss.ir_front_event_count,"aw",%nobits
+ 1833              		.align	2
+ 1836              	ir_front_event_count:
+ 1837 0000 00000000 		.space	4
+ 1838              		.global	ir_rear_event_count
+ 1839              		.section	.bss.ir_rear_event_count,"aw",%nobits
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 43
+
+
+ 1840              		.align	2
+ 1843              	ir_rear_event_count:
+ 1844 0000 00000000 		.space	4
+ 1845              		.global	g_sensor_detection_ready
+ 1846              		.section	.bss.g_sensor_detection_ready,"aw",%nobits
+ 1849              	g_sensor_detection_ready:
+ 1850 0000 00       		.space	1
+ 1851              		.global	ir_acquisition_ready
+ 1852              		.section	.bss.ir_acquisition_ready,"aw",%nobits
+ 1855              	ir_acquisition_ready:
+ 1856 0000 00       		.space	1
+ 1857              		.global	ir_dac2_code
+ 1858              		.section	.data.ir_dac2_code,"aw"
+ 1859              		.align	1
+ 1862              	ir_dac2_code:
+ 1863 0000 0E06     		.short	1550
+ 1864              		.global	ir_dac1_code
+ 1865              		.section	.data.ir_dac1_code,"aw"
+ 1866              		.align	1
+ 1869              	ir_dac1_code:
+ 1870 0000 0E06     		.short	1550
+ 1871              		.global	adc_error_count
+ 1872              		.section	.bss.adc_error_count,"aw",%nobits
+ 1873              		.align	2
+ 1876              	adc_error_count:
+ 1877 0000 00000000 		.space	4
+ 1878              		.global	adc_full_count
+ 1879              		.section	.bss.adc_full_count,"aw",%nobits
+ 1880              		.align	2
+ 1883              	adc_full_count:
+ 1884 0000 00000000 		.space	4
+ 1885              		.global	adc_half_count
+ 1886              		.section	.bss.adc_half_count,"aw",%nobits
+ 1887              		.align	2
+ 1890              	adc_half_count:
+ 1891 0000 00000000 		.space	4
+ 1892              		.global	et2_raw
+ 1893              		.section	.bss.et2_raw,"aw",%nobits
+ 1894              		.align	1
+ 1897              	et2_raw:
+ 1898 0000 0000     		.space	2
+ 1899              		.global	et1_raw
+ 1900              		.section	.bss.et1_raw,"aw",%nobits
+ 1901              		.align	1
+ 1904              	et1_raw:
+ 1905 0000 0000     		.space	2
+ 1906              		.global	adc_dma_buf
+ 1907              		.section	.bss.adc_dma_buf,"aw",%nobits
+ 1908              		.align	2
+ 1911              	adc_dma_buf:
+ 1912 0000 00000000 		.space	64
+ 1912      00000000 
+ 1912      00000000 
+ 1912      00000000 
+ 1912      00000000 
+ 1913              		.text
+ 1914              	.Letext0:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 44
+
+
+ 1915              		.file 2 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 1916              		.file 3 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 1917              		.file 4 "Drivers/CMSIS/Device/ST/STM32F0xx/Include/stm32f072xb.h"
+ 1918              		.file 5 "Drivers/CMSIS/Device/ST/STM32F0xx/Include/stm32f0xx.h"
+ 1919              		.file 6 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_def.h"
+ 1920              		.file 7 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma.h"
+ 1921              		.file 8 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_adc.h"
+ 1922              		.file 9 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dac.h"
+ 1923              		.file 10 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim.h"
+ 1924              		.file 11 "Core/Inc/ir_acquisition.h"
+ 1925              		.file 12 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_adc_ex.h"
+ 1926              		.file 13 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim_ex.h"
+ 1927              		.file 14 "Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal.h"
+ 1928              		.file 15 "<built-in>"
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 45
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ir_acquisition.c
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:19     .text.IR_HistogramMedian:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:24     .text.IR_HistogramMedian:00000000 IR_HistogramMedian
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:90     .text.IR_FinishStartupCalibration:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:95     .text.IR_FinishStartupCalibration:00000000 IR_FinishStartupCalibration
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:227    .text.IR_FinishStartupCalibration:00000080 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1752   .bss.calibration_sample_count:00000000 calibration_sample_count
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1746   .bss.rear_histogram:00000000 rear_histogram
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1740   .bss.front_histogram:00000000 front_histogram
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1734   .bss.rear_baseline_q16:00000000 rear_baseline_q16
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1728   .bss.front_baseline_q16:00000000 front_baseline_q16
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1773   .bss.baseline_ready:00000000 baseline_ready
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1768   .bss.rear_armed:00000000 rear_armed
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1763   .bss.front_armed:00000000 front_armed
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1849   .bss.g_sensor_detection_ready:00000000 g_sensor_detection_ready
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:245    .text.IR_ScanCompletedBlock:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:250    .text.IR_ScanCompletedBlock:00000000 IR_ScanCompletedBlock
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:654    .text.IR_ScanCompletedBlock:00000198 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1911   .bss.adc_dma_buf:00000000 adc_dma_buf
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1758   .bss.calibration_start_tick:00000000 calibration_start_tick
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1843   .bss.ir_rear_event_count:00000000 ir_rear_event_count
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1829   .bss.ir_rear_event_sample:00000000 ir_rear_event_sample
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1815   .bss.ir_rear_event_pending:00000000 ir_rear_event_pending
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1836   .bss.ir_front_event_count:00000000 ir_front_event_count
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1822   .bss.ir_front_event_sample:00000000 ir_front_event_sample
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1809   .bss.ir_front_event_pending:00000000 ir_front_event_pending
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:681    .text.IR_Acquisition_SetDacCodes:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:687    .text.IR_Acquisition_SetDacCodes:00000000 IR_Acquisition_SetDacCodes
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:792    .text.IR_Acquisition_SetDacCodes:00000070 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1869   .data.ir_dac1_code:00000000 ir_dac1_code
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1862   .data.ir_dac2_code:00000000 ir_dac2_code
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1876   .bss.adc_error_count:00000000 adc_error_count
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1855   .bss.ir_acquisition_ready:00000000 ir_acquisition_ready
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1785   .bss.applied_dac1:00000000 applied_dac1
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1779   .bss.applied_dac2:00000000 applied_dac2
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:804    .text.IR_Acquisition_Init:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:810    .text.IR_Acquisition_Init:00000000 IR_Acquisition_Init
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1216   .text.IR_Acquisition_Init:000001ac $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1241   .text.IR_Acquisition_PublishLatest:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1247   .text.IR_Acquisition_PublishLatest:00000000 IR_Acquisition_PublishLatest
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1445   .text.IR_Acquisition_PublishLatest:000000bc $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1803   .bss.completed_sequence:00000000 completed_sequence
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1797   .bss.completed_offset:00000000 completed_offset
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1791   .bss.published_sequence:00000000 published_sequence
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1904   .bss.et1_raw:00000000 et1_raw
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1897   .bss.et2_raw:00000000 et2_raw
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1462   .text.IR_Acquisition_TakeRearEvent:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1468   .text.IR_Acquisition_TakeRearEvent:00000000 IR_Acquisition_TakeRearEvent
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1498   .text.IR_Acquisition_TakeRearEvent:00000014 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1503   .text.IR_Acquisition_TakeFrontEvent:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1509   .text.IR_Acquisition_TakeFrontEvent:00000000 IR_Acquisition_TakeFrontEvent
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1539   .text.IR_Acquisition_TakeFrontEvent:00000014 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1544   .text.HAL_ADC_ConvHalfCpltCallback:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1550   .text.HAL_ADC_ConvHalfCpltCallback:00000000 HAL_ADC_ConvHalfCpltCallback
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1603   .text.HAL_ADC_ConvHalfCpltCallback:00000028 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1890   .bss.adc_half_count:00000000 adc_half_count
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 46
+
+
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1611   .text.HAL_ADC_ConvCpltCallback:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1617   .text.HAL_ADC_ConvCpltCallback:00000000 HAL_ADC_ConvCpltCallback
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1670   .text.HAL_ADC_ConvCpltCallback:00000028 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1883   .bss.adc_full_count:00000000 adc_full_count
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1678   .text.HAL_ADC_ErrorCallback:00000000 $t
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1684   .text.HAL_ADC_ErrorCallback:00000000 HAL_ADC_ErrorCallback
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1718   .text.HAL_ADC_ErrorCallback:00000018 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1725   .bss.front_baseline_q16:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1731   .bss.rear_baseline_q16:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1737   .bss.front_histogram:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1743   .bss.rear_histogram:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1749   .bss.calibration_sample_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1755   .bss.calibration_start_tick:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1764   .bss.front_armed:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1769   .bss.rear_armed:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1774   .bss.baseline_ready:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1776   .bss.applied_dac2:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1782   .bss.applied_dac1:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1788   .bss.published_sequence:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1794   .bss.completed_offset:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1800   .bss.completed_sequence:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1810   .bss.ir_front_event_pending:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1816   .bss.ir_rear_event_pending:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1819   .bss.ir_front_event_sample:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1826   .bss.ir_rear_event_sample:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1833   .bss.ir_front_event_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1840   .bss.ir_rear_event_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1850   .bss.g_sensor_detection_ready:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1856   .bss.ir_acquisition_ready:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1859   .data.ir_dac2_code:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1866   .data.ir_dac1_code:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1873   .bss.adc_error_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1880   .bss.adc_full_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1887   .bss.adc_half_count:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1894   .bss.et2_raw:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1901   .bss.et1_raw:00000000 $d
+C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s:1908   .bss.adc_dma_buf:00000000 $d
+
+UNDEFINED SYMBOLS
+g_dbg_rear_baseline
+g_dbg_front_baseline
+g_dbg_rear_threshold
+g_dbg_front_threshold
+HAL_GetTick
+HAL_DAC_SetValue
+hdac
+memset
+HAL_DAC_ConfigChannel
+HAL_DAC_Start
+HAL_TIM_Base_Init
+HAL_TIMEx_MasterConfigSynchronization
+HAL_ADC_Init
+HAL_ADC_ConfigChannel
+HAL_ADCEx_Calibration_Start
+HAL_ADC_Start_DMA
+HAL_TIM_Base_Start
+htim3
+ARM GAS  C:\Users\24705\AppData\Local\Temp\ccNd8CDr.s 			page 47
+
+
+hadc
+hdma_adc

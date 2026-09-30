@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file           : ws2812_uart.c
-  * @brief          : WS2812B via USART3 @ 3.75 Mbaud + TX inversion + DMA
+  * @brief          : GL5050RGB01H-T via USART3 @ 4 Mbaud + TX inversion + DMA
   * @details        : One normal DMA transfer sends exactly one LED frame.
   *                   TX inversion makes the UART idle state a WS2812 reset low.
   ******************************************************************************
@@ -42,7 +42,7 @@ void ws2812_uart_init(void)
     memset(tx_buf, 0, TX_BUF_SIZE);
     frame_sent = false;
 
-    /* USART3 (3M, 8N1, TXINV) and DMA1_CH2 already configured by
+    /* USART3 (4M, 8N1, TXINV) and DMA1_CH2 already configured by
        MX_USART3_UART_Init + MX_DMA_Init.  Only enable DMA TX request.     */
     USART3->CR3 |= USART_CR3_DMAT;
     DMA1->IFCR = DMA_IFCR_CGIF2;
@@ -80,7 +80,8 @@ void ws2812_uart_send(const uint32_t *grb, uint8_t count)
 
     memset(tx_buf, 0, TX_BUF_SIZE);
 
-    /* WS2812B data order is GRB. */
+    /* GL5050RGB01H-T datasheet specifies MSB-first RGB order (not the
+       GRB order used by the older WS2812 strip). */
     uint16_t pos = 0;
     for (uint8_t i = 0; i < count; i++) {
         uint32_t c = grb[i];
@@ -88,8 +89,8 @@ void ws2812_uart_send(const uint32_t *grb, uint8_t count)
         uint8_t r = (uint8_t)(c >> 8);
         uint8_t b = (uint8_t)(c);
 
-        encode_color_byte(g, &pos);
         encode_color_byte(r, &pos);
+        encode_color_byte(g, &pos);
         encode_color_byte(b, &pos);
     }
 

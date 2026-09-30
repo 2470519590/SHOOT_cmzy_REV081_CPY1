@@ -13,6 +13,22 @@
 
 当前固件默认 CAN 波特率为 **500 kbps**。USART2 调试采集接口已从正式固件删除；USART3 仅用于 WS2812 灯条 DMA 输出。
 
+## 1.1 新传感器迁移第一版
+
+当前迁移固件使用 PA4/PA5 DAC（双路 output buffer）驱动红外发射端，PA1/PA3 通过 TIM3 分别以 20 kHz 采样 ADC 两路信号，DMA1 Channel 1 circular 缓冲顺序为 `[ET1, ET2, ...]`。物理通道为 `ET1 -> front`、`ET2 -> rear`；由于沿用旧调试变量命名，`g_dbg_rear_prox` 实际显示 front，`g_dbg_front_prox` 实际显示 rear。本版只提供原始值观测，旧 `vcnl4040`、`shoot_detect`、卡弹/测速算法源文件保留但运行时未启用。
+
+Ozone 变量：`adc_dma_buf[]`、`et1_raw`、`et2_raw`、`adc_half_count`、`adc_full_count`、`adc_error_count`、`ir_dac1_code`、`ir_dac2_code`、`ir_acquisition_ready`。收到 `0x220` 只记录并保持未就绪，不发送虚假的校准成功；本版不产生 `0x230`。CAN PB8/PB9、USART1 PB6/PB7、USART3 PB10 灯效和 IWDG 保留。RGB_TX3 连接新原理图中的单颗 `GL5050RGB01H-T`，USART3 使用 4 Mbps、TX 反相和 DMA 输出。
+
+### 1.2 ADC 实时触发层
+
+当前已加入最小实时检测层，但仍不连接旧的测速和射击应用逻辑：
+
+- 上电后的约 1 s 只采样环境。两路使用 8 位量化直方图取中位数作为静态基线；短暂滑落弹药或噪声只占少量样本，不会直接抬高基线。
+- 运行时触发条件为 `ADC >= baseline + 45`。DMA 半区/满区回调在中断上下文扫描刚完成的 8 对样本，越过阈值时每路只置位一次事件并记录计数；主循环通过 `IR_Acquisition_TakeRearEvent()`/`IR_Acquisition_TakeFrontEvent()` 消费事件。
+- 触发期间冻结基线；信号回到阈值以下后重新允许下一次触发。未加入滤波、测速、方向配对或 CAN 射击报文，避免在实测波形前引入不可验证的假设。
+- 触发层使用慢速（约数百毫秒量级）基线跟踪应对小幅漂移；持续高电平不会被快速吸收，便于后续识别卡弹、遮挡或发射端异常。
+- 当前 DMA 块覆盖约 0.4 ms，20 kHz/通道下 20 m/s、10 mm 弹丸的约 0.5 ms 有效区间至少会落入一个完整扫描块；实际漏检裕量仍需实板验证。
+
 ## 2. 重要目录和文档
 
 | 路径 | 用途 |

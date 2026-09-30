@@ -1,0 +1,341 @@
+ ITR8307/L24/TR8
+
+
+Features
+ ․Fast response time
+ ․High sensitivity
+ ․Cut-Off visible wavelength
+ ․Thin
+ ․Compact
+ ․Pb free
+ ․This product itself will remain within RoHS compliant version.
+ ․Compliance with EU REACH.
+ ․Compliance Halogen Free .(Br <900 ppm ,Cl <900 ppm , Br+Cl < 1500 ppm).
+
+
+
+
+Description
+ ITR8307-L24/TR8 is a light reflection switch which includes a GaAs IR-LED transmitter and a NPN photo-transistor with a high
+ photosensitive receiver for short distance, operating in the infrared range. Both components are mounted side- by- side in a
+ plastic package.
+
+
+
+
+Applications
+ ․Camera
+ ․VCR
+ ․Floppy disk driver
+ ․Cassette type recorder
+ ․Various microcomputer control equipment
+
+Device Selection Guide
+
+                   Device No.                                                         Chip Material
+                         IR                                                                GaAlAs
+                        PTT                                                                 Silicon
+
+
+
+1    Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011   www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+Package Dimensions
+
+
+
+
+Absolute Maximum Ratings (Ta=25℃)
+
+ Parameter                                  Symbol                        Rating                    Unit
+
+                Power Dissipation
+                at(or below) 25℃
+                                                       Pd                           75                        mW
+                Free Air
+                Temperature
+                Reverse Voltage                        VR                            5                          V
+    Input       Forward Current                        IF                           50                         mA
+                Peak Forward
+                Current (*1)
+                Pulse width                            IFP                          1                          A
+                ≦100μs, Duty
+                cycle=1%
+                Collector Power
+                                                       PC                           75                        mW
+                Dissipation
+                Collector Current                       IC                          50                         mA
+    Output      Collector-Emitter
+                                                    B VCEO                          30                         V
+                Voltage
+            Emitter-Collector
+                                                    B VECO                          5                          V
+            Voltage
+ Operating Temperature                                Topr                     -40~+85                         ℃
+ Storage Temperature                                  Tstg                     -40~+90                         ℃
+ Lead Soldering Temperature
+                                                      Tsol                         260                         ℃
+ (*2)
+
+Notes: (＊1)      tw=100 μsec. ,      T=10 msec.      (＊2)       t=5 Sec
+
+
+2     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011   www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+
+Electro-Optical Characteristics (Ta=25℃)
+
+
+Parameter                                 Symbol          Min.       Typ.      Max.      Unit         Condition
+
+
+               Forward Voltage                 VF            ---      1.2        1.6         V                     IF=20mA
+
+
+Input          Reverse Current                  IR           ---       ---       10         μA                      VR=5V
+
+
+               Peak Wavelength                  λP           ---      940        ---        nm                        ---
+
+
+               Dark Current                   ICEO           ---       ---      100         nA                     VCE=10V
+Output
+               C-E Saturation                                                                                    IC=2mA
+                                            VCE(sat)         ---       ---        1          V
+               Voltage                                                                                        ,Ee=1mW/cm2
+                                                                                                                   VCE=2V
+               Light Current                IC(ON)          0.5        ---      15.0        mA
+                                                                                                                   IF=4mA
+                                                                                                                   VCE=2V
+Transfer       Leakage Current               ICEOD           ---       ---        5         μA
+                                                                                                                   IF=4mA
+Character
+istics         Rise time                        tr           ---       20        ---       μ sec                 VCE=2V
+                                                                                                                IC=0.1mA
+               Fall time                        tf           ---       20        ---       μ sec             RL=1K, d=1mm
+
+
+
+
+3   Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011          www.everlight.com
+   DATASHEET
+   ITR8307/L24/TR8
+
+
+
+
+    Typical Electrical/Optical/Characteristics Curves for IR
+
+Forward Current vs. Ambient Temperature                                     Spectral Distribution
+
+
+
+
+Peak Emission Wavelenght       vs.   Ambient Temperature                    Forward Current       vs. Forward Voltage
+
+
+
+
+  4     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011        www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+
+    Forward Voltage     vs.   Ambient Temperature                          Relative Radiant Intensity vs.          Angular Displacement
+
+
+
+
+Typical Electro/Optical/Characteristics Curves for PT
+
+         Collector Power Dissipation vs. Ambient Temperature                  Collector Dark Current          vs. Ambient Temperature
+
+
+
+
+5      Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011            www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+
+    Relative Collector Current     vs. Ambient     Temperature               Collector Current      vs. Irradiance
+
+
+
+
+    Spectral Sensitivity                                                     Collector Current      vs. Collector-emitter Voltage
+
+
+
+
+6     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011           www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+
+    Ambient Temperature vs. Collector Current
+
+
+                                                                   100%
+                                   Relative Collector Current(%)   90%
+                                                                   80%
+                                                                   70%                                             V CE=5V
+                                                                   60%                                             IF=20mA
+                                                                   50%
+                                                                   40%
+                                                                   30%
+                                                                   20%
+                                                                   10%
+                                                                    0%
+                                                                          -45   -25    -5     15     35     55       75      95
+                                                                                      Ambient Temperature Ta(oC)
+
+
+
+
+Typical Electrical/Optical/Characteristics Curves For ITR
+
+    Relative Collector Current vs. Distance between Sensor and AL Evoporation Galss.
+
+
+
+
+7     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011                        www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+
+    Relative Collector Current vs. Card Moving Distance
+
+
+
+
+    Response Time vs. Load Resistance
+
+
+
+
+8     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011   www.everlight.com
+    DATASHEET
+    ITR8307/L24/TR8
+
+
+
+Recommended Method of Storage
+The following are general recommendations for moisture sensitive level (MSL) 4 storage and use:
+ Shelf life in sealed bag: 12 months at < 40 °C and < 90% relative humidity (RH)
+ After bag is opened, devices that will be subjected to reflow solder or other high temperature process must
+     a) Mounted within 72 hours of factory conditions < 30 °C/60%RH, or
+     b) Stored at <20% RH
+ Devices require bake, before mounting, if:
+     Humidity Indicator Card is > 20% when read at 23 ± 5 °C
+ If baking is required, devices may be baked:
+     a) 192 hours at 40℃,and <5% RH(dry air/nitrogen) or
+        b) 96 hours at 60℃,and <5% RH for all device containers
+        c) 24 hours at 125 °C
+       Soldering Condition
+        a) Pb-free solder temperature profile
+
+
+
+
+        b) Reflow soldering should not be done more than two times.
+        c) When soldering, do not put stress on the LEDs during heating.
+        d) After soldering, do not warp the circuit board.
+       Repairing
+         Repair should not be done after the LEDs have been soldered. When repairing is unavoidable, a
+double-head soldering iron should be used (as below figure). It should be confirmed beforehand whether the
+characteristics of the LEDs will or will not be damaged by repairing.
+
+
+
+
+    9     Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011   www.everlight.com
+DATASHEET
+ITR8307/L24/TR8
+
+
+
+Taping Dimension
+
+
+
+
+Reel Dimensions
+
+
+
+
+                        Note: The tolerances unless mentioned is ±0.1mm ,Unit = mm
+Moisture Resistant Packaging
+
+
+
+
+                    Label                 Aluminum moisture-proof bag               Desiccant          Label
+
+
+
+
+10   Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011      www.everlight.com
+   DATASHEET
+   ITR8307/L24/TR8
+
+
+   Packing Quantity Specification
+1. 1000 Pcs/ 1Reel
+2. 15 Reel /1 Box
+3. 2 Box/ 1 Carton
+
+
+
+   Label Form Specification
+                                                                           ‧CPN: Customer’s Product Number
+                                                                           ‧P/N: Product Number
+                                                                           ‧QTY: Packing Quantity
+                                                                           ‧CAT: Luminous Intensity Rank
+                                                                           ‧HUE: Dom. Wavelength Rank
+                                                                           ‧REF: Forward Voltage Rank
+                                                                           ‧LOT No: Lot Number
+                                                                           ‧X: Month
+                                                                           ‧Reference: Identify Label Number
+
+
+
+
+DISCLAIMER
+   1.EVERLIGHT reserves the right(s) on the adjustment of product material mix for the specification.
+   2.The product meets EVERLIGHT published specification for a period of twelve (12) months from date of
+     shipment.
+   3.The graphs shown in this datasheet are representing typical data only and do not show guaranteed values.
+   4.When using this product, please observe the absolute maximum ratings and the instructions for using
+     outlined in these specification sheets. EVERLIGHT assumes no responsibility for any damage resulting
+     from the use of the product which does not comply with the absolute maximum ratings and the
+     instructions included in these specification sheets.
+   5.These specification sheets include materials protected under copyright of EVERLIGHT. Reproduction in
+     any form is prohibited without obtaining EVERLIGHT’s prior consent.
+   6.This product is not intended to be used for military, aircraft, automotive, medical, life sustaining or life
+     saving applications or any other application which can result in human injury or death. Please contact
+     authorized Everlight sales agent for special application request.
+
+
+
+
+  11   Copyright © 2010, Everlight All Rights Reserved. Release Date: Nov.18.2016. Issue V8 No: DRX-0000011    www.everlight.com
+

@@ -76,7 +76,23 @@ void Error_Handler(void);
 #define IR_IIC1_SDA_Pin GPIO_PIN_7
 #define IR_IIC1_SDA_GPIO_Port GPIOB
 
-/* USER CODE BEGIN Private defines */
+#define IR_DAC1_Pin GPIO_PIN_4
+#define IR_DAC1_GPIO_Port GPIOA
+#define IR_DAC2_Pin GPIO_PIN_5
+#define IR_DAC2_GPIO_Port GPIOA
+#define IR_ET1_Pin GPIO_PIN_1
+#define IR_ET1_GPIO_Port GPIOA
+#define IR_ET2_Pin GPIO_PIN_3
+#define IR_ET2_GPIO_Port GPIOA
+#define CAN_RX_Pin GPIO_PIN_8
+#define CAN_RX_GPIO_Port GPIOB
+#define CAN_TX_Pin GPIO_PIN_9
+#define CAN_TX_GPIO_Port GPIOB
+#define RGB_UART1_TX_Pin GPIO_PIN_6
+#define RGB_UART1_TX_GPIO_Port GPIOB
+#define RGB_UART1_RX_Pin GPIO_PIN_7
+#define RGB_UART1_RX_GPIO_Port GPIOB
+
 
 /* USER CODE END Private defines */
 

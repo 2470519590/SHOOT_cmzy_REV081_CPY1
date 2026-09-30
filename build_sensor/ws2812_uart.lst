@@ -1,0 +1,719 @@
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 1
+
+
+   1              		.cpu cortex-m0
+   2              		.arch armv6s-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 0
+  12              		.eabi_attribute 18, 4
+  13              		.file	"ws2812_uart.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/ws2812_uart.c"
+  18              		.section	.text.encode_color_byte,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.code	16
+  22              		.thumb_func
+  24              	encode_color_byte:
+  25              	.LVL0:
+  26              	.LFB40:
+   1:Core/Src/ws2812_uart.c **** /**
+   2:Core/Src/ws2812_uart.c ****   ******************************************************************************
+   3:Core/Src/ws2812_uart.c ****   * @file           : ws2812_uart.c
+   4:Core/Src/ws2812_uart.c ****   * @brief          : GL5050RGB01H-T via USART3 @ 4 Mbaud + TX inversion + DMA
+   5:Core/Src/ws2812_uart.c ****   * @details        : One normal DMA transfer sends exactly one LED frame.
+   6:Core/Src/ws2812_uart.c ****   *                   TX inversion makes the UART idle state a WS2812 reset low.
+   7:Core/Src/ws2812_uart.c ****   ******************************************************************************
+   8:Core/Src/ws2812_uart.c ****   */
+   9:Core/Src/ws2812_uart.c **** 
+  10:Core/Src/ws2812_uart.c **** #include "ws2812_uart.h"
+  11:Core/Src/ws2812_uart.c **** #include "main.h"
+  12:Core/Src/ws2812_uart.c **** #include <string.h>
+  13:Core/Src/ws2812_uart.c **** 
+  14:Core/Src/ws2812_uart.c **** static const uint8_t ws2812_table[4] = { 0xEF, 0x8F, 0xEC, 0x8C };
+  15:Core/Src/ws2812_uart.c **** 
+  16:Core/Src/ws2812_uart.c **** #define LED_COUNT          9
+  17:Core/Src/ws2812_uart.c **** #define BYTES_PER_LED     12    /* G(4) + R(4) + B(4) */
+  18:Core/Src/ws2812_uart.c **** #define TX_BUF_SIZE        (LED_COUNT * BYTES_PER_LED)
+  19:Core/Src/ws2812_uart.c **** #define RESET_DELAY_LOOPS  4000U /* >50 us at 48 MHz, conservative for latch */
+  20:Core/Src/ws2812_uart.c **** 
+  21:Core/Src/ws2812_uart.c **** static uint8_t tx_buf[TX_BUF_SIZE];
+  22:Core/Src/ws2812_uart.c **** static bool frame_sent = false;
+  23:Core/Src/ws2812_uart.c **** 
+  24:Core/Src/ws2812_uart.c **** extern DMA_HandleTypeDef hdma_usart3_tx;
+  25:Core/Src/ws2812_uart.c **** extern UART_HandleTypeDef huart3;
+  26:Core/Src/ws2812_uart.c **** 
+  27:Core/Src/ws2812_uart.c **** static void encode_color_byte(uint8_t value, uint16_t *pos)
+  28:Core/Src/ws2812_uart.c **** {
+  27              		.loc 1 28 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 2
+
+
+  31              		.loc 1 28 1 is_stmt 0 view .LVU1
+  32 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 20
+  35              		.cfi_offset 4, -20
+  36              		.cfi_offset 5, -16
+  37              		.cfi_offset 6, -12
+  38              		.cfi_offset 7, -8
+  39              		.cfi_offset 14, -4
+  29:Core/Src/ws2812_uart.c ****     tx_buf[(*pos)++] = ws2812_table[(value >> 6) & 0x03];
+  40              		.loc 1 29 5 is_stmt 1 view .LVU2
+  41              		.loc 1 29 50 is_stmt 0 view .LVU3
+  42 0002 8209     		lsrs	r2, r0, #6
+  43              		.loc 1 29 13 view .LVU4
+  44 0004 0B88     		ldrh	r3, [r1]
+  45              		.loc 1 29 18 view .LVU5
+  46 0006 5C1C     		adds	r4, r3, #1
+  47 0008 0C80     		strh	r4, [r1]
+  48              		.loc 1 29 36 view .LVU6
+  49 000a 0D4C     		ldr	r4, .L2
+  50 000c A55C     		ldrb	r5, [r4, r2]
+  51              		.loc 1 29 22 view .LVU7
+  52 000e 0D4A     		ldr	r2, .L2+4
+  53 0010 D554     		strb	r5, [r2, r3]
+  30:Core/Src/ws2812_uart.c ****     tx_buf[(*pos)++] = ws2812_table[(value >> 4) & 0x03];
+  54              		.loc 1 30 5 is_stmt 1 view .LVU8
+  55              		.loc 1 30 50 is_stmt 0 view .LVU9
+  56 0012 0509     		lsrs	r5, r0, #4
+  57 0014 0323     		movs	r3, #3
+  58 0016 1D40     		ands	r5, r3
+  59              		.loc 1 30 13 view .LVU10
+  60 0018 0E88     		ldrh	r6, [r1]
+  61              		.loc 1 30 18 view .LVU11
+  62 001a 771C     		adds	r7, r6, #1
+  63 001c 0F80     		strh	r7, [r1]
+  64              		.loc 1 30 36 view .LVU12
+  65 001e 655D     		ldrb	r5, [r4, r5]
+  66              		.loc 1 30 22 view .LVU13
+  67 0020 9555     		strb	r5, [r2, r6]
+  31:Core/Src/ws2812_uart.c ****     tx_buf[(*pos)++] = ws2812_table[(value >> 2) & 0x03];
+  68              		.loc 1 31 5 is_stmt 1 view .LVU14
+  69              		.loc 1 31 50 is_stmt 0 view .LVU15
+  70 0022 8508     		lsrs	r5, r0, #2
+  71 0024 1D40     		ands	r5, r3
+  72              		.loc 1 31 13 view .LVU16
+  73 0026 0E88     		ldrh	r6, [r1]
+  74              		.loc 1 31 18 view .LVU17
+  75 0028 771C     		adds	r7, r6, #1
+  76 002a 0F80     		strh	r7, [r1]
+  77              		.loc 1 31 36 view .LVU18
+  78 002c 655D     		ldrb	r5, [r4, r5]
+  79              		.loc 1 31 22 view .LVU19
+  80 002e 9555     		strb	r5, [r2, r6]
+  32:Core/Src/ws2812_uart.c ****     tx_buf[(*pos)++] = ws2812_table[(value >> 0) & 0x03];
+  81              		.loc 1 32 5 is_stmt 1 view .LVU20
+  82              		.loc 1 32 50 is_stmt 0 view .LVU21
+  83 0030 0340     		ands	r3, r0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 3
+
+
+  84              		.loc 1 32 13 view .LVU22
+  85 0032 0888     		ldrh	r0, [r1]
+  86              	.LVL1:
+  87              		.loc 1 32 18 view .LVU23
+  88 0034 451C     		adds	r5, r0, #1
+  89 0036 0D80     		strh	r5, [r1]
+  90              		.loc 1 32 36 view .LVU24
+  91 0038 E35C     		ldrb	r3, [r4, r3]
+  92              		.loc 1 32 22 view .LVU25
+  93 003a 1354     		strb	r3, [r2, r0]
+  33:Core/Src/ws2812_uart.c **** }
+  94              		.loc 1 33 1 view .LVU26
+  95              		@ sp needed
+  96 003c F0BD     		pop	{r4, r5, r6, r7, pc}
+  97              	.L3:
+  98 003e C046     		.align	2
+  99              	.L2:
+ 100 0040 00000000 		.word	ws2812_table
+ 101 0044 00000000 		.word	tx_buf
+ 102              		.cfi_endproc
+ 103              	.LFE40:
+ 105              		.section	.text.ws2812_reset_delay,"ax",%progbits
+ 106              		.align	1
+ 107              		.syntax unified
+ 108              		.code	16
+ 109              		.thumb_func
+ 111              	ws2812_reset_delay:
+ 112              	.LFB41:
+  34:Core/Src/ws2812_uart.c **** 
+  35:Core/Src/ws2812_uart.c **** static void ws2812_reset_delay(void)
+  36:Core/Src/ws2812_uart.c **** {
+ 113              		.loc 1 36 1 is_stmt 1 view -0
+ 114              		.cfi_startproc
+ 115              		@ args = 0, pretend = 0, frame = 8
+ 116              		@ frame_needed = 0, uses_anonymous_args = 0
+ 117              		@ link register save eliminated.
+ 118 0000 82B0     		sub	sp, sp, #8
+ 119              	.LCFI1:
+ 120              		.cfi_def_cfa_offset 8
+  37:Core/Src/ws2812_uart.c ****     for (volatile uint32_t d = 0; d < RESET_DELAY_LOOPS; d++) {}
+ 121              		.loc 1 37 5 view .LVU28
+ 122              	.LBB2:
+ 123              		.loc 1 37 10 view .LVU29
+ 124              		.loc 1 37 28 is_stmt 0 view .LVU30
+ 125 0002 0023     		movs	r3, #0
+ 126 0004 0193     		str	r3, [sp, #4]
+ 127              		.loc 1 37 5 view .LVU31
+ 128 0006 02E0     		b	.L5
+ 129              	.L6:
+ 130              		.loc 1 37 64 is_stmt 1 discriminator 3 view .LVU32
+ 131              		.loc 1 37 59 discriminator 3 view .LVU33
+ 132 0008 019B     		ldr	r3, [sp, #4]
+ 133 000a 0133     		adds	r3, r3, #1
+ 134 000c 0193     		str	r3, [sp, #4]
+ 135              	.L5:
+ 136              		.loc 1 37 37 discriminator 1 view .LVU34
+ 137 000e 019A     		ldr	r2, [sp, #4]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 4
+
+
+ 138 0010 FA23     		movs	r3, #250
+ 139 0012 1B01     		lsls	r3, r3, #4
+ 140 0014 9A42     		cmp	r2, r3
+ 141 0016 F7D3     		bcc	.L6
+ 142              	.LBE2:
+  38:Core/Src/ws2812_uart.c **** }
+ 143              		.loc 1 38 1 is_stmt 0 view .LVU35
+ 144 0018 02B0     		add	sp, sp, #8
+ 145              		@ sp needed
+ 146 001a 7047     		bx	lr
+ 147              		.cfi_endproc
+ 148              	.LFE41:
+ 150              		.section	.text.ws2812_uart_init,"ax",%progbits
+ 151              		.align	1
+ 152              		.global	ws2812_uart_init
+ 153              		.syntax unified
+ 154              		.code	16
+ 155              		.thumb_func
+ 157              	ws2812_uart_init:
+ 158              	.LFB42:
+  39:Core/Src/ws2812_uart.c **** 
+  40:Core/Src/ws2812_uart.c **** void ws2812_uart_init(void)
+  41:Core/Src/ws2812_uart.c **** {
+ 159              		.loc 1 41 1 is_stmt 1 view -0
+ 160              		.cfi_startproc
+ 161              		@ args = 0, pretend = 0, frame = 0
+ 162              		@ frame_needed = 0, uses_anonymous_args = 0
+ 163 0000 10B5     		push	{r4, lr}
+ 164              	.LCFI2:
+ 165              		.cfi_def_cfa_offset 8
+ 166              		.cfi_offset 4, -8
+ 167              		.cfi_offset 14, -4
+  42:Core/Src/ws2812_uart.c ****     memset(tx_buf, 0, TX_BUF_SIZE);
+ 168              		.loc 1 42 5 view .LVU37
+ 169 0002 0D48     		ldr	r0, .L8
+ 170 0004 6C22     		movs	r2, #108
+ 171 0006 0021     		movs	r1, #0
+ 172 0008 FFF7FEFF 		bl	memset
+ 173              	.LVL2:
+  43:Core/Src/ws2812_uart.c ****     frame_sent = false;
+ 174              		.loc 1 43 5 view .LVU38
+ 175              		.loc 1 43 16 is_stmt 0 view .LVU39
+ 176 000c 0B4B     		ldr	r3, .L8+4
+ 177 000e 0022     		movs	r2, #0
+ 178 0010 1A70     		strb	r2, [r3]
+  44:Core/Src/ws2812_uart.c **** 
+  45:Core/Src/ws2812_uart.c ****     /* USART3 (4M, 8N1, TXINV) and DMA1_CH2 already configured by
+  46:Core/Src/ws2812_uart.c ****        MX_USART3_UART_Init + MX_DMA_Init.  Only enable DMA TX request.     */
+  47:Core/Src/ws2812_uart.c ****     USART3->CR3 |= USART_CR3_DMAT;
+ 179              		.loc 1 47 5 is_stmt 1 view .LVU40
+ 180              		.loc 1 47 11 is_stmt 0 view .LVU41
+ 181 0012 0B4A     		ldr	r2, .L8+8
+ 182 0014 9368     		ldr	r3, [r2, #8]
+ 183              		.loc 1 47 17 view .LVU42
+ 184 0016 8021     		movs	r1, #128
+ 185 0018 0B43     		orrs	r3, r1
+ 186 001a 9360     		str	r3, [r2, #8]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 5
+
+
+  48:Core/Src/ws2812_uart.c ****     DMA1->IFCR = DMA_IFCR_CGIF2;
+ 187              		.loc 1 48 5 is_stmt 1 view .LVU43
+ 188              		.loc 1 48 16 is_stmt 0 view .LVU44
+ 189 001c 094B     		ldr	r3, .L8+12
+ 190 001e 1022     		movs	r2, #16
+ 191 0020 5A60     		str	r2, [r3, #4]
+  49:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR &= ~DMA_CCR_EN;
+ 192              		.loc 1 49 5 is_stmt 1 view .LVU45
+ 193              		.loc 1 49 18 is_stmt 0 view .LVU46
+ 194 0022 094B     		ldr	r3, .L8+16
+ 195 0024 1A68     		ldr	r2, [r3]
+ 196              		.loc 1 49 24 view .LVU47
+ 197 0026 7F39     		subs	r1, r1, #127
+ 198 0028 8A43     		bics	r2, r1
+ 199 002a 1A60     		str	r2, [r3]
+  50:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CPAR  = (uint32_t)(&USART3->TDR);
+ 200              		.loc 1 50 5 is_stmt 1 view .LVU48
+ 201              		.loc 1 50 26 is_stmt 0 view .LVU49
+ 202 002c 074A     		ldr	r2, .L8+20
+ 203 002e 9A60     		str	r2, [r3, #8]
+  51:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR   = DMA_CCR_MINC | DMA_CCR_DIR;
+ 204              		.loc 1 51 5 is_stmt 1 view .LVU50
+ 205              		.loc 1 51 26 is_stmt 0 view .LVU51
+ 206 0030 9022     		movs	r2, #144
+ 207 0032 1A60     		str	r2, [r3]
+  52:Core/Src/ws2812_uart.c **** }
+ 208              		.loc 1 52 1 view .LVU52
+ 209              		@ sp needed
+ 210 0034 10BD     		pop	{r4, pc}
+ 211              	.L9:
+ 212 0036 C046     		.align	2
+ 213              	.L8:
+ 214 0038 00000000 		.word	tx_buf
+ 215 003c 00000000 		.word	frame_sent
+ 216 0040 00480040 		.word	1073760256
+ 217 0044 00000240 		.word	1073872896
+ 218 0048 1C000240 		.word	1073872924
+ 219 004c 28480040 		.word	1073760296
+ 220              		.cfi_endproc
+ 221              	.LFE42:
+ 223              		.section	.text.ws2812_uart_busy,"ax",%progbits
+ 224              		.align	1
+ 225              		.global	ws2812_uart_busy
+ 226              		.syntax unified
+ 227              		.code	16
+ 228              		.thumb_func
+ 230              	ws2812_uart_busy:
+ 231              	.LFB43:
+  53:Core/Src/ws2812_uart.c **** 
+  54:Core/Src/ws2812_uart.c **** bool ws2812_uart_busy(void)
+  55:Core/Src/ws2812_uart.c **** {
+ 232              		.loc 1 55 1 is_stmt 1 view -0
+ 233              		.cfi_startproc
+ 234              		@ args = 0, pretend = 0, frame = 0
+ 235              		@ frame_needed = 0, uses_anonymous_args = 0
+ 236              		@ link register save eliminated.
+  56:Core/Src/ws2812_uart.c ****     if (!frame_sent) {
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 6
+
+
+ 237              		.loc 1 56 5 view .LVU54
+ 238              		.loc 1 56 9 is_stmt 0 view .LVU55
+ 239 0000 094B     		ldr	r3, .L14
+ 240 0002 1878     		ldrb	r0, [r3]
+ 241              		.loc 1 56 8 view .LVU56
+ 242 0004 0028     		cmp	r0, #0
+ 243 0006 0ED0     		beq	.L11
+  57:Core/Src/ws2812_uart.c ****         return false;
+  58:Core/Src/ws2812_uart.c ****     }
+  59:Core/Src/ws2812_uart.c **** 
+  60:Core/Src/ws2812_uart.c ****     if (((DMA1_Channel2->CCR & DMA_CCR_EN) != 0U) && (DMA1_Channel2->CNDTR != 0U)) {
+ 244              		.loc 1 60 5 is_stmt 1 view .LVU57
+ 245              		.loc 1 60 24 is_stmt 0 view .LVU58
+ 246 0008 084B     		ldr	r3, .L14+4
+ 247 000a 1B68     		ldr	r3, [r3]
+ 248              		.loc 1 60 8 view .LVU59
+ 249 000c DB07     		lsls	r3, r3, #31
+ 250 000e 03D5     		bpl	.L12
+ 251              		.loc 1 60 68 discriminator 1 view .LVU60
+ 252 0010 064B     		ldr	r3, .L14+4
+ 253 0012 5B68     		ldr	r3, [r3, #4]
+ 254              		.loc 1 60 51 discriminator 1 view .LVU61
+ 255 0014 002B     		cmp	r3, #0
+ 256 0016 06D1     		bne	.L11
+ 257              	.L12:
+  61:Core/Src/ws2812_uart.c ****         return true;
+  62:Core/Src/ws2812_uart.c ****     }
+  63:Core/Src/ws2812_uart.c **** 
+  64:Core/Src/ws2812_uart.c ****     return (USART3->ISR & USART_ISR_TC) == 0U;
+ 258              		.loc 1 64 5 is_stmt 1 view .LVU62
+ 259              		.loc 1 64 19 is_stmt 0 view .LVU63
+ 260 0018 054B     		ldr	r3, .L14+8
+ 261 001a DB69     		ldr	r3, [r3, #28]
+ 262              		.loc 1 64 25 view .LVU64
+ 263 001c 4020     		movs	r0, #64
+ 264 001e 1840     		ands	r0, r3
+ 265              		.loc 1 64 41 view .LVU65
+ 266 0020 4342     		rsbs	r3, r0, #0
+ 267 0022 5841     		adcs	r0, r0, r3
+ 268 0024 C0B2     		uxtb	r0, r0
+ 269              	.L11:
+  65:Core/Src/ws2812_uart.c **** }
+ 270              		.loc 1 65 1 view .LVU66
+ 271              		@ sp needed
+ 272 0026 7047     		bx	lr
+ 273              	.L15:
+ 274              		.align	2
+ 275              	.L14:
+ 276 0028 00000000 		.word	frame_sent
+ 277 002c 1C000240 		.word	1073872924
+ 278 0030 00480040 		.word	1073760256
+ 279              		.cfi_endproc
+ 280              	.LFE43:
+ 282              		.section	.text.ws2812_uart_send,"ax",%progbits
+ 283              		.align	1
+ 284              		.global	ws2812_uart_send
+ 285              		.syntax unified
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 7
+
+
+ 286              		.code	16
+ 287              		.thumb_func
+ 289              	ws2812_uart_send:
+ 290              	.LVL3:
+ 291              	.LFB44:
+  66:Core/Src/ws2812_uart.c **** 
+  67:Core/Src/ws2812_uart.c **** void ws2812_uart_send(const uint32_t *grb, uint8_t count)
+  68:Core/Src/ws2812_uart.c **** {
+ 292              		.loc 1 68 1 is_stmt 1 view -0
+ 293              		.cfi_startproc
+ 294              		@ args = 0, pretend = 0, frame = 8
+ 295              		@ frame_needed = 0, uses_anonymous_args = 0
+ 296              		.loc 1 68 1 is_stmt 0 view .LVU68
+ 297 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 298              	.LCFI3:
+ 299              		.cfi_def_cfa_offset 20
+ 300              		.cfi_offset 4, -20
+ 301              		.cfi_offset 5, -16
+ 302              		.cfi_offset 6, -12
+ 303              		.cfi_offset 7, -8
+ 304              		.cfi_offset 14, -4
+ 305 0002 CE46     		mov	lr, r9
+ 306 0004 4746     		mov	r7, r8
+ 307 0006 80B5     		push	{r7, lr}
+ 308              	.LCFI4:
+ 309              		.cfi_def_cfa_offset 28
+ 310              		.cfi_offset 8, -28
+ 311              		.cfi_offset 9, -24
+ 312 0008 83B0     		sub	sp, sp, #12
+ 313              	.LCFI5:
+ 314              		.cfi_def_cfa_offset 40
+ 315 000a 8146     		mov	r9, r0
+ 316 000c 8846     		mov	r8, r1
+  69:Core/Src/ws2812_uart.c ****     if ((grb == NULL) || (count > LED_COUNT) || ws2812_uart_busy()) {
+ 317              		.loc 1 69 5 is_stmt 1 view .LVU69
+ 318              		.loc 1 69 8 is_stmt 0 view .LVU70
+ 319 000e 0028     		cmp	r0, #0
+ 320 0010 01D0     		beq	.L16
+ 321              		.loc 1 69 23 discriminator 1 view .LVU71
+ 322 0012 0929     		cmp	r1, #9
+ 323 0014 04D9     		bls	.L23
+ 324              	.LVL4:
+ 325              	.L16:
+  70:Core/Src/ws2812_uart.c ****         return;
+  71:Core/Src/ws2812_uart.c ****     }
+  72:Core/Src/ws2812_uart.c **** 
+  73:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR &= ~DMA_CCR_EN;
+  74:Core/Src/ws2812_uart.c ****     DMA1->IFCR = DMA_IFCR_CGIF2;
+  75:Core/Src/ws2812_uart.c ****     USART3->ICR = USART_ICR_TCCF;
+  76:Core/Src/ws2812_uart.c **** 
+  77:Core/Src/ws2812_uart.c ****     if (frame_sent) {
+  78:Core/Src/ws2812_uart.c ****         ws2812_reset_delay();
+  79:Core/Src/ws2812_uart.c ****     }
+  80:Core/Src/ws2812_uart.c **** 
+  81:Core/Src/ws2812_uart.c ****     memset(tx_buf, 0, TX_BUF_SIZE);
+  82:Core/Src/ws2812_uart.c **** 
+  83:Core/Src/ws2812_uart.c ****     /* GL5050RGB01H-T datasheet specifies MSB-first RGB order (not the
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 8
+
+
+  84:Core/Src/ws2812_uart.c ****        GRB order used by the older WS2812 strip). */
+  85:Core/Src/ws2812_uart.c ****     uint16_t pos = 0;
+  86:Core/Src/ws2812_uart.c ****     for (uint8_t i = 0; i < count; i++) {
+  87:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+  88:Core/Src/ws2812_uart.c ****         uint8_t g = (uint8_t)(c >> 16);
+  89:Core/Src/ws2812_uart.c ****         uint8_t r = (uint8_t)(c >> 8);
+  90:Core/Src/ws2812_uart.c ****         uint8_t b = (uint8_t)(c);
+  91:Core/Src/ws2812_uart.c **** 
+  92:Core/Src/ws2812_uart.c ****         encode_color_byte(r, &pos);
+  93:Core/Src/ws2812_uart.c ****         encode_color_byte(g, &pos);
+  94:Core/Src/ws2812_uart.c ****         encode_color_byte(b, &pos);
+  95:Core/Src/ws2812_uart.c ****     }
+  96:Core/Src/ws2812_uart.c **** 
+  97:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CNDTR = TX_BUF_SIZE;
+  98:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CMAR  = (uint32_t)tx_buf;
+  99:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CPAR  = (uint32_t)(&USART3->TDR);
+ 100:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR  |= DMA_CCR_EN;
+ 101:Core/Src/ws2812_uart.c ****     frame_sent = true;
+ 102:Core/Src/ws2812_uart.c **** }
+ 326              		.loc 1 102 1 view .LVU72
+ 327 0016 03B0     		add	sp, sp, #12
+ 328              		@ sp needed
+ 329              	.LVL5:
+ 330              	.LVL6:
+ 331              		.loc 1 102 1 view .LVU73
+ 332 0018 C0BC     		pop	{r6, r7}
+ 333 001a B946     		mov	r9, r7
+ 334 001c B046     		mov	r8, r6
+ 335 001e F0BD     		pop	{r4, r5, r6, r7, pc}
+ 336              	.LVL7:
+ 337              	.L23:
+  69:Core/Src/ws2812_uart.c ****     if ((grb == NULL) || (count > LED_COUNT) || ws2812_uart_busy()) {
+ 338              		.loc 1 69 49 discriminator 2 view .LVU74
+ 339 0020 FFF7FEFF 		bl	ws2812_uart_busy
+ 340              	.LVL8:
+  69:Core/Src/ws2812_uart.c ****     if ((grb == NULL) || (count > LED_COUNT) || ws2812_uart_busy()) {
+ 341              		.loc 1 69 46 discriminator 1 view .LVU75
+ 342 0024 0028     		cmp	r0, #0
+ 343 0026 F6D1     		bne	.L16
+  73:Core/Src/ws2812_uart.c ****     DMA1->IFCR = DMA_IFCR_CGIF2;
+ 344              		.loc 1 73 5 is_stmt 1 view .LVU76
+  73:Core/Src/ws2812_uart.c ****     DMA1->IFCR = DMA_IFCR_CGIF2;
+ 345              		.loc 1 73 18 is_stmt 0 view .LVU77
+ 346 0028 214A     		ldr	r2, .L26
+ 347 002a 1368     		ldr	r3, [r2]
+  73:Core/Src/ws2812_uart.c ****     DMA1->IFCR = DMA_IFCR_CGIF2;
+ 348              		.loc 1 73 24 view .LVU78
+ 349 002c 0121     		movs	r1, #1
+ 350 002e 8B43     		bics	r3, r1
+ 351 0030 1360     		str	r3, [r2]
+  74:Core/Src/ws2812_uart.c ****     USART3->ICR = USART_ICR_TCCF;
+ 352              		.loc 1 74 5 is_stmt 1 view .LVU79
+  74:Core/Src/ws2812_uart.c ****     USART3->ICR = USART_ICR_TCCF;
+ 353              		.loc 1 74 16 is_stmt 0 view .LVU80
+ 354 0032 204B     		ldr	r3, .L26+4
+ 355 0034 1022     		movs	r2, #16
+ 356 0036 5A60     		str	r2, [r3, #4]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 9
+
+
+  75:Core/Src/ws2812_uart.c **** 
+ 357              		.loc 1 75 5 is_stmt 1 view .LVU81
+  75:Core/Src/ws2812_uart.c **** 
+ 358              		.loc 1 75 17 is_stmt 0 view .LVU82
+ 359 0038 1F4B     		ldr	r3, .L26+8
+ 360 003a 3032     		adds	r2, r2, #48
+ 361 003c 1A62     		str	r2, [r3, #32]
+  77:Core/Src/ws2812_uart.c ****         ws2812_reset_delay();
+ 362              		.loc 1 77 5 is_stmt 1 view .LVU83
+  77:Core/Src/ws2812_uart.c ****         ws2812_reset_delay();
+ 363              		.loc 1 77 9 is_stmt 0 view .LVU84
+ 364 003e 1F4B     		ldr	r3, .L26+12
+ 365 0040 1B78     		ldrb	r3, [r3]
+  77:Core/Src/ws2812_uart.c ****         ws2812_reset_delay();
+ 366              		.loc 1 77 8 view .LVU85
+ 367 0042 002B     		cmp	r3, #0
+ 368 0044 22D1     		bne	.L24
+ 369              	.L20:
+  81:Core/Src/ws2812_uart.c **** 
+ 370              		.loc 1 81 5 is_stmt 1 view .LVU86
+ 371 0046 1E48     		ldr	r0, .L26+16
+ 372 0048 6C22     		movs	r2, #108
+ 373 004a 0021     		movs	r1, #0
+ 374 004c FFF7FEFF 		bl	memset
+ 375              	.LVL9:
+  85:Core/Src/ws2812_uart.c ****     for (uint8_t i = 0; i < count; i++) {
+ 376              		.loc 1 85 5 view .LVU87
+  85:Core/Src/ws2812_uart.c ****     for (uint8_t i = 0; i < count; i++) {
+ 377              		.loc 1 85 14 is_stmt 0 view .LVU88
+ 378 0050 6B46     		mov	r3, sp
+ 379 0052 0022     		movs	r2, #0
+ 380 0054 DA80     		strh	r2, [r3, #6]
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 381              		.loc 1 86 5 is_stmt 1 view .LVU89
+ 382              	.LBB3:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 383              		.loc 1 86 10 view .LVU90
+ 384              	.LVL10:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 385              		.loc 1 86 18 is_stmt 0 view .LVU91
+ 386 0056 0024     		movs	r4, #0
+ 387              	.LVL11:
+ 388              	.L21:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 389              		.loc 1 86 27 is_stmt 1 discriminator 1 view .LVU92
+ 390 0058 4445     		cmp	r4, r8
+ 391 005a 1AD2     		bcs	.L25
+ 392              	.LBB4:
+  87:Core/Src/ws2812_uart.c ****         uint8_t g = (uint8_t)(c >> 16);
+ 393              		.loc 1 87 9 view .LVU93
+  87:Core/Src/ws2812_uart.c ****         uint8_t g = (uint8_t)(c >> 16);
+ 394              		.loc 1 87 25 is_stmt 0 view .LVU94
+ 395 005c A300     		lsls	r3, r4, #2
+  87:Core/Src/ws2812_uart.c ****         uint8_t g = (uint8_t)(c >> 16);
+ 396              		.loc 1 87 18 view .LVU95
+ 397 005e 4A46     		mov	r2, r9
+ 398 0060 D558     		ldr	r5, [r2, r3]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 10
+
+
+ 399              	.LVL12:
+  88:Core/Src/ws2812_uart.c ****         uint8_t r = (uint8_t)(c >> 8);
+ 400              		.loc 1 88 9 is_stmt 1 view .LVU96
+  88:Core/Src/ws2812_uart.c ****         uint8_t r = (uint8_t)(c >> 8);
+ 401              		.loc 1 88 33 is_stmt 0 view .LVU97
+ 402 0062 2F0C     		lsrs	r7, r5, #16
+  88:Core/Src/ws2812_uart.c ****         uint8_t r = (uint8_t)(c >> 8);
+ 403              		.loc 1 88 17 view .LVU98
+ 404 0064 FFB2     		uxtb	r7, r7
+ 405              	.LVL13:
+  89:Core/Src/ws2812_uart.c ****         uint8_t b = (uint8_t)(c);
+ 406              		.loc 1 89 9 is_stmt 1 view .LVU99
+  89:Core/Src/ws2812_uart.c ****         uint8_t b = (uint8_t)(c);
+ 407              		.loc 1 89 33 is_stmt 0 view .LVU100
+ 408 0066 280A     		lsrs	r0, r5, #8
+  89:Core/Src/ws2812_uart.c ****         uint8_t b = (uint8_t)(c);
+ 409              		.loc 1 89 17 view .LVU101
+ 410 0068 C0B2     		uxtb	r0, r0
+ 411              	.LVL14:
+  90:Core/Src/ws2812_uart.c **** 
+ 412              		.loc 1 90 9 is_stmt 1 view .LVU102
+  90:Core/Src/ws2812_uart.c **** 
+ 413              		.loc 1 90 17 is_stmt 0 view .LVU103
+ 414 006a EDB2     		uxtb	r5, r5
+ 415              	.LVL15:
+  92:Core/Src/ws2812_uart.c ****         encode_color_byte(g, &pos);
+ 416              		.loc 1 92 9 is_stmt 1 view .LVU104
+ 417 006c 6B46     		mov	r3, sp
+ 418              	.LVL16:
+  92:Core/Src/ws2812_uart.c ****         encode_color_byte(g, &pos);
+ 419              		.loc 1 92 9 is_stmt 0 view .LVU105
+ 420 006e 9E1D     		adds	r6, r3, #6
+ 421 0070 3100     		movs	r1, r6
+ 422 0072 FFF7FEFF 		bl	encode_color_byte
+ 423              	.LVL17:
+  93:Core/Src/ws2812_uart.c ****         encode_color_byte(b, &pos);
+ 424              		.loc 1 93 9 is_stmt 1 view .LVU106
+ 425 0076 3100     		movs	r1, r6
+ 426 0078 3800     		movs	r0, r7
+ 427 007a FFF7FEFF 		bl	encode_color_byte
+ 428              	.LVL18:
+  94:Core/Src/ws2812_uart.c ****     }
+ 429              		.loc 1 94 9 view .LVU107
+ 430 007e 3100     		movs	r1, r6
+ 431 0080 2800     		movs	r0, r5
+ 432 0082 FFF7FEFF 		bl	encode_color_byte
+ 433              	.LVL19:
+ 434              	.LBE4:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 435              		.loc 1 86 37 discriminator 3 view .LVU108
+ 436 0086 0134     		adds	r4, r4, #1
+ 437              	.LVL20:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 438              		.loc 1 86 37 is_stmt 0 discriminator 3 view .LVU109
+ 439 0088 E4B2     		uxtb	r4, r4
+ 440              	.LVL21:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 11
+
+
+ 441              		.loc 1 86 37 discriminator 3 view .LVU110
+ 442 008a E5E7     		b	.L21
+ 443              	.LVL22:
+ 444              	.L24:
+  86:Core/Src/ws2812_uart.c ****         uint32_t c = grb[i];
+ 445              		.loc 1 86 37 discriminator 3 view .LVU111
+ 446              	.LBE3:
+  78:Core/Src/ws2812_uart.c ****     }
+ 447              		.loc 1 78 9 is_stmt 1 view .LVU112
+ 448 008c FFF7FEFF 		bl	ws2812_reset_delay
+ 449              	.LVL23:
+ 450 0090 D9E7     		b	.L20
+ 451              	.LVL24:
+ 452              	.L25:
+  97:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CMAR  = (uint32_t)tx_buf;
+ 453              		.loc 1 97 5 view .LVU113
+  97:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CMAR  = (uint32_t)tx_buf;
+ 454              		.loc 1 97 26 is_stmt 0 view .LVU114
+ 455 0092 074B     		ldr	r3, .L26
+ 456 0094 6C22     		movs	r2, #108
+ 457 0096 5A60     		str	r2, [r3, #4]
+  98:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CPAR  = (uint32_t)(&USART3->TDR);
+ 458              		.loc 1 98 5 is_stmt 1 view .LVU115
+  98:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CPAR  = (uint32_t)(&USART3->TDR);
+ 459              		.loc 1 98 28 is_stmt 0 view .LVU116
+ 460 0098 094A     		ldr	r2, .L26+16
+  98:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CPAR  = (uint32_t)(&USART3->TDR);
+ 461              		.loc 1 98 26 view .LVU117
+ 462 009a DA60     		str	r2, [r3, #12]
+  99:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR  |= DMA_CCR_EN;
+ 463              		.loc 1 99 5 is_stmt 1 view .LVU118
+  99:Core/Src/ws2812_uart.c ****     DMA1_Channel2->CCR  |= DMA_CCR_EN;
+ 464              		.loc 1 99 26 is_stmt 0 view .LVU119
+ 465 009c 094A     		ldr	r2, .L26+20
+ 466 009e 9A60     		str	r2, [r3, #8]
+ 100:Core/Src/ws2812_uart.c ****     frame_sent = true;
+ 467              		.loc 1 100 5 is_stmt 1 view .LVU120
+ 100:Core/Src/ws2812_uart.c ****     frame_sent = true;
+ 468              		.loc 1 100 18 is_stmt 0 view .LVU121
+ 469 00a0 1A68     		ldr	r2, [r3]
+ 100:Core/Src/ws2812_uart.c ****     frame_sent = true;
+ 470              		.loc 1 100 25 view .LVU122
+ 471 00a2 0121     		movs	r1, #1
+ 472 00a4 0A43     		orrs	r2, r1
+ 473 00a6 1A60     		str	r2, [r3]
+ 101:Core/Src/ws2812_uart.c **** }
+ 474              		.loc 1 101 5 is_stmt 1 view .LVU123
+ 101:Core/Src/ws2812_uart.c **** }
+ 475              		.loc 1 101 16 is_stmt 0 view .LVU124
+ 476 00a8 044B     		ldr	r3, .L26+12
+ 477 00aa 1970     		strb	r1, [r3]
+ 478 00ac B3E7     		b	.L16
+ 479              	.L27:
+ 480 00ae C046     		.align	2
+ 481              	.L26:
+ 482 00b0 1C000240 		.word	1073872924
+ 483 00b4 00000240 		.word	1073872896
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 12
+
+
+ 484 00b8 00480040 		.word	1073760256
+ 485 00bc 00000000 		.word	frame_sent
+ 486 00c0 00000000 		.word	tx_buf
+ 487 00c4 28480040 		.word	1073760296
+ 488              		.cfi_endproc
+ 489              	.LFE44:
+ 491              		.section	.bss.frame_sent,"aw",%nobits
+ 494              	frame_sent:
+ 495 0000 00       		.space	1
+ 496              		.section	.bss.tx_buf,"aw",%nobits
+ 497              		.align	2
+ 500              	tx_buf:
+ 501 0000 00000000 		.space	108
+ 501      00000000 
+ 501      00000000 
+ 501      00000000 
+ 501      00000000 
+ 502              		.section	.rodata.ws2812_table,"a"
+ 503              		.align	2
+ 506              	ws2812_table:
+ 507 0000 EF8FEC8C 		.ascii	"\357\217\354\214"
+ 508              		.text
+ 509              	.Letext0:
+ 510              		.file 2 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 511              		.file 3 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 512              		.file 4 "Drivers/CMSIS/Device/ST/STM32F0xx/Include/stm32f072xb.h"
+ 513              		.file 5 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 514              		.file 6 "<built-in>"
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cclteDif.s 			page 13
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 ws2812_uart.c
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:19     .text.encode_color_byte:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:24     .text.encode_color_byte:00000000 encode_color_byte
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:100    .text.encode_color_byte:00000040 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:506    .rodata.ws2812_table:00000000 ws2812_table
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:500    .bss.tx_buf:00000000 tx_buf
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:106    .text.ws2812_reset_delay:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:111    .text.ws2812_reset_delay:00000000 ws2812_reset_delay
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:151    .text.ws2812_uart_init:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:157    .text.ws2812_uart_init:00000000 ws2812_uart_init
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:214    .text.ws2812_uart_init:00000038 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:494    .bss.frame_sent:00000000 frame_sent
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:224    .text.ws2812_uart_busy:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:230    .text.ws2812_uart_busy:00000000 ws2812_uart_busy
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:276    .text.ws2812_uart_busy:00000028 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:283    .text.ws2812_uart_send:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:289    .text.ws2812_uart_send:00000000 ws2812_uart_send
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:482    .text.ws2812_uart_send:000000b0 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:495    .bss.frame_sent:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:497    .bss.tx_buf:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cclteDif.s:503    .rodata.ws2812_table:00000000 $d
+
+UNDEFINED SYMBOLS
+memset

@@ -137,7 +137,7 @@ HAL_StatusTypeDef CANProtocol_SendHeartbeat(void)
     uint32_t uptime_s = HAL_GetTick() / 1000U;
     HAL_StatusTypeDef status;
 
-    if (!can_protocol_tx_permitted() || can_handle == NULL ||
+    if (can_handle == NULL ||
         HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
         g_can_stats.tx_heartbeat_fail++;
         return HAL_ERROR;

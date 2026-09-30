@@ -1,0 +1,570 @@
+MCU                                                                                                                                                                                                                                                                                               IR Sensor
+                                                                                                   SUP_3V3D        SUP_3V3DA
+
+
+                                                                                                             L1
+                                                                                                                                                                                                                                                                                                                                     SUP_3V3D
+
+
+
+
+                                                                                                                         48
+                                                                                                                         24
+
+                                                                                                                         36
+                                                                                                                                                                                                                                                                                                                              U7
+
+
+
+
+                                                                                                                         9
+
+
+
+                                                                                                                                          1
+                                                                                                                                                                                                            C15                     20pF                                                                                                                           SUP_3V3D
+
+
+
+
+                                                                                                                             VDD_2
+                                                                                                                             VDD_1
+                                                                                                                              VDDA
+                                                                                                                            VDDIO2
+
+                                                                                                                                           VBAT
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                      5
+                                                                                                                                                                                                                                                                                                                         1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                               V+
+                                                                                                  10                                                                                6                                                                SUP_3V3D                                     V_IRANODE1
+
+
+
+
+                                                                                                                                                                                                      3
+                                                                                                         PA0                                           PF1MOSC_OUT                                                                                                                                             R3   1R                               4
+
+
+
+
+                                                                                                                                                                                                                                              DGND
+                            R13       22R                                                         11
+         IR_ET1                                                                                          PA1                                                                                                                                                                                                             3
+                                                                                                  14                                                                                5
+      V_IRANODE1                                                                                         PA4                                                PF0MOSC_IN
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                    3
+                                                                                                                                                                                                      1
+
+
+
+
+                                                                                                                                                                                                                                                        0805
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                               GND
+                                                                                                  16                                                                                                      X1                                                    R1                                                                                                         U1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                      2
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                               2
+                                                                                                         PA6                                                                                              12M
+                                                                                                  29                                                                                                                                                            10K                                                                                                        ITR8307/L24/TR8
+                                                                                                         PA8                                                                                                 C16                    20pF                                                                                      LM321MFX/NOPB
+                                                                                                                                                                                    7
+                                                                                                                                                                            NRST
+                                                                                                  12
+                                                                                                         PA2/UART2_TX
+                            R14       22R                                                         13                                                                                18
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                         C7
+           IR_ET2                                                                                        PA3/UART2_RX                                                        PB0
+                                                                                                                                                                                    19
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                    4
+                                                                                                                                                                                                                                                               KEY1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                               1
+                                                                                                                                                                             PB1
+                                                                                                  15                                                                                20                                                                                                                                                DGND
+      V_IRANODE2                                                                                         PA5/STM_SPI1_SCK                                                    PB2                                                                               Switch3x4x2
+                                                                                                                                                                                         CAN1_RX
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                         1nF
+                                                                                                  17                                                                                45
+                                                                                                         PA7/STM_SPI1_MOSI                                                   PB8                                                                                                                                                                                                       IR_ET1
+                                           C29
+
+                                                       C30
+
+
+
+
+                                                                                                                                                                                    46   CAN1_TX                                                                                                                                      SUP_3V3D
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                               C5
+                                                                                                                                                                             PB9
+                                                                                                  30                                                                                21     R2             22R
+                                                                                                         PA9/UART1_TX                                                       PB10                                                    RGB_TX3
+                                           100pF
+
+                                                       100pF
+
+
+
+
+                                                                                                  31                                                                                22
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                               100pF
+                    DGND
+
+
+
+
+                                                                                                         PA10/UART1_RX                                                      PB11
+
+
+
+
+                                                                                                                                                                                                                                                                                                                             C34
+
+                                                                                                                                                                                                                                                                                                                                       C3
+                                                                                                                                                                                    25                                                                 DGND                                                                                                             R4
+                                                                                                                                                                            PB12                                                                                                                                                                                        100K
+                                                                                                  38                                                                                26
+                                                                                                         PA15                                                               PB13
+
+
+
+
+                                                                                                                                                                                                                                                                                                                             100nF
+
+                                                                                                                                                                                                                                                                                                                                       100nF
+                                                                                                  32                                                                                27
+                                                                                                         PA11/STM_CAN_RX                                                    PB14
+                                                                                                  33                                                                                28                                                 SUP_3V3DA
+                                                                                                         PA12/STM_CAN_TX                                                    PB15
+                             RN3
+    SWDIO                                                                                         34                                                                                39
+                                                                                                         PA13/STM_SWDIO                                         PB3                                                                                                                                                                    DGND                         DGND
+    SWCLK                                                                                         37                                                                                40
+                                                                                                         PA14/STM_SWDCLK                                        PB4                                                                            C39 C40
+  RGB_TX2                                          RGB_TX2_I                                                                                                                        41
+                                                                                                                                                                PB5                                                                            4.7uF 100nF
+  RGB_RX2                                          RGB_RX2_I                                       2                                                                                42
+                                                                                                         PC13                                      PB6/STM_I2C1_SCL                                  RGB_TX2_I                                                                                                                       SUP_3V3D
+                             22R                                                                                                                                                    43
+                                                                                                                                                   PB7/STM_I2C1_SDA                                  RGB_RX2_I                                                                                                                U8
+                                                                                                  23
+                                                                                                         VSS_1
+                                                                                                  35                                                                                44   R9           10k                                                                                                                                                          SUP_3V3D
+                                                                                                         VSS_2                                                    BOOT0
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                      5
+                                                                                                                                                                                                                                                                                                                         1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                               V+
+                                                                                                  47                                                                                                                                       DGND                                                   V_IRANODE2
+                                                                                                         VSS_3                                                                                                                                                                                                 R5   1R                               4
+                                                                                                   8                                                                                3                                                  SUP_3V3D
+                                                                                                         VSSA                                         PC14MOSC32_IN                                                                                                                                                      3
+                                                                                                                                                                                    4                       DGND
+                                                                                                                                                    PC15MOSC32_OUT
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                    3
+                                                                                                                                                                                                                                                                                                                                               GND
+                                                                                                  49                                                                                                                                                                                                                                                                       U6
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                      2
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                               2
+                                                                                                         EP1
+                                                                                                  50                                                                                                                                                                                                                                                                       ITR8307/L24/TR8
+                                                                                                         EP2                                                                                                                                                                                                                  LM321MFX/NOPB
+                                                                                                  51                                                                                                                                           C31 C32                C33 C36       C37 C38
+                                                                                                         EP3
+                                                                                                  52                                                                                                                                           4.7uF 100nF            4.7uF 100nF   4.7uF 100nF
+                                                                                                         EP4
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                         C11
+                                                                                                        U1B?1
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                    4
+                                                                                                                                                                                                                                                                                                                                                               1
+                                                                                                        STM32F072C8U6_8
+                                                                                                                                                                                                                                                                                                                                      DGND
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                         1nF
+                                                               DGND
+                                                                                                                                                                                                                                           DGND                                                                                                                                        IR_ET2
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                               C10
+                                                                                                                                                                                                                                                                                                                                      SUP_3V3D
+                                                                                                                                                                                              DGND
+
+
+RGB'        SUP_5VD
+                                                                                                        RGB                                          SUP_5VD        SUP_5VD                                     CN1
+                                    DGND
+
+
+
+
+                                                               U5                                                            U4
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                               100pF
+                                                                                                                                                                                                                                                                                                                             C35
+                                                                                                                                                                                                      5
+
+
+                                                                                                                                                                                                                WAFER-GH1.25-3PWB
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                       C9
+                                                                                                                            3                  2                                                1                                                                                                                                                                       R12
+                                                                                                                                                                                                       5
+                                                   6
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                        100K
+                                                               WAFER-GH1.25-4PWB
+
+
+
+
+                                                                                                                              GND         DOUT                                                    1
+                                      1                                                                                     4                  1                                                2
+                                                   6
+
+
+
+
+RGB_TX2                                 1                                                              RGB_TX3                DIN          VDD                                                    2
+
+
+
+
+                                                                                                                                                                                                                                                                                                                             100nF
+
+                                                                                                                                                                                                                                                                                                                                       100nF
+RGB_RX2                               2                                                                                                                                                         3
+                                        2                                                                                                                                                         3
+                                                                                                                                                                RGB_TX3_1
+
+
+
+
+                                      3                                                                                      GL5050RGB01H-T
+                                                                                                                                                                                                       4
+
+
+
+
+                                        3
+                                                                                                                                                                                              DGND
+
+                                                                                                                                                                                                      4
+
+
+
+
+                                      4
+                                        4                                                                                                                   C23                C24   C25
+                                                   5
+
+
+
+
+                                                                                                                                                            100nF              100uF 100nF                                                                                                                                             DGND                         DGND
+                                    DGND
+
+                                                   5
+
+
+
+
+                C26   C27
+                100uF 100nF
+
+
+
+                                                                                                                     DGND                                                    DGND
+
+              DGND
+
+
+
+                                                       DGND
+
+    SWD_PORT                                                                                            CAN                                                   DGND
+                     0805
+
+
+
+
+SUP_3V3D                                                                                                   DGND                     U24
+                                                          5
+
+
+
+
+                            C28                                                                                                                         9
+                                                               5
+
+
+
+
+                               4                                                   CN2                                                               EP
+                            100nF4                                                                                    CAN1_TX 1                         8
+                                                                                                          0805
+    DGND
+
+
+
+
+                          DGND 3                                                                                                  TXD              STB
+                         SWCLK 2 3                                                                                              2                       7
+                                                                                   HC-1.25-4PWT
+
+
+
+
+                                                                                                                                  GND             CANH                       JUDGE_CAN_H
+                0805             2                                                                                C86           3                       6
+             R11     10K SWDIO 1                                                                                                  VCC             CANL                       JUDGE_CAN_L
+SUP_3V3D        0805             1                                                                                100nF CAN1_RX 4                       5
+                                                               6
+
+
+
+
+             R10     10K                                                                                                          RXD               VIO
+                                                          6
+
+
+
+
+                                                                                                         SUP_5VD                    TJA1044GTK/3Z SUP_3V3D
+
+
+                                                        DGND
+PWR
+                                            F1
+    JUDGE_SUP_12V                                                                                                SUP_12VD
+                                            F12F0.25
+
+                                     C1                     C2    C41 C4    C43             C6    C42
+                                     10nF                   100nF 100nF10uF 22uF            100uF 100uF
+
+
+
+                                DGND
+
+                                                       SUP_12VD
+
+                                   100nF
+                                           C8
+                           U2                                                                                    SUP_5VD
+                                                                   L2                TP1                L3
+                       1                        6
+                         BST                SW
+                       2                        5
+                         GND                VIN                    10uH
+                       3                        4
+                         FB                 EN
+                                                                R6
+                           LMR54410DBVR                         120kD1               C12 C13 C14
+                                                                    B5819WS          100uF100nF100nF
+
+
+        R7                                 R8
+
+        5K1                                27K
+                                      nc
+                                                 C17
+  DGND                                                      DGND
+
+
+
+
+SUP_5VD                                                U3
+                                                       1                                                        SUP_3V3D
+                                                         GND                                           L4
+                                                       2
+                                                         VIN
+                                                       3
+                                                         VOUT
+    C18        C19                                                             C20         C21     C22
+    100nF      4.7uF                                   HT7133                  100uF       100nF   4.7uF
+
+
+
+
+  DGND                                                                                         DGND
+
+
+
+
+CONN.
+                                                                                                                                               S1   S2
+
+                                    JUDGE_SUP_12V                                                               JUDGE_SUP_12V
+  RJ1                                                                          RJ3
+                                1                                                                           1                                  M3   M2
+                       -
+
+
+
+
+                                                                                                   -
+
+
+
+
+                                2                                                                           2
+                       +
+
+
+
+
+                                                                                                   +
+
+
+
+
+                                3                                                                           3                                       S3
+                       H
+
+
+
+
+                                                                                                   H
+
+
+
+
+                                4                        JUDGE_CANE_H                                       4                   JUDGE_CANE_H
+                       L
+
+
+
+
+                                                                                                   L
+
+
+
+
+                                5                        JUDGE_CANE_L                                       5                   JUDGE_CANE_L
+                       +
+
+
+
+
+                                                                                                   +
+
+
+
+
+                                6                                                                           6                                       M2
+                       -
+
+
+
+
+                                                                                                   -
+
+
+
+
+  DS1133-S60BPX                                                                DS1133-S60BPX
+
+                                      DGND                                                                        DGND
+
+
+             SUP_5VD
+                            D2
+                            SRV05-4                                       L5
+                                            JUDGE_CANE_H                                           JUDGE_CAN_H
+   JUDGE_CAN_H
+                                            JUDGE_CANE_L                                           JUDGE_CAN_L
+                                                                          SMW3225S102HTE
+                     JUDGE_CAN_H
+                     JUDGE_CAN_L
+                     JUDGE_CAN_L
+
+
+
+
+              DGND
+

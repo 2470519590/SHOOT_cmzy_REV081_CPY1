@@ -1,0 +1,2516 @@
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 1
+
+
+   1              		.cpu cortex-m0
+   2              		.arch armv6s-m
+   3              		.fpu softvfp
+   4              		.eabi_attribute 20, 1
+   5              		.eabi_attribute 21, 1
+   6              		.eabi_attribute 23, 3
+   7              		.eabi_attribute 24, 1
+   8              		.eabi_attribute 25, 1
+   9              		.eabi_attribute 26, 1
+  10              		.eabi_attribute 30, 1
+  11              		.eabi_attribute 34, 0
+  12              		.eabi_attribute 18, 4
+  13              		.file	"led_rgb.c"
+  14              		.text
+  15              	.Ltext0:
+  16              		.cfi_sections	.debug_frame
+  17              		.file 1 "Core/Src/led_rgb.c"
+  18              		.section	.text.color_dim,"ax",%progbits
+  19              		.align	1
+  20              		.syntax unified
+  21              		.code	16
+  22              		.thumb_func
+  24              	color_dim:
+  25              	.LVL0:
+  26              	.LFB41:
+   1:Core/Src/led_rgb.c **** /**
+   2:Core/Src/led_rgb.c ****   ******************************************************************************
+   3:Core/Src/led_rgb.c ****   * @file           : led_rgb.c
+   4:Core/Src/led_rgb.c ****   * @brief          : WS2812B LED strip control logic
+   5:Core/Src/led_rgb.c ****   * @details        : LED[0]  = debug (occlusion → team color, idle → dim yellow)
+   6:Core/Src/led_rgb.c ****   *                   LED[1-8] = heat progress bar (referee data → team color)
+   7:Core/Src/led_rgb.c ****   *                   Smooth brightness lerp every 100 ms update.
+   8:Core/Src/led_rgb.c ****   ******************************************************************************
+   9:Core/Src/led_rgb.c ****   */
+  10:Core/Src/led_rgb.c **** 
+  11:Core/Src/led_rgb.c **** #include "led_rgb.h"
+  12:Core/Src/led_rgb.c **** #include "ws2812_uart.h"
+  13:Core/Src/led_rgb.c **** #include "thermal.h"
+  14:Core/Src/led_rgb.c **** 
+  15:Core/Src/led_rgb.c **** /* ========================== Local State ==================================== */
+  16:Core/Src/led_rgb.c **** 
+  17:Core/Src/led_rgb.c **** static Team_t    led_team         = TEAM_BLUE;
+  18:Core/Src/led_rgb.c **** static bool      led_overheat_alert;
+  19:Core/Src/led_rgb.c **** static uint8_t   led_referee_data = 0;
+  20:Core/Src/led_rgb.c **** static float     led_desired[LED_COUNT];  /* desired brightness 0.0–1.0        */
+  21:Core/Src/led_rgb.c **** static float     led_current[LED_COUNT];  /* current brightness (lerp→desired) */
+  22:Core/Src/led_rgb.c **** static bool      boot_effect_active;
+  23:Core/Src/led_rgb.c **** static uint32_t  boot_effect_start_tick;
+  24:Core/Src/led_rgb.c **** static bool      shot_effect_active;
+  25:Core/Src/led_rgb.c **** static uint32_t  shot_effect_start_tick;
+  26:Core/Src/led_rgb.c **** 
+  27:Core/Src/led_rgb.c **** #define BOOT_EFFECT_TOTAL_MS     250U
+  28:Core/Src/led_rgb.c **** #define SHOT_EFFECT_TOTAL_MS     100U
+  29:Core/Src/led_rgb.c **** 
+  30:Core/Src/led_rgb.c **** /* ========================== Helpers ======================================== */
+  31:Core/Src/led_rgb.c **** 
+  32:Core/Src/led_rgb.c **** /**
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 2
+
+
+  33:Core/Src/led_rgb.c ****   * @brief  Get team color in GRB format.
+  34:Core/Src/led_rgb.c ****   */
+  35:Core/Src/led_rgb.c **** static inline uint32_t team_color(void)
+  36:Core/Src/led_rgb.c **** {
+  37:Core/Src/led_rgb.c ****     return (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
+  38:Core/Src/led_rgb.c **** }
+  39:Core/Src/led_rgb.c **** 
+  40:Core/Src/led_rgb.c **** /**
+  41:Core/Src/led_rgb.c ****   * @brief  Scale a GRB color by brightness factor (0.0–1.0).
+  42:Core/Src/led_rgb.c ****   */
+  43:Core/Src/led_rgb.c **** static uint32_t color_dim(uint32_t grb, float factor)
+  44:Core/Src/led_rgb.c **** {
+  27              		.loc 1 44 1 view -0
+  28              		.cfi_startproc
+  29              		@ args = 0, pretend = 0, frame = 0
+  30              		@ frame_needed = 0, uses_anonymous_args = 0
+  31              		.loc 1 44 1 is_stmt 0 view .LVU1
+  32 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+  33              	.LCFI0:
+  34              		.cfi_def_cfa_offset 20
+  35              		.cfi_offset 4, -20
+  36              		.cfi_offset 5, -16
+  37              		.cfi_offset 6, -12
+  38              		.cfi_offset 7, -8
+  39              		.cfi_offset 14, -4
+  40 0002 C646     		mov	lr, r8
+  41 0004 00B5     		push	{lr}
+  42              	.LCFI1:
+  43              		.cfi_def_cfa_offset 24
+  44              		.cfi_offset 8, -24
+  45 0006 8046     		mov	r8, r0
+  46 0008 0E1C     		adds	r6, r1, #0
+  45:Core/Src/led_rgb.c ****     uint8_t g = (uint8_t)(((grb >> 16) & 0xFF) * factor);
+  47              		.loc 1 45 5 is_stmt 1 view .LVU2
+  48              		.loc 1 45 33 is_stmt 0 view .LVU3
+  49 000a 000C     		lsrs	r0, r0, #16
+  50              	.LVL1:
+  51              		.loc 1 45 40 view .LVU4
+  52 000c FF27     		movs	r7, #255
+  53 000e 3840     		ands	r0, r7
+  54              		.loc 1 45 48 view .LVU5
+  55 0010 FFF7FEFF 		bl	__aeabi_ui2f
+  56              	.LVL2:
+  57              		.loc 1 45 48 view .LVU6
+  58 0014 311C     		adds	r1, r6, #0
+  59 0016 FFF7FEFF 		bl	__aeabi_fmul
+  60              	.LVL3:
+  61              		.loc 1 45 13 view .LVU7
+  62 001a FFF7FEFF 		bl	__aeabi_f2uiz
+  63              	.LVL4:
+  64 001e C4B2     		uxtb	r4, r0
+  65              	.LVL5:
+  46:Core/Src/led_rgb.c ****     uint8_t r = (uint8_t)(((grb >>  8) & 0xFF) * factor);
+  66              		.loc 1 46 5 is_stmt 1 view .LVU8
+  67              		.loc 1 46 33 is_stmt 0 view .LVU9
+  68 0020 4346     		mov	r3, r8
+  69 0022 180A     		lsrs	r0, r3, #8
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 3
+
+
+  70              		.loc 1 46 40 view .LVU10
+  71 0024 3840     		ands	r0, r7
+  72              		.loc 1 46 48 view .LVU11
+  73 0026 FFF7FEFF 		bl	__aeabi_ui2f
+  74              	.LVL6:
+  75 002a 311C     		adds	r1, r6, #0
+  76 002c FFF7FEFF 		bl	__aeabi_fmul
+  77              	.LVL7:
+  78              		.loc 1 46 13 view .LVU12
+  79 0030 FFF7FEFF 		bl	__aeabi_f2uiz
+  80              	.LVL8:
+  81 0034 C5B2     		uxtb	r5, r0
+  82              	.LVL9:
+  47:Core/Src/led_rgb.c ****     uint8_t b = (uint8_t)(((grb >>  0) & 0xFF) * factor);
+  83              		.loc 1 47 5 is_stmt 1 view .LVU13
+  84              		.loc 1 47 40 is_stmt 0 view .LVU14
+  85 0036 4046     		mov	r0, r8
+  86 0038 3840     		ands	r0, r7
+  87              		.loc 1 47 48 view .LVU15
+  88 003a FFF7FEFF 		bl	__aeabi_ui2f
+  89              	.LVL10:
+  90 003e 311C     		adds	r1, r6, #0
+  91 0040 FFF7FEFF 		bl	__aeabi_fmul
+  92              	.LVL11:
+  93              		.loc 1 47 13 view .LVU16
+  94 0044 FFF7FEFF 		bl	__aeabi_f2uiz
+  95              	.LVL12:
+  96 0048 C3B2     		uxtb	r3, r0
+  97              	.LVL13:
+  48:Core/Src/led_rgb.c ****     return WS2812_COLOR(g, r, b);
+  98              		.loc 1 48 5 is_stmt 1 view .LVU17
+  99              		.loc 1 48 12 is_stmt 0 view .LVU18
+ 100 004a 2004     		lsls	r0, r4, #16
+ 101 004c 2D02     		lsls	r5, r5, #8
+ 102              	.LVL14:
+ 103              		.loc 1 48 12 view .LVU19
+ 104 004e 2843     		orrs	r0, r5
+ 105 0050 1843     		orrs	r0, r3
+  49:Core/Src/led_rgb.c **** }
+ 106              		.loc 1 49 1 view .LVU20
+ 107              		@ sp needed
+ 108              	.LVL15:
+ 109              	.LVL16:
+ 110              	.LVL17:
+ 111              		.loc 1 49 1 view .LVU21
+ 112 0052 80BC     		pop	{r7}
+ 113 0054 B846     		mov	r8, r7
+ 114 0056 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 115              		.cfi_endproc
+ 116              	.LFE41:
+ 118              		.section	.text.LedStrip_Init,"ax",%progbits
+ 119              		.align	1
+ 120              		.global	LedStrip_Init
+ 121              		.syntax unified
+ 122              		.code	16
+ 123              		.thumb_func
+ 125              	LedStrip_Init:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 4
+
+
+ 126              	.LFB42:
+  50:Core/Src/led_rgb.c **** 
+  51:Core/Src/led_rgb.c **** /* ========================== Public API ====================================== */
+  52:Core/Src/led_rgb.c **** 
+  53:Core/Src/led_rgb.c **** void LedStrip_Init(void)
+  54:Core/Src/led_rgb.c **** {
+ 127              		.loc 1 54 1 is_stmt 1 view -0
+ 128              		.cfi_startproc
+ 129              		@ args = 0, pretend = 0, frame = 0
+ 130              		@ frame_needed = 0, uses_anonymous_args = 0
+ 131 0000 10B5     		push	{r4, lr}
+ 132              	.LCFI2:
+ 133              		.cfi_def_cfa_offset 8
+ 134              		.cfi_offset 4, -8
+ 135              		.cfi_offset 14, -4
+  55:Core/Src/led_rgb.c ****     ws2812_uart_init();
+ 136              		.loc 1 55 5 view .LVU23
+ 137 0002 FFF7FEFF 		bl	ws2812_uart_init
+ 138              	.LVL18:
+  56:Core/Src/led_rgb.c **** 
+  57:Core/Src/led_rgb.c ****     for (int i = 0; i < LED_COUNT; i++) {
+ 139              		.loc 1 57 5 view .LVU24
+ 140              	.LBB16:
+ 141              		.loc 1 57 10 view .LVU25
+ 142              		.loc 1 57 14 is_stmt 0 view .LVU26
+ 143 0006 0023     		movs	r3, #0
+ 144              		.loc 1 57 5 view .LVU27
+ 145 0008 06E0     		b	.L3
+ 146              	.LVL19:
+ 147              	.L4:
+  58:Core/Src/led_rgb.c ****         led_desired[i] = 0.0f;
+ 148              		.loc 1 58 9 is_stmt 1 view .LVU28
+ 149              		.loc 1 58 24 is_stmt 0 view .LVU29
+ 150 000a 054A     		ldr	r2, .L5
+ 151 000c 9900     		lsls	r1, r3, #2
+ 152 000e 0020     		movs	r0, #0
+ 153 0010 8850     		str	r0, [r1, r2]
+  59:Core/Src/led_rgb.c ****         led_current[i] = 0.0f;
+ 154              		.loc 1 59 9 is_stmt 1 view .LVU30
+ 155              		.loc 1 59 24 is_stmt 0 view .LVU31
+ 156 0012 044A     		ldr	r2, .L5+4
+ 157 0014 8850     		str	r0, [r1, r2]
+  57:Core/Src/led_rgb.c ****         led_desired[i] = 0.0f;
+ 158              		.loc 1 57 37 is_stmt 1 discriminator 3 view .LVU32
+ 159 0016 0133     		adds	r3, r3, #1
+ 160              	.LVL20:
+ 161              	.L3:
+  57:Core/Src/led_rgb.c ****         led_desired[i] = 0.0f;
+ 162              		.loc 1 57 23 discriminator 1 view .LVU33
+ 163 0018 082B     		cmp	r3, #8
+ 164 001a F6DD     		ble	.L4
+ 165              	.LBE16:
+  60:Core/Src/led_rgb.c ****     }
+  61:Core/Src/led_rgb.c **** 
+  62:Core/Src/led_rgb.c **** }
+ 166              		.loc 1 62 1 is_stmt 0 view .LVU34
+ 167              		@ sp needed
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 5
+
+
+ 168 001c 10BD     		pop	{r4, pc}
+ 169              	.L6:
+ 170 001e C046     		.align	2
+ 171              	.L5:
+ 172 0020 00000000 		.word	led_desired
+ 173 0024 00000000 		.word	led_current
+ 174              		.cfi_endproc
+ 175              	.LFE42:
+ 177              		.section	.text.LedStrip_SetTeam,"ax",%progbits
+ 178              		.align	1
+ 179              		.global	LedStrip_SetTeam
+ 180              		.syntax unified
+ 181              		.code	16
+ 182              		.thumb_func
+ 184              	LedStrip_SetTeam:
+ 185              	.LVL21:
+ 186              	.LFB43:
+  63:Core/Src/led_rgb.c **** 
+  64:Core/Src/led_rgb.c **** void LedStrip_SetTeam(Team_t team)
+  65:Core/Src/led_rgb.c **** {
+ 187              		.loc 1 65 1 is_stmt 1 view -0
+ 188              		.cfi_startproc
+ 189              		@ args = 0, pretend = 0, frame = 0
+ 190              		@ frame_needed = 0, uses_anonymous_args = 0
+ 191              		@ link register save eliminated.
+  66:Core/Src/led_rgb.c ****     led_team = team;
+ 192              		.loc 1 66 5 view .LVU36
+ 193              		.loc 1 66 14 is_stmt 0 view .LVU37
+ 194 0000 014B     		ldr	r3, .L8
+ 195 0002 1870     		strb	r0, [r3]
+  67:Core/Src/led_rgb.c **** }
+ 196              		.loc 1 67 1 view .LVU38
+ 197              		@ sp needed
+ 198 0004 7047     		bx	lr
+ 199              	.L9:
+ 200 0006 C046     		.align	2
+ 201              	.L8:
+ 202 0008 00000000 		.word	led_team
+ 203              		.cfi_endproc
+ 204              	.LFE43:
+ 206              		.section	.text.LedStrip_SetOverheatAlert,"ax",%progbits
+ 207              		.align	1
+ 208              		.global	LedStrip_SetOverheatAlert
+ 209              		.syntax unified
+ 210              		.code	16
+ 211              		.thumb_func
+ 213              	LedStrip_SetOverheatAlert:
+ 214              	.LVL22:
+ 215              	.LFB44:
+  68:Core/Src/led_rgb.c **** 
+  69:Core/Src/led_rgb.c **** void LedStrip_SetOverheatAlert(bool active)
+  70:Core/Src/led_rgb.c **** {
+ 216              		.loc 1 70 1 is_stmt 1 view -0
+ 217              		.cfi_startproc
+ 218              		@ args = 0, pretend = 0, frame = 0
+ 219              		@ frame_needed = 0, uses_anonymous_args = 0
+ 220              		@ link register save eliminated.
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 6
+
+
+  71:Core/Src/led_rgb.c ****     led_overheat_alert = active;
+ 221              		.loc 1 71 5 view .LVU40
+ 222              		.loc 1 71 24 is_stmt 0 view .LVU41
+ 223 0000 014B     		ldr	r3, .L11
+ 224 0002 1870     		strb	r0, [r3]
+  72:Core/Src/led_rgb.c **** }
+ 225              		.loc 1 72 1 view .LVU42
+ 226              		@ sp needed
+ 227 0004 7047     		bx	lr
+ 228              	.L12:
+ 229 0006 C046     		.align	2
+ 230              	.L11:
+ 231 0008 00000000 		.word	led_overheat_alert
+ 232              		.cfi_endproc
+ 233              	.LFE44:
+ 235              		.section	.text.LedStrip_SetRefereeData,"ax",%progbits
+ 236              		.align	1
+ 237              		.global	LedStrip_SetRefereeData
+ 238              		.syntax unified
+ 239              		.code	16
+ 240              		.thumb_func
+ 242              	LedStrip_SetRefereeData:
+ 243              	.LVL23:
+ 244              	.LFB45:
+  73:Core/Src/led_rgb.c **** 
+  74:Core/Src/led_rgb.c **** void LedStrip_SetRefereeData(uint8_t data)
+  75:Core/Src/led_rgb.c **** {
+ 245              		.loc 1 75 1 is_stmt 1 view -0
+ 246              		.cfi_startproc
+ 247              		@ args = 0, pretend = 0, frame = 0
+ 248              		@ frame_needed = 0, uses_anonymous_args = 0
+ 249              		@ link register save eliminated.
+  76:Core/Src/led_rgb.c ****     led_referee_data = data;
+ 250              		.loc 1 76 5 view .LVU44
+ 251              		.loc 1 76 22 is_stmt 0 view .LVU45
+ 252 0000 014B     		ldr	r3, .L14
+ 253 0002 1870     		strb	r0, [r3]
+  77:Core/Src/led_rgb.c **** }
+ 254              		.loc 1 77 1 view .LVU46
+ 255              		@ sp needed
+ 256 0004 7047     		bx	lr
+ 257              	.L15:
+ 258 0006 C046     		.align	2
+ 259              	.L14:
+ 260 0008 00000000 		.word	led_referee_data
+ 261              		.cfi_endproc
+ 262              	.LFE45:
+ 264              		.section	.text.LedStrip_Update,"ax",%progbits
+ 265              		.align	1
+ 266              		.global	LedStrip_Update
+ 267              		.syntax unified
+ 268              		.code	16
+ 269              		.thumb_func
+ 271              	LedStrip_Update:
+ 272              	.LFB46:
+  78:Core/Src/led_rgb.c **** 
+  79:Core/Src/led_rgb.c **** void LedStrip_Update(void)
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 7
+
+
+  80:Core/Src/led_rgb.c **** {
+ 273              		.loc 1 80 1 is_stmt 1 view -0
+ 274              		.cfi_startproc
+ 275              		@ args = 0, pretend = 0, frame = 40
+ 276              		@ frame_needed = 0, uses_anonymous_args = 0
+ 277 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 278              	.LCFI3:
+ 279              		.cfi_def_cfa_offset 20
+ 280              		.cfi_offset 4, -20
+ 281              		.cfi_offset 5, -16
+ 282              		.cfi_offset 6, -12
+ 283              		.cfi_offset 7, -8
+ 284              		.cfi_offset 14, -4
+ 285 0002 D646     		mov	lr, r10
+ 286 0004 4F46     		mov	r7, r9
+ 287 0006 4646     		mov	r6, r8
+ 288 0008 C0B5     		push	{r6, r7, lr}
+ 289              	.LCFI4:
+ 290              		.cfi_def_cfa_offset 32
+ 291              		.cfi_offset 8, -32
+ 292              		.cfi_offset 9, -28
+ 293              		.cfi_offset 10, -24
+ 294 000a 8AB0     		sub	sp, sp, #40
+ 295              	.LCFI5:
+ 296              		.cfi_def_cfa_offset 72
+  81:Core/Src/led_rgb.c ****     if (ws2812_uart_busy()) return;  /* Previous DMA still in flight          */
+ 297              		.loc 1 81 5 view .LVU48
+ 298              		.loc 1 81 9 is_stmt 0 view .LVU49
+ 299 000c FFF7FEFF 		bl	ws2812_uart_busy
+ 300              	.LVL24:
+ 301              		.loc 1 81 8 discriminator 1 view .LVU50
+ 302 0010 0028     		cmp	r0, #0
+ 303 0012 00D0     		beq	.LCB218
+ 304 0014 A3E0     		b	.L16	@long jump
+ 305              	.LCB218:
+  82:Core/Src/led_rgb.c **** 
+  83:Core/Src/led_rgb.c ****     /* ---- Compute desired brightness fractions ---- */
+  84:Core/Src/led_rgb.c ****     uint32_t tc = team_color();
+ 306              		.loc 1 84 5 is_stmt 1 view .LVU51
+ 307              	.LBB17:
+ 308              	.LBI17:
+  35:Core/Src/led_rgb.c **** {
+ 309              		.loc 1 35 24 view .LVU52
+ 310              	.LBB18:
+  37:Core/Src/led_rgb.c **** }
+ 311              		.loc 1 37 5 view .LVU53
+  37:Core/Src/led_rgb.c **** }
+ 312              		.loc 1 37 22 is_stmt 0 view .LVU54
+ 313 0016 554B     		ldr	r3, .L53
+ 314 0018 1B78     		ldrb	r3, [r3]
+  37:Core/Src/led_rgb.c **** }
+ 315              		.loc 1 37 48 view .LVU55
+ 316 001a 002B     		cmp	r3, #0
+ 317 001c 1DD1     		bne	.L39
+  37:Core/Src/led_rgb.c **** }
+ 318              		.loc 1 37 48 discriminator 1 view .LVU56
+ 319 001e 544B     		ldr	r3, .L53+4
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 8
+
+
+ 320 0020 9A46     		mov	r10, r3
+ 321              	.L19:
+ 322              	.LVL25:
+  37:Core/Src/led_rgb.c **** }
+ 323              		.loc 1 37 48 discriminator 1 view .LVU57
+ 324              	.LBE18:
+ 325              	.LBE17:
+  85:Core/Src/led_rgb.c **** 
+  86:Core/Src/led_rgb.c ****     /* LED[0]: full team colour during overheat alert, dim yellow while idle. */
+  87:Core/Src/led_rgb.c ****     led_desired[LED_DEBUG_IDX] =
+ 326              		.loc 1 87 5 is_stmt 1 view .LVU58
+  88:Core/Src/led_rgb.c ****         led_overheat_alert ? 1.0f : 0.20f;
+ 327              		.loc 1 88 28 is_stmt 0 view .LVU59
+ 328 0022 544B     		ldr	r3, .L53+8
+ 329 0024 1B78     		ldrb	r3, [r3]
+ 330 0026 9846     		mov	r8, r3
+ 331              		.loc 1 88 35 view .LVU60
+ 332 0028 002B     		cmp	r3, #0
+ 333 002a 19D0     		beq	.L40
+ 334              		.loc 1 88 35 discriminator 1 view .LVU61
+ 335 002c FE22     		movs	r2, #254
+ 336 002e 9205     		lsls	r2, r2, #22
+ 337              	.L20:
+  87:Core/Src/led_rgb.c ****         led_overheat_alert ? 1.0f : 0.20f;
+ 338              		.loc 1 87 32 view .LVU62
+ 339 0030 514B     		ldr	r3, .L53+12
+ 340 0032 1A60     		str	r2, [r3]
+  89:Core/Src/led_rgb.c **** 
+  90:Core/Src/led_rgb.c ****     /* LED[1-8]: current heat 0..200 mapped linearly across eight LEDs. */
+  91:Core/Src/led_rgb.c ****     uint8_t heat = led_referee_data;
+ 341              		.loc 1 91 5 is_stmt 1 view .LVU63
+ 342              		.loc 1 91 13 is_stmt 0 view .LVU64
+ 343 0034 514B     		ldr	r3, .L53+16
+ 344 0036 1C78     		ldrb	r4, [r3]
+ 345              	.LVL26:
+  92:Core/Src/led_rgb.c ****     if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 346              		.loc 1 92 5 is_stmt 1 view .LVU65
+ 347              		.loc 1 92 8 is_stmt 0 view .LVU66
+ 348 0038 C82C     		cmp	r4, #200
+ 349 003a 00D9     		bls	.L21
+ 350              		.loc 1 92 41 discriminator 1 view .LVU67
+ 351 003c C824     		movs	r4, #200
+ 352              	.LVL27:
+ 353              	.L21:
+  93:Core/Src/led_rgb.c ****     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 354              		.loc 1 93 5 is_stmt 1 view .LVU68
+ 355              		.loc 1 93 14 is_stmt 0 view .LVU69
+ 356 003e E400     		lsls	r4, r4, #3
+ 357              	.LVL28:
+  94:Core/Src/led_rgb.c ****     uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 358              		.loc 1 94 5 is_stmt 1 view .LVU70
+ 359              		.loc 1 94 20 is_stmt 0 view .LVU71
+ 360 0040 C821     		movs	r1, #200
+ 361 0042 2000     		movs	r0, r4
+ 362 0044 FFF7FEFF 		bl	__aeabi_uidiv
+ 363              	.LVL29:
+ 364              		.loc 1 94 13 view .LVU72
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 9
+
+
+ 365 0048 C7B2     		uxtb	r7, r0
+ 366              	.LVL30:
+  95:Core/Src/led_rgb.c ****     uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 367              		.loc 1 95 5 is_stmt 1 view .LVU73
+ 368              		.loc 1 95 20 is_stmt 0 view .LVU74
+ 369 004a C821     		movs	r1, #200
+ 370 004c 2000     		movs	r0, r4
+ 371 004e FFF7FEFF 		bl	__aeabi_uidivmod
+ 372              	.LVL31:
+ 373              		.loc 1 95 13 view .LVU75
+ 374 0052 CBB2     		uxtb	r3, r1
+ 375 0054 9946     		mov	r9, r3
+ 376              	.LVL32:
+  96:Core/Src/led_rgb.c ****     for (int i = 0; i < LED_HEAT_COUNT; i++) {
+ 377              		.loc 1 96 5 is_stmt 1 view .LVU76
+ 378              	.LBB20:
+ 379              		.loc 1 96 10 view .LVU77
+ 380              		.loc 1 96 14 is_stmt 0 view .LVU78
+ 381 0056 0025     		movs	r5, #0
+ 382              		.loc 1 96 5 view .LVU79
+ 383 0058 0BE0     		b	.L22
+ 384              	.LVL33:
+ 385              	.L39:
+ 386              		.loc 1 96 5 view .LVU80
+ 387              	.LBE20:
+ 388              	.LBB23:
+ 389              	.LBB19:
+  37:Core/Src/led_rgb.c **** }
+ 390              		.loc 1 37 48 discriminator 2 view .LVU81
+ 391 005a 494B     		ldr	r3, .L53+20
+ 392 005c 9A46     		mov	r10, r3
+ 393 005e E0E7     		b	.L19
+ 394              	.LVL34:
+ 395              	.L40:
+  37:Core/Src/led_rgb.c **** }
+ 396              		.loc 1 37 48 discriminator 2 view .LVU82
+ 397              	.LBE19:
+ 398              	.LBE23:
+  88:Core/Src/led_rgb.c **** 
+ 399              		.loc 1 88 35 discriminator 2 view .LVU83
+ 400 0060 484A     		ldr	r2, .L53+24
+ 401 0062 E5E7     		b	.L20
+ 402              	.LVL35:
+ 403              	.L23:
+ 404              	.LBB24:
+ 405              	.LBB21:
+  97:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+  98:Core/Src/led_rgb.c ****         if (i < full) {
+  99:Core/Src/led_rgb.c ****             led_desired[idx] = 1.0f;
+ 100:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0) {
+ 406              		.loc 1 100 16 is_stmt 1 view .LVU84
+ 407              		.loc 1 100 19 is_stmt 0 view .LVU85
+ 408 0064 AF42     		cmp	r7, r5
+ 409 0066 11D0     		beq	.L48
+ 410              	.L25:
+ 101:Core/Src/led_rgb.c ****             led_desired[idx] = (float)frac / (float)THERMAL_HEAT_LIMIT;
+ 102:Core/Src/led_rgb.c ****         } else {
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 10
+
+
+ 103:Core/Src/led_rgb.c ****             led_desired[idx] = 0.0f;
+ 411              		.loc 1 103 13 is_stmt 1 view .LVU86
+ 412              		.loc 1 103 30 is_stmt 0 view .LVU87
+ 413 0068 434B     		ldr	r3, .L53+12
+ 414 006a A400     		lsls	r4, r4, #2
+ 415              	.LVL36:
+ 416              		.loc 1 103 30 view .LVU88
+ 417 006c 0022     		movs	r2, #0
+ 418 006e E250     		str	r2, [r4, r3]
+ 419              	.L24:
+ 420              		.loc 1 103 30 view .LVU89
+ 421              	.LBE21:
+  96:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+ 422              		.loc 1 96 42 is_stmt 1 discriminator 2 view .LVU90
+ 423 0070 0135     		adds	r5, r5, #1
+ 424              	.LVL37:
+ 425              	.L22:
+  96:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+ 426              		.loc 1 96 23 discriminator 1 view .LVU91
+ 427 0072 072D     		cmp	r5, #7
+ 428 0074 17DC     		bgt	.L49
+ 429              	.LBB22:
+  97:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+ 430              		.loc 1 97 9 view .LVU92
+  97:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+ 431              		.loc 1 97 38 is_stmt 0 view .LVU93
+ 432 0076 ECB2     		uxtb	r4, r5
+  97:Core/Src/led_rgb.c ****         uint8_t idx = LED_HEAT_START + i;
+ 433              		.loc 1 97 17 view .LVU94
+ 434 0078 0134     		adds	r4, r4, #1
+ 435 007a E4B2     		uxtb	r4, r4
+ 436              	.LVL38:
+  98:Core/Src/led_rgb.c ****             led_desired[idx] = 1.0f;
+ 437              		.loc 1 98 9 is_stmt 1 view .LVU95
+  98:Core/Src/led_rgb.c ****             led_desired[idx] = 1.0f;
+ 438              		.loc 1 98 12 is_stmt 0 view .LVU96
+ 439 007c AF42     		cmp	r7, r5
+ 440 007e F1DD     		ble	.L23
+  99:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0) {
+ 441              		.loc 1 99 13 is_stmt 1 view .LVU97
+  99:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0) {
+ 442              		.loc 1 99 30 is_stmt 0 view .LVU98
+ 443 0080 3D4B     		ldr	r3, .L53+12
+ 444 0082 A400     		lsls	r4, r4, #2
+ 445              	.LVL39:
+  99:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0) {
+ 446              		.loc 1 99 30 view .LVU99
+ 447 0084 FE22     		movs	r2, #254
+ 448 0086 9205     		lsls	r2, r2, #22
+ 449 0088 E250     		str	r2, [r4, r3]
+ 450 008a F1E7     		b	.L24
+ 451              	.LVL40:
+ 452              	.L48:
+ 100:Core/Src/led_rgb.c ****             led_desired[idx] = (float)frac / (float)THERMAL_HEAT_LIMIT;
+ 453              		.loc 1 100 30 discriminator 1 view .LVU100
+ 454 008c 4B46     		mov	r3, r9
+ 455 008e 002B     		cmp	r3, #0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 11
+
+
+ 456 0090 EAD0     		beq	.L25
+ 101:Core/Src/led_rgb.c ****         } else {
+ 457              		.loc 1 101 13 is_stmt 1 view .LVU101
+ 101:Core/Src/led_rgb.c ****         } else {
+ 458              		.loc 1 101 32 is_stmt 0 view .LVU102
+ 459 0092 4846     		mov	r0, r9
+ 460 0094 FFF7FEFF 		bl	__aeabi_ui2f
+ 461              	.LVL41:
+ 101:Core/Src/led_rgb.c ****         } else {
+ 462              		.loc 1 101 44 view .LVU103
+ 463 0098 3B49     		ldr	r1, .L53+28
+ 464 009a FFF7FEFF 		bl	__aeabi_fdiv
+ 465              	.LVL42:
+ 101:Core/Src/led_rgb.c ****         } else {
+ 466              		.loc 1 101 30 view .LVU104
+ 467 009e 364B     		ldr	r3, .L53+12
+ 468 00a0 A400     		lsls	r4, r4, #2
+ 469              	.LVL43:
+ 101:Core/Src/led_rgb.c ****         } else {
+ 470              		.loc 1 101 30 view .LVU105
+ 471 00a2 1851     		str	r0, [r3, r4]
+ 472 00a4 E4E7     		b	.L24
+ 473              	.LVL44:
+ 474              	.L49:
+ 101:Core/Src/led_rgb.c ****         } else {
+ 475              		.loc 1 101 30 view .LVU106
+ 476              	.LBE22:
+ 477              	.LBE24:
+ 478              	.LBB25:
+ 104:Core/Src/led_rgb.c ****         }
+ 105:Core/Src/led_rgb.c ****     }
+ 106:Core/Src/led_rgb.c **** 
+ 107:Core/Src/led_rgb.c ****     /* ---- Smooth lerp + send ---- */
+ 108:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT];
+ 109:Core/Src/led_rgb.c ****     for (int i = 0; i < LED_COUNT; i++) {
+ 479              		.loc 1 109 14 view .LVU107
+ 480 00a6 0024     		movs	r4, #0
+ 481 00a8 16E0     		b	.L27
+ 482              	.LVL45:
+ 483              	.L45:
+ 484              	.LBB26:
+ 110:Core/Src/led_rgb.c ****         float diff = led_desired[i] - led_current[i];
+ 111:Core/Src/led_rgb.c ****         if (diff > LERP_STEP)       led_current[i] += LERP_STEP;
+ 112:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 485              		.loc 1 112 14 is_stmt 1 view .LVU108
+ 486              		.loc 1 112 17 is_stmt 0 view .LVU109
+ 487 00aa 3849     		ldr	r1, .L53+32
+ 488 00ac 281C     		adds	r0, r5, #0
+ 489 00ae FFF7FEFF 		bl	__aeabi_fcmplt
+ 490              	.LVL46:
+ 491 00b2 0028     		cmp	r0, #0
+ 492 00b4 07D0     		beq	.L46
+ 493              		.loc 1 112 37 is_stmt 1 discriminator 1 view .LVU110
+ 494              		.loc 1 112 52 is_stmt 0 discriminator 1 view .LVU111
+ 495 00b6 364F     		ldr	r7, .L53+36
+ 496 00b8 A500     		lsls	r5, r4, #2
+ 497              	.LVL47:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 12
+
+
+ 498              		.loc 1 112 52 discriminator 1 view .LVU112
+ 499 00ba 3649     		ldr	r1, .L53+40
+ 500 00bc 301C     		adds	r0, r6, #0
+ 501 00be FFF7FEFF 		bl	__aeabi_fsub
+ 502              	.LVL48:
+ 503 00c2 7851     		str	r0, [r7, r5]
+ 504 00c4 20E0     		b	.L30
+ 505              	.LVL49:
+ 506              	.L46:
+ 113:Core/Src/led_rgb.c ****         else                        led_current[i]  = led_desired[i];
+ 507              		.loc 1 113 37 is_stmt 1 view .LVU113
+ 508              		.loc 1 113 53 is_stmt 0 view .LVU114
+ 509 00c6 324B     		ldr	r3, .L53+36
+ 510 00c8 A200     		lsls	r2, r4, #2
+ 511 00ca D750     		str	r7, [r2, r3]
+ 512 00cc 1CE0     		b	.L30
+ 513              	.LVL50:
+ 514              	.L51:
+ 114:Core/Src/led_rgb.c **** 
+ 115:Core/Src/led_rgb.c ****         if (led_current[i] <= 0.0f) {
+ 116:Core/Src/led_rgb.c ****             out[i] = 0;
+ 515              		.loc 1 116 13 is_stmt 1 view .LVU115
+ 516              		.loc 1 116 20 is_stmt 0 view .LVU116
+ 517 00ce A300     		lsls	r3, r4, #2
+ 518 00d0 01AA     		add	r2, sp, #4
+ 519 00d2 0021     		movs	r1, #0
+ 520 00d4 9950     		str	r1, [r3, r2]
+ 521              	.L35:
+ 522              		.loc 1 116 20 view .LVU117
+ 523              	.LBE26:
+ 109:Core/Src/led_rgb.c ****         float diff = led_desired[i] - led_current[i];
+ 524              		.loc 1 109 37 is_stmt 1 discriminator 2 view .LVU118
+ 525 00d6 0134     		adds	r4, r4, #1
+ 526              	.LVL51:
+ 527              	.L27:
+ 109:Core/Src/led_rgb.c ****         float diff = led_desired[i] - led_current[i];
+ 528              		.loc 1 109 23 discriminator 1 view .LVU119
+ 529 00d8 082C     		cmp	r4, #8
+ 530 00da 3CDC     		bgt	.L50
+ 531              	.LBB27:
+ 110:Core/Src/led_rgb.c ****         if (diff > LERP_STEP)       led_current[i] += LERP_STEP;
+ 532              		.loc 1 110 9 view .LVU120
+ 110:Core/Src/led_rgb.c ****         if (diff > LERP_STEP)       led_current[i] += LERP_STEP;
+ 533              		.loc 1 110 33 is_stmt 0 view .LVU121
+ 534 00dc 264B     		ldr	r3, .L53+12
+ 535 00de A200     		lsls	r2, r4, #2
+ 536 00e0 D758     		ldr	r7, [r2, r3]
+ 110:Core/Src/led_rgb.c ****         if (diff > LERP_STEP)       led_current[i] += LERP_STEP;
+ 537              		.loc 1 110 50 view .LVU122
+ 538 00e2 2B4B     		ldr	r3, .L53+36
+ 539 00e4 D658     		ldr	r6, [r2, r3]
+ 110:Core/Src/led_rgb.c ****         if (diff > LERP_STEP)       led_current[i] += LERP_STEP;
+ 540              		.loc 1 110 15 view .LVU123
+ 541 00e6 311C     		adds	r1, r6, #0
+ 542 00e8 381C     		adds	r0, r7, #0
+ 543 00ea FFF7FEFF 		bl	__aeabi_fsub
+ 544              	.LVL52:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 13
+
+
+ 545 00ee 051C     		adds	r5, r0, #0
+ 546              	.LVL53:
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 547              		.loc 1 111 9 is_stmt 1 view .LVU124
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 548              		.loc 1 111 12 is_stmt 0 view .LVU125
+ 549 00f0 2849     		ldr	r1, .L53+40
+ 550 00f2 FFF7FEFF 		bl	__aeabi_fcmpgt
+ 551              	.LVL54:
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 552              		.loc 1 111 12 view .LVU126
+ 553 00f6 0028     		cmp	r0, #0
+ 554 00f8 D7D0     		beq	.L45
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 555              		.loc 1 111 37 is_stmt 1 discriminator 1 view .LVU127
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 556              		.loc 1 111 52 is_stmt 0 discriminator 1 view .LVU128
+ 557 00fa 254F     		ldr	r7, .L53+36
+ 558 00fc A500     		lsls	r5, r4, #2
+ 559              	.LVL55:
+ 111:Core/Src/led_rgb.c ****         else if (diff < -LERP_STEP) led_current[i] -= LERP_STEP;
+ 560              		.loc 1 111 52 discriminator 1 view .LVU129
+ 561 00fe 2549     		ldr	r1, .L53+40
+ 562 0100 301C     		adds	r0, r6, #0
+ 563 0102 FFF7FEFF 		bl	__aeabi_fadd
+ 564              	.LVL56:
+ 565 0106 7851     		str	r0, [r7, r5]
+ 566              	.L30:
+ 115:Core/Src/led_rgb.c ****             out[i] = 0;
+ 567              		.loc 1 115 9 is_stmt 1 view .LVU130
+ 115:Core/Src/led_rgb.c ****             out[i] = 0;
+ 568              		.loc 1 115 24 is_stmt 0 view .LVU131
+ 569 0108 214B     		ldr	r3, .L53+36
+ 570 010a A200     		lsls	r2, r4, #2
+ 571 010c D558     		ldr	r5, [r2, r3]
+ 115:Core/Src/led_rgb.c ****             out[i] = 0;
+ 572              		.loc 1 115 12 view .LVU132
+ 573 010e 0021     		movs	r1, #0
+ 574 0110 281C     		adds	r0, r5, #0
+ 575 0112 FFF7FEFF 		bl	__aeabi_fcmple
+ 576              	.LVL57:
+ 577 0116 0028     		cmp	r0, #0
+ 578 0118 D9D1     		bne	.L51
+ 117:Core/Src/led_rgb.c ****         } else if (i == LED_DEBUG_IDX) {
+ 579              		.loc 1 117 16 is_stmt 1 view .LVU133
+ 580              		.loc 1 117 19 is_stmt 0 view .LVU134
+ 581 011a 002C     		cmp	r4, #0
+ 582 011c 07D0     		beq	.L52
+ 118:Core/Src/led_rgb.c ****             if (led_overheat_alert) {
+ 119:Core/Src/led_rgb.c ****                 out[i] = team_color();
+ 120:Core/Src/led_rgb.c ****             } else {
+ 121:Core/Src/led_rgb.c ****                 out[i] = color_dim(COLOR_YELLOW_DIM, led_current[i] / 0.20f);
+ 122:Core/Src/led_rgb.c ****             }
+ 123:Core/Src/led_rgb.c ****         } else {
+ 124:Core/Src/led_rgb.c ****             out[i] = color_dim(tc, led_current[i]);
+ 583              		.loc 1 124 13 is_stmt 1 view .LVU135
+ 584              		.loc 1 124 22 is_stmt 0 view .LVU136
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 14
+
+
+ 585 011e 291C     		adds	r1, r5, #0
+ 586 0120 5046     		mov	r0, r10
+ 587 0122 FFF7FEFF 		bl	color_dim
+ 588              	.LVL58:
+ 589              		.loc 1 124 20 discriminator 1 view .LVU137
+ 590 0126 A300     		lsls	r3, r4, #2
+ 591 0128 01AA     		add	r2, sp, #4
+ 592 012a D050     		str	r0, [r2, r3]
+ 593 012c D3E7     		b	.L35
+ 594              	.L52:
+ 118:Core/Src/led_rgb.c ****             if (led_overheat_alert) {
+ 595              		.loc 1 118 13 is_stmt 1 view .LVU138
+ 118:Core/Src/led_rgb.c ****             if (led_overheat_alert) {
+ 596              		.loc 1 118 16 is_stmt 0 view .LVU139
+ 597 012e 4346     		mov	r3, r8
+ 598 0130 002B     		cmp	r3, #0
+ 599 0132 04D0     		beq	.L37
+ 119:Core/Src/led_rgb.c ****             } else {
+ 600              		.loc 1 119 17 is_stmt 1 view .LVU140
+ 119:Core/Src/led_rgb.c ****             } else {
+ 601              		.loc 1 119 24 is_stmt 0 discriminator 1 view .LVU141
+ 602 0134 A300     		lsls	r3, r4, #2
+ 603 0136 01AA     		add	r2, sp, #4
+ 604 0138 5146     		mov	r1, r10
+ 605 013a 9950     		str	r1, [r3, r2]
+ 606 013c CBE7     		b	.L35
+ 607              	.L37:
+ 121:Core/Src/led_rgb.c ****             }
+ 608              		.loc 1 121 17 is_stmt 1 view .LVU142
+ 121:Core/Src/led_rgb.c ****             }
+ 609              		.loc 1 121 26 is_stmt 0 view .LVU143
+ 610 013e 1149     		ldr	r1, .L53+24
+ 611 0140 281C     		adds	r0, r5, #0
+ 612 0142 FFF7FEFF 		bl	__aeabi_fdiv
+ 613              	.LVL59:
+ 614 0146 011C     		adds	r1, r0, #0
+ 615 0148 1348     		ldr	r0, .L53+44
+ 616 014a FFF7FEFF 		bl	color_dim
+ 617              	.LVL60:
+ 121:Core/Src/led_rgb.c ****             }
+ 618              		.loc 1 121 24 discriminator 1 view .LVU144
+ 619 014e A300     		lsls	r3, r4, #2
+ 620 0150 01AA     		add	r2, sp, #4
+ 621 0152 D050     		str	r0, [r2, r3]
+ 622 0154 BFE7     		b	.L35
+ 623              	.LVL61:
+ 624              	.L50:
+ 121:Core/Src/led_rgb.c ****             }
+ 625              		.loc 1 121 24 discriminator 1 view .LVU145
+ 626              	.LBE27:
+ 627              	.LBE25:
+ 125:Core/Src/led_rgb.c ****         }
+ 126:Core/Src/led_rgb.c ****     }
+ 127:Core/Src/led_rgb.c ****     ws2812_uart_send(out, LED_COUNT);
+ 628              		.loc 1 127 5 is_stmt 1 view .LVU146
+ 629 0156 0921     		movs	r1, #9
+ 630 0158 01A8     		add	r0, sp, #4
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 15
+
+
+ 631 015a FFF7FEFF 		bl	ws2812_uart_send
+ 632              	.LVL62:
+ 633              	.L16:
+ 128:Core/Src/led_rgb.c **** }
+ 634              		.loc 1 128 1 is_stmt 0 view .LVU147
+ 635 015e 0AB0     		add	sp, sp, #40
+ 636              		@ sp needed
+ 637 0160 E0BC     		pop	{r5, r6, r7}
+ 638 0162 BA46     		mov	r10, r7
+ 639 0164 B146     		mov	r9, r6
+ 640 0166 A846     		mov	r8, r5
+ 641 0168 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 642              	.L54:
+ 643 016a C046     		.align	2
+ 644              	.L53:
+ 645 016c 00000000 		.word	led_team
+ 646 0170 64FF3200 		.word	3342180
+ 647 0174 00000000 		.word	led_overheat_alert
+ 648 0178 00000000 		.word	led_desired
+ 649 017c 00000000 		.word	led_referee_data
+ 650 0180 FF00B400 		.word	11796735
+ 651 0184 CDCC4C3E 		.word	1045220557
+ 652 0188 00004843 		.word	1128792064
+ 653 018c 9A9999BE 		.word	-1097229926
+ 654 0190 00000000 		.word	led_current
+ 655 0194 9A99993E 		.word	1050253722
+ 656 0198 00332800 		.word	2634496
+ 657              		.cfi_endproc
+ 658              	.LFE46:
+ 660              		.section	.text.LedStrip_ShowFaultAlert,"ax",%progbits
+ 661              		.align	1
+ 662              		.global	LedStrip_ShowFaultAlert
+ 663              		.syntax unified
+ 664              		.code	16
+ 665              		.thumb_func
+ 667              	LedStrip_ShowFaultAlert:
+ 668              	.LVL63:
+ 669              	.LFB47:
+ 129:Core/Src/led_rgb.c **** 
+ 130:Core/Src/led_rgb.c **** void LedStrip_ShowFaultAlert(uint32_t tick_ms)
+ 131:Core/Src/led_rgb.c **** {
+ 670              		.loc 1 131 1 is_stmt 1 view -0
+ 671              		.cfi_startproc
+ 672              		@ args = 0, pretend = 0, frame = 40
+ 673              		@ frame_needed = 0, uses_anonymous_args = 0
+ 674              		.loc 1 131 1 is_stmt 0 view .LVU149
+ 675 0000 10B5     		push	{r4, lr}
+ 676              	.LCFI6:
+ 677              		.cfi_def_cfa_offset 8
+ 678              		.cfi_offset 4, -8
+ 679              		.cfi_offset 14, -4
+ 680 0002 8AB0     		sub	sp, sp, #40
+ 681              	.LCFI7:
+ 682              		.cfi_def_cfa_offset 48
+ 683 0004 0400     		movs	r4, r0
+ 132:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT];
+ 684              		.loc 1 132 5 is_stmt 1 view .LVU150
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 16
+
+
+ 133:Core/Src/led_rgb.c ****     uint32_t color;
+ 685              		.loc 1 133 5 view .LVU151
+ 134:Core/Src/led_rgb.c **** 
+ 135:Core/Src/led_rgb.c ****     if (ws2812_uart_busy()) return;
+ 686              		.loc 1 135 5 view .LVU152
+ 687              		.loc 1 135 9 is_stmt 0 view .LVU153
+ 688 0006 FFF7FEFF 		bl	ws2812_uart_busy
+ 689              	.LVL64:
+ 690              		.loc 1 135 8 discriminator 1 view .LVU154
+ 691 000a 0028     		cmp	r0, #0
+ 692 000c 1DD1     		bne	.L55
+ 136:Core/Src/led_rgb.c **** 
+ 137:Core/Src/led_rgb.c ****     /* Three colours per 500 ms gives one red/blue/green cycle every 500 ms. */
+ 138:Core/Src/led_rgb.c ****     switch ((tick_ms / 167U) % 3U) {
+ 693              		.loc 1 138 5 is_stmt 1 view .LVU155
+ 694              		.loc 1 138 22 is_stmt 0 view .LVU156
+ 695 000e A721     		movs	r1, #167
+ 696 0010 2000     		movs	r0, r4
+ 697 0012 FFF7FEFF 		bl	__aeabi_uidiv
+ 698              	.LVL65:
+ 699              		.loc 1 138 30 view .LVU157
+ 700 0016 0321     		movs	r1, #3
+ 701 0018 FFF7FEFF 		bl	__aeabi_uidivmod
+ 702              	.LVL66:
+ 703              		.loc 1 138 5 view .LVU158
+ 704 001c 0029     		cmp	r1, #0
+ 705 001e 03D0     		beq	.L61
+ 706 0020 0129     		cmp	r1, #1
+ 707 0022 05D1     		bne	.L62
+ 139:Core/Src/led_rgb.c ****     case 0U: color = WS2812_COLOR(0, 255, 0); break;   /* red */
+ 140:Core/Src/led_rgb.c ****     case 1U: color = WS2812_COLOR(0, 0, 255); break;   /* blue */
+ 708              		.loc 1 140 20 view .LVU159
+ 709 0024 FF20     		movs	r0, #255
+ 710 0026 01E0     		b	.L58
+ 711              	.L61:
+ 138:Core/Src/led_rgb.c ****     case 0U: color = WS2812_COLOR(0, 255, 0); break;   /* red */
+ 712              		.loc 1 138 5 view .LVU160
+ 713 0028 FF20     		movs	r0, #255
+ 714 002a 0002     		lsls	r0, r0, #8
+ 715              	.L58:
+ 716              	.LVL67:
+ 141:Core/Src/led_rgb.c ****     default: color = WS2812_COLOR(255, 0, 0); break;   /* green */
+ 142:Core/Src/led_rgb.c ****     }
+ 143:Core/Src/led_rgb.c ****     for (int i = 0; i < LED_COUNT; i++) out[i] = color;
+ 717              		.loc 1 143 5 is_stmt 1 view .LVU161
+ 718              	.LBB28:
+ 719              		.loc 1 143 10 view .LVU162
+ 720              		.loc 1 143 14 is_stmt 0 view .LVU163
+ 721 002c 0023     		movs	r3, #0
+ 722              		.loc 1 143 5 view .LVU164
+ 723 002e 06E0     		b	.L59
+ 724              	.LVL68:
+ 725              	.L62:
+ 726              		.loc 1 143 5 view .LVU165
+ 727              	.LBE28:
+ 141:Core/Src/led_rgb.c ****     default: color = WS2812_COLOR(255, 0, 0); break;   /* green */
+ 728              		.loc 1 141 20 view .LVU166
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 17
+
+
+ 729 0030 FF20     		movs	r0, #255
+ 730 0032 0004     		lsls	r0, r0, #16
+ 731 0034 FAE7     		b	.L58
+ 732              	.LVL69:
+ 733              	.L60:
+ 734              	.LBB29:
+ 735              		.loc 1 143 41 is_stmt 1 discriminator 3 view .LVU167
+ 736              		.loc 1 143 48 is_stmt 0 discriminator 3 view .LVU168
+ 737 0036 9900     		lsls	r1, r3, #2
+ 738 0038 01AA     		add	r2, sp, #4
+ 739 003a 8850     		str	r0, [r1, r2]
+ 740              		.loc 1 143 37 is_stmt 1 discriminator 3 view .LVU169
+ 741 003c 0133     		adds	r3, r3, #1
+ 742              	.LVL70:
+ 743              	.L59:
+ 744              		.loc 1 143 23 discriminator 1 view .LVU170
+ 745 003e 082B     		cmp	r3, #8
+ 746 0040 F9DD     		ble	.L60
+ 747              	.LBE29:
+ 144:Core/Src/led_rgb.c ****     ws2812_uart_send(out, LED_COUNT);
+ 748              		.loc 1 144 5 view .LVU171
+ 749 0042 0921     		movs	r1, #9
+ 750 0044 01A8     		add	r0, sp, #4
+ 751              	.LVL71:
+ 752              		.loc 1 144 5 is_stmt 0 view .LVU172
+ 753 0046 FFF7FEFF 		bl	ws2812_uart_send
+ 754              	.LVL72:
+ 755              	.L55:
+ 145:Core/Src/led_rgb.c **** }
+ 756              		.loc 1 145 1 view .LVU173
+ 757 004a 0AB0     		add	sp, sp, #40
+ 758              		@ sp needed
+ 759              	.LVL73:
+ 760              		.loc 1 145 1 view .LVU174
+ 761 004c 10BD     		pop	{r4, pc}
+ 762              		.cfi_endproc
+ 763              	.LFE47:
+ 765              		.section	.text.LedStrip_StartBootEffect,"ax",%progbits
+ 766              		.align	1
+ 767              		.global	LedStrip_StartBootEffect
+ 768              		.syntax unified
+ 769              		.code	16
+ 770              		.thumb_func
+ 772              	LedStrip_StartBootEffect:
+ 773              	.LVL74:
+ 774              	.LFB48:
+ 146:Core/Src/led_rgb.c **** 
+ 147:Core/Src/led_rgb.c **** /**
+ 148:Core/Src/led_rgb.c ****  * @brief Start the one-shot power-on indication for the lower heat bar.
+ 149:Core/Src/led_rgb.c ****  */
+ 150:Core/Src/led_rgb.c **** void LedStrip_StartBootEffect(uint32_t tick_ms)
+ 151:Core/Src/led_rgb.c **** {
+ 775              		.loc 1 151 1 is_stmt 1 view -0
+ 776              		.cfi_startproc
+ 777              		@ args = 0, pretend = 0, frame = 0
+ 778              		@ frame_needed = 0, uses_anonymous_args = 0
+ 779              		@ link register save eliminated.
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 18
+
+
+ 152:Core/Src/led_rgb.c ****     boot_effect_start_tick = tick_ms;
+ 780              		.loc 1 152 5 view .LVU176
+ 781              		.loc 1 152 28 is_stmt 0 view .LVU177
+ 782 0000 024B     		ldr	r3, .L64
+ 783 0002 1860     		str	r0, [r3]
+ 153:Core/Src/led_rgb.c ****     boot_effect_active = true;
+ 784              		.loc 1 153 5 is_stmt 1 view .LVU178
+ 785              		.loc 1 153 24 is_stmt 0 view .LVU179
+ 786 0004 024B     		ldr	r3, .L64+4
+ 787 0006 0122     		movs	r2, #1
+ 788 0008 1A70     		strb	r2, [r3]
+ 154:Core/Src/led_rgb.c **** }
+ 789              		.loc 1 154 1 view .LVU180
+ 790              		@ sp needed
+ 791 000a 7047     		bx	lr
+ 792              	.L65:
+ 793              		.align	2
+ 794              	.L64:
+ 795 000c 00000000 		.word	boot_effect_start_tick
+ 796 0010 00000000 		.word	boot_effect_active
+ 797              		.cfi_endproc
+ 798              	.LFE48:
+ 800              		.section	.text.LedStrip_ProcessBootEffect,"ax",%progbits
+ 801              		.align	1
+ 802              		.global	LedStrip_ProcessBootEffect
+ 803              		.syntax unified
+ 804              		.code	16
+ 805              		.thumb_func
+ 807              	LedStrip_ProcessBootEffect:
+ 808              	.LVL75:
+ 809              	.LFB49:
+ 155:Core/Src/led_rgb.c **** 
+ 156:Core/Src/led_rgb.c **** /**
+ 157:Core/Src/led_rgb.c ****  * @brief Keep LED[1..8] lit in the default/current team colour for 250 ms.
+ 158:Core/Src/led_rgb.c ****  * @return true while the power-on indication owns the LED output.
+ 159:Core/Src/led_rgb.c ****  */
+ 160:Core/Src/led_rgb.c **** bool LedStrip_ProcessBootEffect(uint32_t tick_ms)
+ 161:Core/Src/led_rgb.c **** {
+ 810              		.loc 1 161 1 is_stmt 1 view -0
+ 811              		.cfi_startproc
+ 812              		@ args = 0, pretend = 0, frame = 40
+ 813              		@ frame_needed = 0, uses_anonymous_args = 0
+ 814              		.loc 1 161 1 is_stmt 0 view .LVU182
+ 815 0000 10B5     		push	{r4, lr}
+ 816              	.LCFI8:
+ 817              		.cfi_def_cfa_offset 8
+ 818              		.cfi_offset 4, -8
+ 819              		.cfi_offset 14, -4
+ 820 0002 8AB0     		sub	sp, sp, #40
+ 821              	.LCFI9:
+ 822              		.cfi_def_cfa_offset 48
+ 162:Core/Src/led_rgb.c ****     if (!boot_effect_active) return false;
+ 823              		.loc 1 162 5 is_stmt 1 view .LVU183
+ 824              		.loc 1 162 9 is_stmt 0 view .LVU184
+ 825 0004 1B4B     		ldr	r3, .L75
+ 826 0006 1C78     		ldrb	r4, [r3]
+ 827              		.loc 1 162 8 view .LVU185
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 19
+
+
+ 828 0008 002C     		cmp	r4, #0
+ 829 000a 08D0     		beq	.L67
+ 163:Core/Src/led_rgb.c **** 
+ 164:Core/Src/led_rgb.c ****     if ((uint32_t)(tick_ms - boot_effect_start_tick) >= BOOT_EFFECT_TOTAL_MS) {
+ 830              		.loc 1 164 5 is_stmt 1 view .LVU186
+ 831              		.loc 1 164 28 is_stmt 0 view .LVU187
+ 832 000c 1A4B     		ldr	r3, .L75+4
+ 833 000e 1B68     		ldr	r3, [r3]
+ 834 0010 C01A     		subs	r0, r0, r3
+ 835              	.LVL76:
+ 836              		.loc 1 164 8 view .LVU188
+ 837 0012 F928     		cmp	r0, #249
+ 838 0014 0CD9     		bls	.L68
+ 165:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) return true;
+ 839              		.loc 1 165 9 is_stmt 1 view .LVU189
+ 840              		.loc 1 165 13 is_stmt 0 view .LVU190
+ 841 0016 FFF7FEFF 		bl	ws2812_uart_busy
+ 842              	.LVL77:
+ 843 001a 041E     		subs	r4, r0, #0
+ 844              		.loc 1 165 12 discriminator 1 view .LVU191
+ 845 001c 02D0     		beq	.L74
+ 846              	.L67:
+ 166:Core/Src/led_rgb.c ****         boot_effect_active = false;
+ 167:Core/Src/led_rgb.c ****         LedStrip_Update();
+ 168:Core/Src/led_rgb.c ****         return false;
+ 169:Core/Src/led_rgb.c ****     }
+ 170:Core/Src/led_rgb.c **** 
+ 171:Core/Src/led_rgb.c ****     if (ws2812_uart_busy()) return true;
+ 172:Core/Src/led_rgb.c **** 
+ 173:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT] = {0};
+ 174:Core/Src/led_rgb.c ****     uint32_t color = team_color();
+ 175:Core/Src/led_rgb.c ****     /* The new board has one onboard GL5050RGB01H-T on RGB_TX3.  Keep the
+ 176:Core/Src/led_rgb.c ****        legacy heat-bar positions for an attached downstream chain, but make
+ 177:Core/Src/led_rgb.c ****        the onboard pixel visible during the boot indication as well. */
+ 178:Core/Src/led_rgb.c ****     out[LED_DEBUG_IDX] = color;
+ 179:Core/Src/led_rgb.c ****     for (uint8_t i = 0U; i < LED_HEAT_COUNT; i++) {
+ 180:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 181:Core/Src/led_rgb.c ****     }
+ 182:Core/Src/led_rgb.c ****     ws2812_uart_send(out, LED_COUNT);
+ 183:Core/Src/led_rgb.c ****     return true;
+ 184:Core/Src/led_rgb.c **** }
+ 847              		.loc 1 184 1 view .LVU192
+ 848 001e 2000     		movs	r0, r4
+ 849 0020 0AB0     		add	sp, sp, #40
+ 850              		@ sp needed
+ 851 0022 10BD     		pop	{r4, pc}
+ 852              	.L74:
+ 166:Core/Src/led_rgb.c ****         boot_effect_active = false;
+ 853              		.loc 1 166 9 is_stmt 1 view .LVU193
+ 166:Core/Src/led_rgb.c ****         boot_effect_active = false;
+ 854              		.loc 1 166 28 is_stmt 0 view .LVU194
+ 855 0024 134B     		ldr	r3, .L75
+ 856 0026 0022     		movs	r2, #0
+ 857 0028 1A70     		strb	r2, [r3]
+ 167:Core/Src/led_rgb.c ****         return false;
+ 858              		.loc 1 167 9 is_stmt 1 view .LVU195
+ 859 002a FFF7FEFF 		bl	LedStrip_Update
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 20
+
+
+ 860              	.LVL78:
+ 168:Core/Src/led_rgb.c ****     }
+ 861              		.loc 1 168 9 view .LVU196
+ 168:Core/Src/led_rgb.c ****     }
+ 862              		.loc 1 168 16 is_stmt 0 view .LVU197
+ 863 002e F6E7     		b	.L67
+ 864              	.L68:
+ 171:Core/Src/led_rgb.c **** 
+ 865              		.loc 1 171 5 is_stmt 1 view .LVU198
+ 171:Core/Src/led_rgb.c **** 
+ 866              		.loc 1 171 9 is_stmt 0 view .LVU199
+ 867 0030 FFF7FEFF 		bl	ws2812_uart_busy
+ 868              	.LVL79:
+ 171:Core/Src/led_rgb.c **** 
+ 869              		.loc 1 171 8 discriminator 1 view .LVU200
+ 870 0034 0028     		cmp	r0, #0
+ 871 0036 1AD1     		bne	.L72
+ 173:Core/Src/led_rgb.c ****     uint32_t color = team_color();
+ 872              		.loc 1 173 5 is_stmt 1 view .LVU201
+ 173:Core/Src/led_rgb.c ****     uint32_t color = team_color();
+ 873              		.loc 1 173 14 is_stmt 0 view .LVU202
+ 874 0038 2422     		movs	r2, #36
+ 875 003a 0021     		movs	r1, #0
+ 876 003c 01A8     		add	r0, sp, #4
+ 877 003e FFF7FEFF 		bl	memset
+ 878              	.LVL80:
+ 174:Core/Src/led_rgb.c ****     /* The new board has one onboard GL5050RGB01H-T on RGB_TX3.  Keep the
+ 879              		.loc 1 174 5 is_stmt 1 view .LVU203
+ 880              	.LBB30:
+ 881              	.LBI30:
+  35:Core/Src/led_rgb.c **** {
+ 882              		.loc 1 35 24 view .LVU204
+ 883              	.LBB31:
+  37:Core/Src/led_rgb.c **** }
+ 884              		.loc 1 37 5 view .LVU205
+  37:Core/Src/led_rgb.c **** }
+ 885              		.loc 1 37 22 is_stmt 0 view .LVU206
+ 886 0042 0E4B     		ldr	r3, .L75+8
+ 887 0044 1B78     		ldrb	r3, [r3]
+  37:Core/Src/led_rgb.c **** }
+ 888              		.loc 1 37 48 view .LVU207
+ 889 0046 002B     		cmp	r3, #0
+ 890 0048 03D1     		bne	.L73
+  37:Core/Src/led_rgb.c **** }
+ 891              		.loc 1 37 48 discriminator 1 view .LVU208
+ 892 004a 0D48     		ldr	r0, .L75+12
+ 893              	.L69:
+ 894              	.LVL81:
+  37:Core/Src/led_rgb.c **** }
+ 895              		.loc 1 37 48 discriminator 1 view .LVU209
+ 896              	.LBE31:
+ 897              	.LBE30:
+ 178:Core/Src/led_rgb.c ****     for (uint8_t i = 0U; i < LED_HEAT_COUNT; i++) {
+ 898              		.loc 1 178 5 is_stmt 1 view .LVU210
+ 178:Core/Src/led_rgb.c ****     for (uint8_t i = 0U; i < LED_HEAT_COUNT; i++) {
+ 899              		.loc 1 178 24 is_stmt 0 view .LVU211
+ 900 004c 0190     		str	r0, [sp, #4]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 21
+
+
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 901              		.loc 1 179 5 is_stmt 1 view .LVU212
+ 902              	.LBB33:
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 903              		.loc 1 179 10 view .LVU213
+ 904              	.LVL82:
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 905              		.loc 1 179 18 is_stmt 0 view .LVU214
+ 906 004e 0023     		movs	r3, #0
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 907              		.loc 1 179 5 view .LVU215
+ 908 0050 06E0     		b	.L70
+ 909              	.LVL83:
+ 910              	.L73:
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 911              		.loc 1 179 5 view .LVU216
+ 912              	.LBE33:
+ 913              	.LBB34:
+ 914              	.LBB32:
+  37:Core/Src/led_rgb.c **** }
+ 915              		.loc 1 37 48 discriminator 2 view .LVU217
+ 916 0052 0C48     		ldr	r0, .L75+16
+ 917 0054 FAE7     		b	.L69
+ 918              	.LVL84:
+ 919              	.L71:
+  37:Core/Src/led_rgb.c **** }
+ 920              		.loc 1 37 48 discriminator 2 view .LVU218
+ 921              	.LBE32:
+ 922              	.LBE34:
+ 923              	.LBB35:
+ 180:Core/Src/led_rgb.c ****     }
+ 924              		.loc 1 180 9 is_stmt 1 view .LVU219
+ 180:Core/Src/led_rgb.c ****     }
+ 925              		.loc 1 180 28 is_stmt 0 view .LVU220
+ 926 0056 0133     		adds	r3, r3, #1
+ 927              	.LVL85:
+ 180:Core/Src/led_rgb.c ****     }
+ 928              		.loc 1 180 33 view .LVU221
+ 929 0058 9900     		lsls	r1, r3, #2
+ 930 005a 01AA     		add	r2, sp, #4
+ 931 005c 8850     		str	r0, [r1, r2]
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 932              		.loc 1 179 47 is_stmt 1 discriminator 3 view .LVU222
+ 933 005e DBB2     		uxtb	r3, r3
+ 934              	.LVL86:
+ 935              	.L70:
+ 179:Core/Src/led_rgb.c ****         out[LED_HEAT_START + i] = color;
+ 936              		.loc 1 179 28 discriminator 1 view .LVU223
+ 937 0060 072B     		cmp	r3, #7
+ 938 0062 F8D9     		bls	.L71
+ 939              	.LBE35:
+ 182:Core/Src/led_rgb.c ****     return true;
+ 940              		.loc 1 182 5 view .LVU224
+ 941 0064 0921     		movs	r1, #9
+ 942 0066 01A8     		add	r0, sp, #4
+ 943              	.LVL87:
+ 182:Core/Src/led_rgb.c ****     return true;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 22
+
+
+ 944              		.loc 1 182 5 is_stmt 0 view .LVU225
+ 945 0068 FFF7FEFF 		bl	ws2812_uart_send
+ 946              	.LVL88:
+ 183:Core/Src/led_rgb.c **** }
+ 947              		.loc 1 183 5 is_stmt 1 view .LVU226
+ 183:Core/Src/led_rgb.c **** }
+ 948              		.loc 1 183 12 is_stmt 0 view .LVU227
+ 949 006c D7E7     		b	.L67
+ 950              	.LVL89:
+ 951              	.L72:
+ 171:Core/Src/led_rgb.c **** 
+ 952              		.loc 1 171 36 discriminator 1 view .LVU228
+ 953 006e 0400     		movs	r4, r0
+ 954 0070 D5E7     		b	.L67
+ 955              	.L76:
+ 956 0072 C046     		.align	2
+ 957              	.L75:
+ 958 0074 00000000 		.word	boot_effect_active
+ 959 0078 00000000 		.word	boot_effect_start_tick
+ 960 007c 00000000 		.word	led_team
+ 961 0080 64FF3200 		.word	3342180
+ 962 0084 FF00B400 		.word	11796735
+ 963              		.cfi_endproc
+ 964              	.LFE49:
+ 966              		.section	.text.LedStrip_StartShotEffect,"ax",%progbits
+ 967              		.align	1
+ 968              		.global	LedStrip_StartShotEffect
+ 969              		.syntax unified
+ 970              		.code	16
+ 971              		.thumb_func
+ 973              	LedStrip_StartShotEffect:
+ 974              	.LVL90:
+ 975              	.LFB50:
+ 185:Core/Src/led_rgb.c **** 
+ 186:Core/Src/led_rgb.c **** /**
+ 187:Core/Src/led_rgb.c ****  * @brief  Start the valid-shot top-status LED flash.
+ 188:Core/Src/led_rgb.c ****   * @note   The effect is displayed only by the automatic LED layer; faults
+ 189:Core/Src/led_rgb.c ****   *         and explicit debug/CAN LED commands keep their existing priority.
+ 190:Core/Src/led_rgb.c ****   */
+ 191:Core/Src/led_rgb.c **** void LedStrip_StartShotEffect(uint32_t tick_ms)
+ 192:Core/Src/led_rgb.c **** {
+ 976              		.loc 1 192 1 is_stmt 1 view -0
+ 977              		.cfi_startproc
+ 978              		@ args = 0, pretend = 0, frame = 0
+ 979              		@ frame_needed = 0, uses_anonymous_args = 0
+ 980              		@ link register save eliminated.
+ 193:Core/Src/led_rgb.c ****     shot_effect_start_tick = tick_ms;
+ 981              		.loc 1 193 5 view .LVU230
+ 982              		.loc 1 193 28 is_stmt 0 view .LVU231
+ 983 0000 024B     		ldr	r3, .L78
+ 984 0002 1860     		str	r0, [r3]
+ 194:Core/Src/led_rgb.c ****     shot_effect_active = true;
+ 985              		.loc 1 194 5 is_stmt 1 view .LVU232
+ 986              		.loc 1 194 24 is_stmt 0 view .LVU233
+ 987 0004 024B     		ldr	r3, .L78+4
+ 988 0006 0122     		movs	r2, #1
+ 989 0008 1A70     		strb	r2, [r3]
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 23
+
+
+ 195:Core/Src/led_rgb.c **** }
+ 990              		.loc 1 195 1 view .LVU234
+ 991              		@ sp needed
+ 992 000a 7047     		bx	lr
+ 993              	.L79:
+ 994              		.align	2
+ 995              	.L78:
+ 996 000c 00000000 		.word	shot_effect_start_tick
+ 997 0010 00000000 		.word	shot_effect_active
+ 998              		.cfi_endproc
+ 999              	.LFE50:
+ 1001              		.section	.text.LedStrip_ProcessShotEffect,"ax",%progbits
+ 1002              		.align	1
+ 1003              		.global	LedStrip_ProcessShotEffect
+ 1004              		.syntax unified
+ 1005              		.code	16
+ 1006              		.thumb_func
+ 1008              	LedStrip_ProcessShotEffect:
+ 1009              	.LVL91:
+ 1010              	.LFB51:
+ 196:Core/Src/led_rgb.c **** 
+ 197:Core/Src/led_rgb.c **** /**
+ 198:Core/Src/led_rgb.c ****  * @brief  Render a 100 ms valid-shot top-status LED flash while preserving
+ 199:Core/Src/led_rgb.c ****  *         the static heat bar.
+ 200:Core/Src/led_rgb.c ****   * @return true while the automatic LED layer must remain overridden.
+ 201:Core/Src/led_rgb.c ****   */
+ 202:Core/Src/led_rgb.c **** bool LedStrip_ProcessShotEffect(uint32_t tick_ms)
+ 203:Core/Src/led_rgb.c **** {
+ 1011              		.loc 1 203 1 is_stmt 1 view -0
+ 1012              		.cfi_startproc
+ 1013              		@ args = 0, pretend = 0, frame = 40
+ 1014              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1015              		.loc 1 203 1 is_stmt 0 view .LVU236
+ 1016 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 1017              	.LCFI10:
+ 1018              		.cfi_def_cfa_offset 20
+ 1019              		.cfi_offset 4, -20
+ 1020              		.cfi_offset 5, -16
+ 1021              		.cfi_offset 6, -12
+ 1022              		.cfi_offset 7, -8
+ 1023              		.cfi_offset 14, -4
+ 1024 0002 CE46     		mov	lr, r9
+ 1025 0004 00B5     		push	{lr}
+ 1026              	.LCFI11:
+ 1027              		.cfi_def_cfa_offset 24
+ 1028              		.cfi_offset 9, -24
+ 1029 0006 8AB0     		sub	sp, sp, #40
+ 1030              	.LCFI12:
+ 1031              		.cfi_def_cfa_offset 64
+ 204:Core/Src/led_rgb.c ****     if (!shot_effect_active) return false;
+ 1032              		.loc 1 204 5 is_stmt 1 view .LVU237
+ 1033              		.loc 1 204 9 is_stmt 0 view .LVU238
+ 1034 0008 304B     		ldr	r3, .L95
+ 1035 000a 1D78     		ldrb	r5, [r3]
+ 1036              		.loc 1 204 8 view .LVU239
+ 1037 000c 002D     		cmp	r5, #0
+ 1038 000e 08D0     		beq	.L81
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 24
+
+
+ 205:Core/Src/led_rgb.c **** 
+ 206:Core/Src/led_rgb.c ****     uint32_t elapsed = tick_ms - shot_effect_start_tick;
+ 1039              		.loc 1 206 5 is_stmt 1 view .LVU240
+ 1040              		.loc 1 206 32 is_stmt 0 view .LVU241
+ 1041 0010 2F4B     		ldr	r3, .L95+4
+ 1042 0012 1B68     		ldr	r3, [r3]
+ 1043              		.loc 1 206 14 view .LVU242
+ 1044 0014 C01A     		subs	r0, r0, r3
+ 1045              	.LVL92:
+ 207:Core/Src/led_rgb.c ****     if (elapsed >= SHOT_EFFECT_TOTAL_MS) {
+ 1046              		.loc 1 207 5 is_stmt 1 view .LVU243
+ 1047              		.loc 1 207 8 is_stmt 0 view .LVU244
+ 1048 0016 6328     		cmp	r0, #99
+ 1049 0018 0ED9     		bls	.L82
+ 208:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) return true;
+ 1050              		.loc 1 208 9 is_stmt 1 view .LVU245
+ 1051              		.loc 1 208 13 is_stmt 0 view .LVU246
+ 1052 001a FFF7FEFF 		bl	ws2812_uart_busy
+ 1053              	.LVL93:
+ 1054              		.loc 1 208 13 view .LVU247
+ 1055 001e 051E     		subs	r5, r0, #0
+ 1056              		.loc 1 208 12 discriminator 1 view .LVU248
+ 1057 0020 04D0     		beq	.L92
+ 1058              	.LVL94:
+ 1059              	.L81:
+ 209:Core/Src/led_rgb.c ****         shot_effect_active = false;
+ 210:Core/Src/led_rgb.c ****         LedStrip_Update();  /* immediately restore the ordinary LED state */
+ 211:Core/Src/led_rgb.c ****         return false;
+ 212:Core/Src/led_rgb.c ****     }
+ 213:Core/Src/led_rgb.c **** 
+ 214:Core/Src/led_rgb.c ****     if (ws2812_uart_busy()) return true;
+ 215:Core/Src/led_rgb.c **** 
+ 216:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT] = {0};
+ 217:Core/Src/led_rgb.c ****     /* Only the top status LED flashes; the heat bar remains visible. */
+ 218:Core/Src/led_rgb.c ****     uint32_t shot_color = team_color();
+ 219:Core/Src/led_rgb.c ****     out[LED_DEBUG_IDX] = shot_color;
+ 220:Core/Src/led_rgb.c ****     uint8_t heat = led_referee_data;
+ 221:Core/Src/led_rgb.c ****     if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 222:Core/Src/led_rgb.c ****     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 223:Core/Src/led_rgb.c ****     uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 224:Core/Src/led_rgb.c ****     uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 225:Core/Src/led_rgb.c ****     for (uint8_t i = 0; i < LED_HEAT_COUNT; i++) {
+ 226:Core/Src/led_rgb.c ****         if (i < full) {
+ 227:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] = shot_color;
+ 228:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0U) {
+ 229:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] =
+ 230:Core/Src/led_rgb.c ****                 color_dim(shot_color, (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 231:Core/Src/led_rgb.c ****         }
+ 232:Core/Src/led_rgb.c ****     }
+ 233:Core/Src/led_rgb.c ****     ws2812_uart_send(out, LED_COUNT);
+ 234:Core/Src/led_rgb.c ****     return true;
+ 235:Core/Src/led_rgb.c **** }
+ 1060              		.loc 1 235 1 view .LVU249
+ 1061 0022 2800     		movs	r0, r5
+ 1062 0024 0AB0     		add	sp, sp, #40
+ 1063              		@ sp needed
+ 1064 0026 80BC     		pop	{r7}
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 25
+
+
+ 1065 0028 B946     		mov	r9, r7
+ 1066 002a F0BD     		pop	{r4, r5, r6, r7, pc}
+ 1067              	.LVL95:
+ 1068              	.L92:
+ 209:Core/Src/led_rgb.c ****         shot_effect_active = false;
+ 1069              		.loc 1 209 9 is_stmt 1 view .LVU250
+ 209:Core/Src/led_rgb.c ****         shot_effect_active = false;
+ 1070              		.loc 1 209 28 is_stmt 0 view .LVU251
+ 1071 002c 274B     		ldr	r3, .L95
+ 1072 002e 0022     		movs	r2, #0
+ 1073 0030 1A70     		strb	r2, [r3]
+ 210:Core/Src/led_rgb.c ****         return false;
+ 1074              		.loc 1 210 9 is_stmt 1 view .LVU252
+ 1075 0032 FFF7FEFF 		bl	LedStrip_Update
+ 1076              	.LVL96:
+ 211:Core/Src/led_rgb.c ****     }
+ 1077              		.loc 1 211 9 view .LVU253
+ 211:Core/Src/led_rgb.c ****     }
+ 1078              		.loc 1 211 16 is_stmt 0 view .LVU254
+ 1079 0036 F4E7     		b	.L81
+ 1080              	.LVL97:
+ 1081              	.L82:
+ 214:Core/Src/led_rgb.c **** 
+ 1082              		.loc 1 214 5 is_stmt 1 view .LVU255
+ 214:Core/Src/led_rgb.c **** 
+ 1083              		.loc 1 214 9 is_stmt 0 view .LVU256
+ 1084 0038 FFF7FEFF 		bl	ws2812_uart_busy
+ 1085              	.LVL98:
+ 214:Core/Src/led_rgb.c **** 
+ 1086              		.loc 1 214 8 discriminator 1 view .LVU257
+ 1087 003c 0028     		cmp	r0, #0
+ 1088 003e 43D1     		bne	.L89
+ 216:Core/Src/led_rgb.c ****     /* Only the top status LED flashes; the heat bar remains visible. */
+ 1089              		.loc 1 216 5 is_stmt 1 view .LVU258
+ 216:Core/Src/led_rgb.c ****     /* Only the top status LED flashes; the heat bar remains visible. */
+ 1090              		.loc 1 216 14 is_stmt 0 view .LVU259
+ 1091 0040 2422     		movs	r2, #36
+ 1092 0042 0021     		movs	r1, #0
+ 1093 0044 01A8     		add	r0, sp, #4
+ 1094 0046 FFF7FEFF 		bl	memset
+ 1095              	.LVL99:
+ 218:Core/Src/led_rgb.c ****     out[LED_DEBUG_IDX] = shot_color;
+ 1096              		.loc 1 218 5 is_stmt 1 view .LVU260
+ 1097              	.LBB36:
+ 1098              	.LBI36:
+  35:Core/Src/led_rgb.c **** {
+ 1099              		.loc 1 35 24 view .LVU261
+ 1100              	.LBB37:
+  37:Core/Src/led_rgb.c **** }
+ 1101              		.loc 1 37 5 view .LVU262
+  37:Core/Src/led_rgb.c **** }
+ 1102              		.loc 1 37 22 is_stmt 0 view .LVU263
+ 1103 004a 224B     		ldr	r3, .L95+8
+ 1104 004c 1B78     		ldrb	r3, [r3]
+  37:Core/Src/led_rgb.c **** }
+ 1105              		.loc 1 37 48 view .LVU264
+ 1106 004e 002B     		cmp	r3, #0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 26
+
+
+ 1107 0050 14D1     		bne	.L90
+  37:Core/Src/led_rgb.c **** }
+ 1108              		.loc 1 37 48 discriminator 1 view .LVU265
+ 1109 0052 214F     		ldr	r7, .L95+12
+ 1110              	.L83:
+ 1111              	.LVL100:
+  37:Core/Src/led_rgb.c **** }
+ 1112              		.loc 1 37 48 discriminator 1 view .LVU266
+ 1113              	.LBE37:
+ 1114              	.LBE36:
+ 219:Core/Src/led_rgb.c ****     uint8_t heat = led_referee_data;
+ 1115              		.loc 1 219 5 is_stmt 1 view .LVU267
+ 219:Core/Src/led_rgb.c ****     uint8_t heat = led_referee_data;
+ 1116              		.loc 1 219 24 is_stmt 0 view .LVU268
+ 1117 0054 0197     		str	r7, [sp, #4]
+ 220:Core/Src/led_rgb.c ****     if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 1118              		.loc 1 220 5 is_stmt 1 view .LVU269
+ 220:Core/Src/led_rgb.c ****     if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 1119              		.loc 1 220 13 is_stmt 0 view .LVU270
+ 1120 0056 214B     		ldr	r3, .L95+16
+ 1121 0058 1C78     		ldrb	r4, [r3]
+ 1122              	.LVL101:
+ 221:Core/Src/led_rgb.c ****     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1123              		.loc 1 221 5 is_stmt 1 view .LVU271
+ 221:Core/Src/led_rgb.c ****     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1124              		.loc 1 221 8 is_stmt 0 view .LVU272
+ 1125 005a C82C     		cmp	r4, #200
+ 1126 005c 00D9     		bls	.L84
+ 221:Core/Src/led_rgb.c ****     uint16_t scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1127              		.loc 1 221 41 discriminator 1 view .LVU273
+ 1128 005e C824     		movs	r4, #200
+ 1129              	.LVL102:
+ 1130              	.L84:
+ 222:Core/Src/led_rgb.c ****     uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 1131              		.loc 1 222 5 is_stmt 1 view .LVU274
+ 222:Core/Src/led_rgb.c ****     uint8_t full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 1132              		.loc 1 222 14 is_stmt 0 view .LVU275
+ 1133 0060 E400     		lsls	r4, r4, #3
+ 1134              	.LVL103:
+ 223:Core/Src/led_rgb.c ****     uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 1135              		.loc 1 223 5 is_stmt 1 view .LVU276
+ 223:Core/Src/led_rgb.c ****     uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 1136              		.loc 1 223 20 is_stmt 0 view .LVU277
+ 1137 0062 C821     		movs	r1, #200
+ 1138 0064 2000     		movs	r0, r4
+ 1139 0066 FFF7FEFF 		bl	__aeabi_uidiv
+ 1140              	.LVL104:
+ 223:Core/Src/led_rgb.c ****     uint8_t frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 1141              		.loc 1 223 13 view .LVU278
+ 1142 006a C6B2     		uxtb	r6, r0
+ 1143              	.LVL105:
+ 224:Core/Src/led_rgb.c ****     for (uint8_t i = 0; i < LED_HEAT_COUNT; i++) {
+ 1144              		.loc 1 224 5 is_stmt 1 view .LVU279
+ 224:Core/Src/led_rgb.c ****     for (uint8_t i = 0; i < LED_HEAT_COUNT; i++) {
+ 1145              		.loc 1 224 20 is_stmt 0 view .LVU280
+ 1146 006c C821     		movs	r1, #200
+ 1147 006e 2000     		movs	r0, r4
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 27
+
+
+ 1148 0070 FFF7FEFF 		bl	__aeabi_uidivmod
+ 1149              	.LVL106:
+ 224:Core/Src/led_rgb.c ****     for (uint8_t i = 0; i < LED_HEAT_COUNT; i++) {
+ 1150              		.loc 1 224 13 view .LVU281
+ 1151 0074 CBB2     		uxtb	r3, r1
+ 1152 0076 9946     		mov	r9, r3
+ 1153              	.LVL107:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1154              		.loc 1 225 5 is_stmt 1 view .LVU282
+ 1155              	.LBB39:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1156              		.loc 1 225 10 view .LVU283
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1157              		.loc 1 225 18 is_stmt 0 view .LVU284
+ 1158 0078 0024     		movs	r4, #0
+ 1159              	.LVL108:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1160              		.loc 1 225 5 view .LVU285
+ 1161 007a 05E0     		b	.L85
+ 1162              	.LVL109:
+ 1163              	.L90:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1164              		.loc 1 225 5 view .LVU286
+ 1165              	.LBE39:
+ 1166              	.LBB40:
+ 1167              	.LBB38:
+  37:Core/Src/led_rgb.c **** }
+ 1168              		.loc 1 37 48 discriminator 2 view .LVU287
+ 1169 007c 184F     		ldr	r7, .L95+20
+ 1170 007e E9E7     		b	.L83
+ 1171              	.LVL110:
+ 1172              	.L86:
+  37:Core/Src/led_rgb.c **** }
+ 1173              		.loc 1 37 48 discriminator 2 view .LVU288
+ 1174              	.LBE38:
+ 1175              	.LBE40:
+ 1176              	.LBB41:
+ 228:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] =
+ 1177              		.loc 1 228 16 is_stmt 1 view .LVU289
+ 228:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] =
+ 1178              		.loc 1 228 19 is_stmt 0 view .LVU290
+ 1179 0080 B442     		cmp	r4, r6
+ 1180 0082 0AD0     		beq	.L93
+ 1181              	.L87:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1182              		.loc 1 225 46 is_stmt 1 discriminator 2 view .LVU291
+ 1183 0084 0134     		adds	r4, r4, #1
+ 1184              	.LVL111:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1185              		.loc 1 225 46 is_stmt 0 discriminator 2 view .LVU292
+ 1186 0086 E4B2     		uxtb	r4, r4
+ 1187              	.LVL112:
+ 1188              	.L85:
+ 225:Core/Src/led_rgb.c ****         if (i < full) {
+ 1189              		.loc 1 225 27 is_stmt 1 discriminator 1 view .LVU293
+ 1190 0088 072C     		cmp	r4, #7
+ 1191 008a 18D8     		bhi	.L94
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 28
+
+
+ 226:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] = shot_color;
+ 1192              		.loc 1 226 9 view .LVU294
+ 226:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] = shot_color;
+ 1193              		.loc 1 226 12 is_stmt 0 view .LVU295
+ 1194 008c B442     		cmp	r4, r6
+ 1195 008e F7D2     		bcs	.L86
+ 227:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0U) {
+ 1196              		.loc 1 227 13 is_stmt 1 view .LVU296
+ 227:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0U) {
+ 1197              		.loc 1 227 32 is_stmt 0 view .LVU297
+ 1198 0090 631C     		adds	r3, r4, #1
+ 227:Core/Src/led_rgb.c ****         } else if (i == full && frac > 0U) {
+ 1199              		.loc 1 227 37 view .LVU298
+ 1200 0092 9B00     		lsls	r3, r3, #2
+ 1201 0094 01AA     		add	r2, sp, #4
+ 1202 0096 9F50     		str	r7, [r3, r2]
+ 1203 0098 F4E7     		b	.L87
+ 1204              	.L93:
+ 228:Core/Src/led_rgb.c ****             out[LED_HEAT_START + i] =
+ 1205              		.loc 1 228 30 discriminator 1 view .LVU299
+ 1206 009a 4B46     		mov	r3, r9
+ 1207 009c 002B     		cmp	r3, #0
+ 1208 009e F1D0     		beq	.L87
+ 229:Core/Src/led_rgb.c ****                 color_dim(shot_color, (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1209              		.loc 1 229 13 is_stmt 1 view .LVU300
+ 230:Core/Src/led_rgb.c ****         }
+ 1210              		.loc 1 230 39 is_stmt 0 view .LVU301
+ 1211 00a0 4846     		mov	r0, r9
+ 1212 00a2 FFF7FEFF 		bl	__aeabi_ui2f
+ 1213              	.LVL113:
+ 230:Core/Src/led_rgb.c ****         }
+ 1214              		.loc 1 230 17 view .LVU302
+ 1215 00a6 0F49     		ldr	r1, .L95+24
+ 1216 00a8 FFF7FEFF 		bl	__aeabi_fdiv
+ 1217              	.LVL114:
+ 1218 00ac 011C     		adds	r1, r0, #0
+ 1219 00ae 3800     		movs	r0, r7
+ 1220 00b0 FFF7FEFF 		bl	color_dim
+ 1221              	.LVL115:
+ 229:Core/Src/led_rgb.c ****                 color_dim(shot_color, (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1222              		.loc 1 229 37 view .LVU303
+ 1223 00b4 631C     		adds	r3, r4, #1
+ 1224 00b6 9A00     		lsls	r2, r3, #2
+ 1225 00b8 01AB     		add	r3, sp, #4
+ 1226 00ba 9850     		str	r0, [r3, r2]
+ 1227 00bc E2E7     		b	.L87
+ 1228              	.L94:
+ 229:Core/Src/led_rgb.c ****                 color_dim(shot_color, (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1229              		.loc 1 229 37 view .LVU304
+ 1230              	.LBE41:
+ 233:Core/Src/led_rgb.c ****     return true;
+ 1231              		.loc 1 233 5 is_stmt 1 view .LVU305
+ 1232 00be 0921     		movs	r1, #9
+ 1233 00c0 01A8     		add	r0, sp, #4
+ 1234 00c2 FFF7FEFF 		bl	ws2812_uart_send
+ 1235              	.LVL116:
+ 234:Core/Src/led_rgb.c **** }
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 29
+
+
+ 1236              		.loc 1 234 5 view .LVU306
+ 234:Core/Src/led_rgb.c **** }
+ 1237              		.loc 1 234 12 is_stmt 0 view .LVU307
+ 1238 00c6 ACE7     		b	.L81
+ 1239              	.LVL117:
+ 1240              	.L89:
+ 214:Core/Src/led_rgb.c **** 
+ 1241              		.loc 1 214 36 discriminator 1 view .LVU308
+ 1242 00c8 0500     		movs	r5, r0
+ 1243 00ca AAE7     		b	.L81
+ 1244              	.L96:
+ 1245              		.align	2
+ 1246              	.L95:
+ 1247 00cc 00000000 		.word	shot_effect_active
+ 1248 00d0 00000000 		.word	shot_effect_start_tick
+ 1249 00d4 00000000 		.word	led_team
+ 1250 00d8 64FF3200 		.word	3342180
+ 1251 00dc 00000000 		.word	led_referee_data
+ 1252 00e0 FF00B400 		.word	11796735
+ 1253 00e4 00004843 		.word	1128792064
+ 1254              		.cfi_endproc
+ 1255              	.LFE51:
+ 1257              		.section	.text.LedStrip_TestPattern,"ax",%progbits
+ 1258              		.align	1
+ 1259              		.global	LedStrip_TestPattern
+ 1260              		.syntax unified
+ 1261              		.code	16
+ 1262              		.thumb_func
+ 1264              	LedStrip_TestPattern:
+ 1265              	.LVL118:
+ 1266              	.LFB52:
+ 236:Core/Src/led_rgb.c **** 
+ 237:Core/Src/led_rgb.c **** /* ========================== Debug / CAN Override =========================== */
+ 238:Core/Src/led_rgb.c **** 
+ 239:Core/Src/led_rgb.c **** /**
+ 240:Core/Src/led_rgb.c ****   * @brief  Manual test pattern — write g_led_cmd from debugger.
+ 241:Core/Src/led_rgb.c ****   *         pattern: 1=green, 2=red, 3=blue, 4=team, 5=off
+ 242:Core/Src/led_rgb.c ****   *         count:   0 = all 9 LEDs, else limit
+ 243:Core/Src/led_rgb.c ****   */
+ 244:Core/Src/led_rgb.c **** void LedStrip_TestPattern(uint8_t pattern, uint8_t count)
+ 245:Core/Src/led_rgb.c **** {
+ 1267              		.loc 1 245 1 is_stmt 1 view -0
+ 1268              		.cfi_startproc
+ 1269              		@ args = 0, pretend = 0, frame = 40
+ 1270              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1271              		.loc 1 245 1 is_stmt 0 view .LVU310
+ 1272 0000 70B5     		push	{r4, r5, r6, lr}
+ 1273              	.LCFI13:
+ 1274              		.cfi_def_cfa_offset 16
+ 1275              		.cfi_offset 4, -16
+ 1276              		.cfi_offset 5, -12
+ 1277              		.cfi_offset 6, -8
+ 1278              		.cfi_offset 14, -4
+ 1279 0002 8AB0     		sub	sp, sp, #40
+ 1280              	.LCFI14:
+ 1281              		.cfi_def_cfa_offset 56
+ 1282 0004 0500     		movs	r5, r0
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 30
+
+
+ 1283 0006 0E00     		movs	r6, r1
+ 246:Core/Src/led_rgb.c ****     if (ws2812_uart_busy()) return;
+ 1284              		.loc 1 246 5 is_stmt 1 view .LVU311
+ 1285              		.loc 1 246 9 is_stmt 0 view .LVU312
+ 1286 0008 FFF7FEFF 		bl	ws2812_uart_busy
+ 1287              	.LVL119:
+ 1288              		.loc 1 246 8 discriminator 1 view .LVU313
+ 1289 000c 0028     		cmp	r0, #0
+ 1290 000e 35D1     		bne	.L97
+ 247:Core/Src/led_rgb.c **** 
+ 248:Core/Src/led_rgb.c ****     uint8_t n = (count == 0) ? LED_COUNT : (count > LED_COUNT ? LED_COUNT : count);
+ 1291              		.loc 1 248 5 is_stmt 1 view .LVU314
+ 1292              		.loc 1 248 13 is_stmt 0 view .LVU315
+ 1293 0010 002E     		cmp	r6, #0
+ 1294 0012 0FD0     		beq	.L107
+ 1295              		.loc 1 248 13 discriminator 1 view .LVU316
+ 1296 0014 341C     		adds	r4, r6, #0
+ 1297 0016 092E     		cmp	r6, #9
+ 1298 0018 00D9     		bls	.L101
+ 1299 001a 0924     		movs	r4, #9
+ 1300              	.L101:
+ 1301 001c E4B2     		uxtb	r4, r4
+ 1302              	.L100:
+ 1303              	.LVL120:
+ 249:Core/Src/led_rgb.c ****     uint32_t color = 0;
+ 1304              		.loc 1 249 5 is_stmt 1 view .LVU317
+ 250:Core/Src/led_rgb.c **** 
+ 251:Core/Src/led_rgb.c ****     switch (pattern) {
+ 1305              		.loc 1 251 5 view .LVU318
+ 1306 001e 032D     		cmp	r5, #3
+ 1307 0020 12D0     		beq	.L108
+ 1308 0022 09D8     		bhi	.L103
+ 1309 0024 012D     		cmp	r5, #1
+ 1310 0026 11D0     		beq	.L109
+ 1311 0028 022D     		cmp	r5, #2
+ 1312 002a 12D1     		bne	.L110
+ 252:Core/Src/led_rgb.c ****     case 1:  color = WS2812_COLOR(255,   0,   0); break; /* green  */
+ 253:Core/Src/led_rgb.c ****     case 2:  color = WS2812_COLOR(  0, 255,   0); break; /* red    */
+ 1313              		.loc 1 253 20 is_stmt 0 view .LVU319
+ 1314 002c FF25     		movs	r5, #255
+ 1315              	.LVL121:
+ 1316              		.loc 1 253 20 view .LVU320
+ 1317 002e 2D02     		lsls	r5, r5, #8
+ 1318              	.L102:
+ 1319              	.LVL122:
+ 254:Core/Src/led_rgb.c ****     case 3:  color = WS2812_COLOR(  0,   0, 255); break; /* blue   */
+ 255:Core/Src/led_rgb.c ****     case 4:  color = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE; break;
+ 256:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 257:Core/Src/led_rgb.c ****     }
+ 258:Core/Src/led_rgb.c **** 
+ 259:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT];
+ 1320              		.loc 1 259 5 is_stmt 1 view .LVU321
+ 260:Core/Src/led_rgb.c ****     for (int i = 0; i < LED_COUNT; i++) {
+ 1321              		.loc 1 260 5 view .LVU322
+ 1322              	.LBB42:
+ 1323              		.loc 1 260 10 view .LVU323
+ 1324              		.loc 1 260 14 is_stmt 0 view .LVU324
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 31
+
+
+ 1325 0030 0023     		movs	r3, #0
+ 1326              		.loc 1 260 5 view .LVU325
+ 1327 0032 19E0     		b	.L104
+ 1328              	.LVL123:
+ 1329              	.L107:
+ 1330              		.loc 1 260 5 view .LVU326
+ 1331              	.LBE42:
+ 248:Core/Src/led_rgb.c ****     uint32_t color = 0;
+ 1332              		.loc 1 248 13 discriminator 2 view .LVU327
+ 1333 0034 0924     		movs	r4, #9
+ 1334 0036 F2E7     		b	.L100
+ 1335              	.LVL124:
+ 1336              	.L103:
+ 251:Core/Src/led_rgb.c ****     case 1:  color = WS2812_COLOR(255,   0,   0); break; /* green  */
+ 1337              		.loc 1 251 5 view .LVU328
+ 1338 0038 042D     		cmp	r5, #4
+ 1339 003a 0CD1     		bne	.L111
+ 255:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 1340              		.loc 1 255 14 is_stmt 1 view .LVU329
+ 255:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 1341              		.loc 1 255 32 is_stmt 0 view .LVU330
+ 1342 003c 104B     		ldr	r3, .L115
+ 1343 003e 1B78     		ldrb	r3, [r3]
+ 255:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 1344              		.loc 1 255 58 view .LVU331
+ 1345 0040 002B     		cmp	r3, #0
+ 1346 0042 0AD1     		bne	.L112
+ 255:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 1347              		.loc 1 255 58 discriminator 1 view .LVU332
+ 1348 0044 0F4D     		ldr	r5, .L115+4
+ 1349 0046 F3E7     		b	.L102
+ 1350              	.L108:
+ 254:Core/Src/led_rgb.c ****     case 4:  color = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE; break;
+ 1351              		.loc 1 254 20 view .LVU333
+ 1352 0048 FF25     		movs	r5, #255
+ 1353 004a F1E7     		b	.L102
+ 1354              	.L109:
+ 251:Core/Src/led_rgb.c ****     case 1:  color = WS2812_COLOR(255,   0,   0); break; /* green  */
+ 1355              		.loc 1 251 5 view .LVU334
+ 1356 004c FF25     		movs	r5, #255
+ 1357 004e 2D04     		lsls	r5, r5, #16
+ 1358 0050 EEE7     		b	.L102
+ 1359              	.L110:
+ 256:Core/Src/led_rgb.c ****     }
+ 1360              		.loc 1 256 20 view .LVU335
+ 1361 0052 0025     		movs	r5, #0
+ 1362 0054 ECE7     		b	.L102
+ 1363              	.L111:
+ 1364 0056 0025     		movs	r5, #0
+ 1365 0058 EAE7     		b	.L102
+ 1366              	.L112:
+ 255:Core/Src/led_rgb.c ****     default: color = 0; break;  /* 5 or other = off */
+ 1367              		.loc 1 255 58 discriminator 2 view .LVU336
+ 1368 005a 0B4D     		ldr	r5, .L115+8
+ 1369 005c E8E7     		b	.L102
+ 1370              	.LVL125:
+ 1371              	.L113:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 32
+
+
+ 1372              	.LBB43:
+ 261:Core/Src/led_rgb.c ****         out[i] = (i < n) ? color : 0;
+ 1373              		.loc 1 261 34 discriminator 1 view .LVU337
+ 1374 005e 2800     		movs	r0, r5
+ 1375              	.L105:
+ 1376              		.loc 1 261 16 discriminator 4 view .LVU338
+ 1377 0060 9900     		lsls	r1, r3, #2
+ 1378 0062 01AA     		add	r2, sp, #4
+ 1379 0064 8850     		str	r0, [r1, r2]
+ 260:Core/Src/led_rgb.c ****         out[i] = (i < n) ? color : 0;
+ 1380              		.loc 1 260 37 is_stmt 1 discriminator 2 view .LVU339
+ 1381 0066 0133     		adds	r3, r3, #1
+ 1382              	.LVL126:
+ 1383              	.L104:
+ 260:Core/Src/led_rgb.c ****         out[i] = (i < n) ? color : 0;
+ 1384              		.loc 1 260 23 discriminator 1 view .LVU340
+ 1385 0068 082B     		cmp	r3, #8
+ 1386 006a 03DC     		bgt	.L114
+ 1387              		.loc 1 261 9 view .LVU341
+ 1388              		.loc 1 261 34 is_stmt 0 view .LVU342
+ 1389 006c 9C42     		cmp	r4, r3
+ 1390 006e F6DC     		bgt	.L113
+ 1391              		.loc 1 261 34 discriminator 2 view .LVU343
+ 1392 0070 0020     		movs	r0, #0
+ 1393 0072 F5E7     		b	.L105
+ 1394              	.L114:
+ 1395              	.LBE43:
+ 262:Core/Src/led_rgb.c ****     }
+ 263:Core/Src/led_rgb.c ****     ws2812_uart_send(out, LED_COUNT);
+ 1396              		.loc 1 263 5 is_stmt 1 view .LVU344
+ 1397 0074 0921     		movs	r1, #9
+ 1398 0076 01A8     		add	r0, sp, #4
+ 1399 0078 FFF7FEFF 		bl	ws2812_uart_send
+ 1400              	.LVL127:
+ 1401              	.L97:
+ 264:Core/Src/led_rgb.c **** }
+ 1402              		.loc 1 264 1 is_stmt 0 view .LVU345
+ 1403 007c 0AB0     		add	sp, sp, #40
+ 1404              		@ sp needed
+ 1405              	.LVL128:
+ 1406              		.loc 1 264 1 view .LVU346
+ 1407 007e 70BD     		pop	{r4, r5, r6, pc}
+ 1408              	.L116:
+ 1409              		.align	2
+ 1410              	.L115:
+ 1411 0080 00000000 		.word	led_team
+ 1412 0084 64FF3200 		.word	3342180
+ 1413 0088 FF00B400 		.word	11796735
+ 1414              		.cfi_endproc
+ 1415              	.LFE52:
+ 1417              		.section	.text.LedStrip_ApplyCommand,"ax",%progbits
+ 1418              		.align	1
+ 1419              		.global	LedStrip_ApplyCommand
+ 1420              		.syntax unified
+ 1421              		.code	16
+ 1422              		.thumb_func
+ 1424              	LedStrip_ApplyCommand:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 33
+
+
+ 1425              	.LVL129:
+ 1426              	.LFB53:
+ 265:Core/Src/led_rgb.c **** 
+ 266:Core/Src/led_rgb.c **** /**
+ 267:Core/Src/led_rgb.c ****   * @brief  Apply a CAN LED command (team / heat / test).
+ 268:Core/Src/led_rgb.c ****   */
+ 269:Core/Src/led_rgb.c **** void LedStrip_ApplyCommand(const LedCommand_t *cmd)
+ 270:Core/Src/led_rgb.c **** {
+ 1427              		.loc 1 270 1 is_stmt 1 view -0
+ 1428              		.cfi_startproc
+ 1429              		@ args = 0, pretend = 0, frame = 40
+ 1430              		@ frame_needed = 0, uses_anonymous_args = 0
+ 1431              		.loc 1 270 1 is_stmt 0 view .LVU348
+ 1432 0000 F0B5     		push	{r4, r5, r6, r7, lr}
+ 1433              	.LCFI15:
+ 1434              		.cfi_def_cfa_offset 20
+ 1435              		.cfi_offset 4, -20
+ 1436              		.cfi_offset 5, -16
+ 1437              		.cfi_offset 6, -12
+ 1438              		.cfi_offset 7, -8
+ 1439              		.cfi_offset 14, -4
+ 1440 0002 C646     		mov	lr, r8
+ 1441 0004 00B5     		push	{lr}
+ 1442              	.LCFI16:
+ 1443              		.cfi_def_cfa_offset 24
+ 1444              		.cfi_offset 8, -24
+ 1445 0006 8AB0     		sub	sp, sp, #40
+ 1446              	.LCFI17:
+ 1447              		.cfi_def_cfa_offset 64
+ 1448 0008 0400     		movs	r4, r0
+ 271:Core/Src/led_rgb.c ****     uint32_t out[LED_COUNT];
+ 1449              		.loc 1 271 5 is_stmt 1 view .LVU349
+ 272:Core/Src/led_rgb.c ****     uint32_t tc;
+ 1450              		.loc 1 272 5 view .LVU350
+ 273:Core/Src/led_rgb.c ****     uint8_t  full, frac, heat;
+ 1451              		.loc 1 273 5 view .LVU351
+ 274:Core/Src/led_rgb.c ****     uint16_t scaled;
+ 1452              		.loc 1 274 5 view .LVU352
+ 275:Core/Src/led_rgb.c **** 
+ 276:Core/Src/led_rgb.c ****     switch (cmd->cmd) {
+ 1453              		.loc 1 276 5 view .LVU353
+ 1454              		.loc 1 276 16 is_stmt 0 view .LVU354
+ 1455 000a 4378     		ldrb	r3, [r0, #1]
+ 1456              		.loc 1 276 5 view .LVU355
+ 1457 000c 1F2B     		cmp	r3, #31
+ 1458 000e 08D8     		bhi	.L117
+ 1459 0010 9B00     		lsls	r3, r3, #2
+ 1460 0012 374A     		ldr	r2, .L138
+ 1461 0014 D358     		ldr	r3, [r2, r3]
+ 1462 0016 9F46     		mov	pc, r3
+ 1463              		.section	.rodata.LedStrip_ApplyCommand,"a",%progbits
+ 1464              		.align	2
+ 1465              	.L120:
+ 1466 0000 22000000 		.word	.L117
+ 1467 0004 18000000 		.word	.L126
+ 1468 0008 2A000000 		.word	.L125
+ 1469 000c 36000000 		.word	.L124
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 34
+
+
+ 1470 0010 22000000 		.word	.L117
+ 1471 0014 22000000 		.word	.L117
+ 1472 0018 22000000 		.word	.L117
+ 1473 001c 22000000 		.word	.L117
+ 1474 0020 22000000 		.word	.L117
+ 1475 0024 22000000 		.word	.L117
+ 1476 0028 22000000 		.word	.L117
+ 1477 002c 22000000 		.word	.L117
+ 1478 0030 22000000 		.word	.L117
+ 1479 0034 22000000 		.word	.L117
+ 1480 0038 22000000 		.word	.L117
+ 1481 003c 22000000 		.word	.L117
+ 1482 0040 C8000000 		.word	.L123
+ 1483 0044 D2000000 		.word	.L122
+ 1484 0048 DC000000 		.word	.L121
+ 1485 004c 22000000 		.word	.L117
+ 1486 0050 22000000 		.word	.L117
+ 1487 0054 22000000 		.word	.L117
+ 1488 0058 22000000 		.word	.L117
+ 1489 005c 22000000 		.word	.L117
+ 1490 0060 22000000 		.word	.L117
+ 1491 0064 22000000 		.word	.L117
+ 1492 0068 22000000 		.word	.L117
+ 1493 006c 22000000 		.word	.L117
+ 1494 0070 22000000 		.word	.L117
+ 1495 0074 22000000 		.word	.L117
+ 1496 0078 22000000 		.word	.L117
+ 1497 007c E6000000 		.word	.L119
+ 1498              		.section	.text.LedStrip_ApplyCommand
+ 1499              	.L126:
+ 277:Core/Src/led_rgb.c ****     case CAN_LED_TEAM_RED:
+ 278:Core/Src/led_rgb.c ****         LedStrip_SetTeam(TEAM_RED);
+ 1500              		.loc 1 278 9 is_stmt 1 view .LVU356
+ 1501 0018 0020     		movs	r0, #0
+ 1502              	.LVL130:
+ 1503              		.loc 1 278 9 is_stmt 0 view .LVU357
+ 1504 001a FFF7FEFF 		bl	LedStrip_SetTeam
+ 1505              	.LVL131:
+ 279:Core/Src/led_rgb.c ****         /* Refresh immediately so the heat bar changes color with the team
+ 280:Core/Src/led_rgb.c ****            command instead of waiting for a later shot or heat update. */
+ 281:Core/Src/led_rgb.c ****         LedStrip_Update();
+ 1506              		.loc 1 281 9 is_stmt 1 view .LVU358
+ 1507 001e FFF7FEFF 		bl	LedStrip_Update
+ 1508              	.LVL132:
+ 282:Core/Src/led_rgb.c ****         break;
+ 1509              		.loc 1 282 9 view .LVU359
+ 1510              	.L117:
+ 283:Core/Src/led_rgb.c ****     case CAN_LED_TEAM_BLUE:
+ 284:Core/Src/led_rgb.c ****         LedStrip_SetTeam(TEAM_BLUE);
+ 285:Core/Src/led_rgb.c ****         LedStrip_Update();
+ 286:Core/Src/led_rgb.c ****         break;
+ 287:Core/Src/led_rgb.c ****     case CAN_LED_HEAT_DATA:
+ 288:Core/Src/led_rgb.c ****         /* Bypass lerp — direct write with fractional edge brightness */
+ 289:Core/Src/led_rgb.c ****         LedStrip_SetRefereeData(cmd->heat_data);
+ 290:Core/Src/led_rgb.c ****         tc   = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
+ 291:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 292:Core/Src/led_rgb.c ****         if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 35
+
+
+ 293:Core/Src/led_rgb.c ****         scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 294:Core/Src/led_rgb.c ****         full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 295:Core/Src/led_rgb.c ****         frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 296:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) break;
+ 297:Core/Src/led_rgb.c ****         out[LED_DEBUG_IDX] = tc;
+ 298:Core/Src/led_rgb.c ****         for (int i = 0; i < LED_HEAT_COUNT; i++) {
+ 299:Core/Src/led_rgb.c ****             if (i < full)
+ 300:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = tc;
+ 301:Core/Src/led_rgb.c ****             else if (i == full && frac > 0)
+ 302:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = color_dim(tc,
+ 303:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 304:Core/Src/led_rgb.c ****             else
+ 305:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = 0;
+ 306:Core/Src/led_rgb.c ****         }
+ 307:Core/Src/led_rgb.c ****         ws2812_uart_send(out, LED_COUNT);
+ 308:Core/Src/led_rgb.c ****         break;
+ 309:Core/Src/led_rgb.c ****     case CAN_LED_TEST_GREEN:
+ 310:Core/Src/led_rgb.c ****         LedStrip_TestPattern(1, 0);
+ 311:Core/Src/led_rgb.c ****         break;
+ 312:Core/Src/led_rgb.c ****     case CAN_LED_TEST_RED:
+ 313:Core/Src/led_rgb.c ****         LedStrip_TestPattern(2, 0);
+ 314:Core/Src/led_rgb.c ****         break;
+ 315:Core/Src/led_rgb.c ****     case CAN_LED_TEST_BLUE:
+ 316:Core/Src/led_rgb.c ****         LedStrip_TestPattern(3, 0);
+ 317:Core/Src/led_rgb.c ****         break;
+ 318:Core/Src/led_rgb.c ****     case CAN_LED_TEST_OFF:
+ 319:Core/Src/led_rgb.c ****         LedStrip_TestPattern(5, 0);
+ 320:Core/Src/led_rgb.c ****         break;
+ 321:Core/Src/led_rgb.c ****     default:
+ 322:Core/Src/led_rgb.c ****         break;
+ 323:Core/Src/led_rgb.c ****     }
+ 324:Core/Src/led_rgb.c **** }
+ 1511              		.loc 1 324 1 is_stmt 0 view .LVU360
+ 1512 0022 0AB0     		add	sp, sp, #40
+ 1513              		@ sp needed
+ 1514 0024 80BC     		pop	{r7}
+ 1515 0026 B846     		mov	r8, r7
+ 1516 0028 F0BD     		pop	{r4, r5, r6, r7, pc}
+ 1517              	.LVL133:
+ 1518              	.L125:
+ 284:Core/Src/led_rgb.c ****         LedStrip_Update();
+ 1519              		.loc 1 284 9 is_stmt 1 view .LVU361
+ 1520 002a 0120     		movs	r0, #1
+ 1521              	.LVL134:
+ 284:Core/Src/led_rgb.c ****         LedStrip_Update();
+ 1522              		.loc 1 284 9 is_stmt 0 view .LVU362
+ 1523 002c FFF7FEFF 		bl	LedStrip_SetTeam
+ 1524              	.LVL135:
+ 285:Core/Src/led_rgb.c ****         break;
+ 1525              		.loc 1 285 9 is_stmt 1 view .LVU363
+ 1526 0030 FFF7FEFF 		bl	LedStrip_Update
+ 1527              	.LVL136:
+ 286:Core/Src/led_rgb.c ****     case CAN_LED_HEAT_DATA:
+ 1528              		.loc 1 286 9 view .LVU364
+ 1529 0034 F5E7     		b	.L117
+ 1530              	.LVL137:
+ 1531              	.L124:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 36
+
+
+ 289:Core/Src/led_rgb.c ****         tc   = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
+ 1532              		.loc 1 289 9 view .LVU365
+ 289:Core/Src/led_rgb.c ****         tc   = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
+ 1533              		.loc 1 289 36 is_stmt 0 view .LVU366
+ 1534 0036 8078     		ldrb	r0, [r0, #2]
+ 1535              	.LVL138:
+ 289:Core/Src/led_rgb.c ****         tc   = (led_team == TEAM_RED) ? COLOR_PINK : COLOR_LAKE_BLUE;
+ 1536              		.loc 1 289 9 view .LVU367
+ 1537 0038 FFF7FEFF 		bl	LedStrip_SetRefereeData
+ 1538              	.LVL139:
+ 290:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 1539              		.loc 1 290 9 is_stmt 1 view .LVU368
+ 290:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 1540              		.loc 1 290 26 is_stmt 0 view .LVU369
+ 1541 003c 2D4B     		ldr	r3, .L138+4
+ 1542 003e 1B78     		ldrb	r3, [r3]
+ 290:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 1543              		.loc 1 290 52 view .LVU370
+ 1544 0040 002B     		cmp	r3, #0
+ 1545 0042 17D1     		bne	.L134
+ 290:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 1546              		.loc 1 290 52 discriminator 1 view .LVU371
+ 1547 0044 2C4E     		ldr	r6, .L138+8
+ 1548              	.L127:
+ 1549              	.LVL140:
+ 291:Core/Src/led_rgb.c ****         if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 1550              		.loc 1 291 9 is_stmt 1 view .LVU372
+ 291:Core/Src/led_rgb.c ****         if (heat > THERMAL_HEAT_LIMIT) heat = THERMAL_HEAT_LIMIT;
+ 1551              		.loc 1 291 14 is_stmt 0 view .LVU373
+ 1552 0046 A478     		ldrb	r4, [r4, #2]
+ 1553              	.LVL141:
+ 292:Core/Src/led_rgb.c ****         scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1554              		.loc 1 292 9 is_stmt 1 view .LVU374
+ 292:Core/Src/led_rgb.c ****         scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1555              		.loc 1 292 12 is_stmt 0 view .LVU375
+ 1556 0048 C82C     		cmp	r4, #200
+ 1557 004a 00D9     		bls	.L128
+ 292:Core/Src/led_rgb.c ****         scaled = (uint16_t)heat * LED_HEAT_COUNT;
+ 1558              		.loc 1 292 45 discriminator 1 view .LVU376
+ 1559 004c C824     		movs	r4, #200
+ 1560              	.LVL142:
+ 1561              	.L128:
+ 293:Core/Src/led_rgb.c ****         full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 1562              		.loc 1 293 9 is_stmt 1 view .LVU377
+ 293:Core/Src/led_rgb.c ****         full = (uint8_t)(scaled / THERMAL_HEAT_LIMIT);
+ 1563              		.loc 1 293 16 is_stmt 0 view .LVU378
+ 1564 004e E400     		lsls	r4, r4, #3
+ 1565              	.LVL143:
+ 294:Core/Src/led_rgb.c ****         frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 1566              		.loc 1 294 9 is_stmt 1 view .LVU379
+ 294:Core/Src/led_rgb.c ****         frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ 1567              		.loc 1 294 16 is_stmt 0 view .LVU380
+ 1568 0050 C821     		movs	r1, #200
+ 1569 0052 2000     		movs	r0, r4
+ 1570 0054 FFF7FEFF 		bl	__aeabi_uidiv
+ 1571              	.LVL144:
+ 294:Core/Src/led_rgb.c ****         frac = (uint8_t)(scaled % THERMAL_HEAT_LIMIT);
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 37
+
+
+ 1572              		.loc 1 294 14 view .LVU381
+ 1573 0058 C5B2     		uxtb	r5, r0
+ 1574              	.LVL145:
+ 295:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) break;
+ 1575              		.loc 1 295 9 is_stmt 1 view .LVU382
+ 295:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) break;
+ 1576              		.loc 1 295 16 is_stmt 0 view .LVU383
+ 1577 005a C821     		movs	r1, #200
+ 1578 005c 2000     		movs	r0, r4
+ 1579 005e FFF7FEFF 		bl	__aeabi_uidivmod
+ 1580              	.LVL146:
+ 295:Core/Src/led_rgb.c ****         if (ws2812_uart_busy()) break;
+ 1581              		.loc 1 295 14 view .LVU384
+ 1582 0062 CBB2     		uxtb	r3, r1
+ 1583 0064 9846     		mov	r8, r3
+ 1584              	.LVL147:
+ 296:Core/Src/led_rgb.c ****         out[LED_DEBUG_IDX] = tc;
+ 1585              		.loc 1 296 9 is_stmt 1 view .LVU385
+ 296:Core/Src/led_rgb.c ****         out[LED_DEBUG_IDX] = tc;
+ 1586              		.loc 1 296 13 is_stmt 0 view .LVU386
+ 1587 0066 FFF7FEFF 		bl	ws2812_uart_busy
+ 1588              	.LVL148:
+ 296:Core/Src/led_rgb.c ****         out[LED_DEBUG_IDX] = tc;
+ 1589              		.loc 1 296 12 discriminator 1 view .LVU387
+ 1590 006a 0028     		cmp	r0, #0
+ 1591 006c D9D1     		bne	.L117
+ 297:Core/Src/led_rgb.c ****         for (int i = 0; i < LED_HEAT_COUNT; i++) {
+ 1592              		.loc 1 297 9 is_stmt 1 view .LVU388
+ 297:Core/Src/led_rgb.c ****         for (int i = 0; i < LED_HEAT_COUNT; i++) {
+ 1593              		.loc 1 297 28 is_stmt 0 view .LVU389
+ 1594 006e 0196     		str	r6, [sp, #4]
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1595              		.loc 1 298 9 is_stmt 1 view .LVU390
+ 1596              	.LBB44:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1597              		.loc 1 298 14 view .LVU391
+ 1598              	.LVL149:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1599              		.loc 1 298 18 is_stmt 0 view .LVU392
+ 1600 0070 0024     		movs	r4, #0
+ 1601              	.LVL150:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1602              		.loc 1 298 9 view .LVU393
+ 1603 0072 09E0     		b	.L129
+ 1604              	.LVL151:
+ 1605              	.L134:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1606              		.loc 1 298 9 view .LVU394
+ 1607              	.LBE44:
+ 290:Core/Src/led_rgb.c ****         heat = cmd->heat_data;
+ 1608              		.loc 1 290 52 discriminator 2 view .LVU395
+ 1609 0074 214E     		ldr	r6, .L138+12
+ 1610 0076 E6E7     		b	.L127
+ 1611              	.LVL152:
+ 1612              	.L130:
+ 1613              	.LBB45:
+ 301:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = color_dim(tc,
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 38
+
+
+ 1614              		.loc 1 301 18 is_stmt 1 view .LVU396
+ 301:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = color_dim(tc,
+ 1615              		.loc 1 301 21 is_stmt 0 view .LVU397
+ 1616 0078 A542     		cmp	r5, r4
+ 1617 007a 0ED0     		beq	.L136
+ 1618              	.L132:
+ 305:Core/Src/led_rgb.c ****         }
+ 1619              		.loc 1 305 17 is_stmt 1 view .LVU398
+ 305:Core/Src/led_rgb.c ****         }
+ 1620              		.loc 1 305 36 is_stmt 0 view .LVU399
+ 1621 007c 631C     		adds	r3, r4, #1
+ 305:Core/Src/led_rgb.c ****         }
+ 1622              		.loc 1 305 41 view .LVU400
+ 1623 007e 9B00     		lsls	r3, r3, #2
+ 1624 0080 01AA     		add	r2, sp, #4
+ 1625 0082 0021     		movs	r1, #0
+ 1626 0084 9950     		str	r1, [r3, r2]
+ 1627              	.L131:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1628              		.loc 1 298 46 is_stmt 1 discriminator 2 view .LVU401
+ 1629 0086 0134     		adds	r4, r4, #1
+ 1630              	.LVL153:
+ 1631              	.L129:
+ 298:Core/Src/led_rgb.c ****             if (i < full)
+ 1632              		.loc 1 298 27 discriminator 1 view .LVU402
+ 1633 0088 072C     		cmp	r4, #7
+ 1634 008a 18DC     		bgt	.L137
+ 299:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = tc;
+ 1635              		.loc 1 299 13 view .LVU403
+ 299:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = tc;
+ 1636              		.loc 1 299 16 is_stmt 0 view .LVU404
+ 1637 008c A542     		cmp	r5, r4
+ 1638 008e F3DD     		ble	.L130
+ 300:Core/Src/led_rgb.c ****             else if (i == full && frac > 0)
+ 1639              		.loc 1 300 17 is_stmt 1 view .LVU405
+ 300:Core/Src/led_rgb.c ****             else if (i == full && frac > 0)
+ 1640              		.loc 1 300 36 is_stmt 0 view .LVU406
+ 1641 0090 631C     		adds	r3, r4, #1
+ 300:Core/Src/led_rgb.c ****             else if (i == full && frac > 0)
+ 1642              		.loc 1 300 41 view .LVU407
+ 1643 0092 9B00     		lsls	r3, r3, #2
+ 1644 0094 01AA     		add	r2, sp, #4
+ 1645 0096 9E50     		str	r6, [r3, r2]
+ 1646 0098 F5E7     		b	.L131
+ 1647              	.L136:
+ 301:Core/Src/led_rgb.c ****                 out[LED_HEAT_START + i] = color_dim(tc,
+ 1648              		.loc 1 301 32 discriminator 1 view .LVU408
+ 1649 009a 4346     		mov	r3, r8
+ 1650 009c 002B     		cmp	r3, #0
+ 1651 009e EDD0     		beq	.L132
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1652              		.loc 1 302 17 is_stmt 1 view .LVU409
+ 303:Core/Src/led_rgb.c ****             else
+ 1653              		.loc 1 303 21 is_stmt 0 view .LVU410
+ 1654 00a0 4046     		mov	r0, r8
+ 1655 00a2 FFF7FEFF 		bl	__aeabi_ui2f
+ 1656              	.LVL154:
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 39
+
+
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1657              		.loc 1 302 36 view .LVU411
+ 1658 00a6 671C     		adds	r7, r4, #1
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1659              		.loc 1 302 43 view .LVU412
+ 1660 00a8 1549     		ldr	r1, .L138+16
+ 1661 00aa FFF7FEFF 		bl	__aeabi_fdiv
+ 1662              	.LVL155:
+ 1663 00ae 011C     		adds	r1, r0, #0
+ 1664 00b0 3000     		movs	r0, r6
+ 1665 00b2 FFF7FEFF 		bl	color_dim
+ 1666              	.LVL156:
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1667              		.loc 1 302 41 discriminator 1 view .LVU413
+ 1668 00b6 BF00     		lsls	r7, r7, #2
+ 1669 00b8 01AB     		add	r3, sp, #4
+ 1670 00ba D851     		str	r0, [r3, r7]
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1671              		.loc 1 302 41 view .LVU414
+ 1672 00bc E3E7     		b	.L131
+ 1673              	.L137:
+ 302:Core/Src/led_rgb.c ****                     (float)frac / (float)THERMAL_HEAT_LIMIT);
+ 1674              		.loc 1 302 41 view .LVU415
+ 1675              	.LBE45:
+ 307:Core/Src/led_rgb.c ****         break;
+ 1676              		.loc 1 307 9 is_stmt 1 view .LVU416
+ 1677 00be 0921     		movs	r1, #9
+ 1678 00c0 01A8     		add	r0, sp, #4
+ 1679 00c2 FFF7FEFF 		bl	ws2812_uart_send
+ 1680              	.LVL157:
+ 308:Core/Src/led_rgb.c ****     case CAN_LED_TEST_GREEN:
+ 1681              		.loc 1 308 9 view .LVU417
+ 1682 00c6 ACE7     		b	.L117
+ 1683              	.LVL158:
+ 1684              	.L123:
+ 310:Core/Src/led_rgb.c ****         break;
+ 1685              		.loc 1 310 9 view .LVU418
+ 1686 00c8 0021     		movs	r1, #0
+ 1687 00ca 0120     		movs	r0, #1
+ 1688              	.LVL159:
+ 310:Core/Src/led_rgb.c ****         break;
+ 1689              		.loc 1 310 9 is_stmt 0 view .LVU419
+ 1690 00cc FFF7FEFF 		bl	LedStrip_TestPattern
+ 1691              	.LVL160:
+ 311:Core/Src/led_rgb.c ****     case CAN_LED_TEST_RED:
+ 1692              		.loc 1 311 9 is_stmt 1 view .LVU420
+ 1693 00d0 A7E7     		b	.L117
+ 1694              	.LVL161:
+ 1695              	.L122:
+ 313:Core/Src/led_rgb.c ****         break;
+ 1696              		.loc 1 313 9 view .LVU421
+ 1697 00d2 0021     		movs	r1, #0
+ 1698 00d4 0220     		movs	r0, #2
+ 1699              	.LVL162:
+ 313:Core/Src/led_rgb.c ****         break;
+ 1700              		.loc 1 313 9 is_stmt 0 view .LVU422
+ 1701 00d6 FFF7FEFF 		bl	LedStrip_TestPattern
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 40
+
+
+ 1702              	.LVL163:
+ 314:Core/Src/led_rgb.c ****     case CAN_LED_TEST_BLUE:
+ 1703              		.loc 1 314 9 is_stmt 1 view .LVU423
+ 1704 00da A2E7     		b	.L117
+ 1705              	.LVL164:
+ 1706              	.L121:
+ 316:Core/Src/led_rgb.c ****         break;
+ 1707              		.loc 1 316 9 view .LVU424
+ 1708 00dc 0021     		movs	r1, #0
+ 1709 00de 0320     		movs	r0, #3
+ 1710              	.LVL165:
+ 316:Core/Src/led_rgb.c ****         break;
+ 1711              		.loc 1 316 9 is_stmt 0 view .LVU425
+ 1712 00e0 FFF7FEFF 		bl	LedStrip_TestPattern
+ 1713              	.LVL166:
+ 317:Core/Src/led_rgb.c ****     case CAN_LED_TEST_OFF:
+ 1714              		.loc 1 317 9 is_stmt 1 view .LVU426
+ 1715 00e4 9DE7     		b	.L117
+ 1716              	.LVL167:
+ 1717              	.L119:
+ 319:Core/Src/led_rgb.c ****         break;
+ 1718              		.loc 1 319 9 view .LVU427
+ 1719 00e6 0021     		movs	r1, #0
+ 1720 00e8 0520     		movs	r0, #5
+ 1721              	.LVL168:
+ 319:Core/Src/led_rgb.c ****         break;
+ 1722              		.loc 1 319 9 is_stmt 0 view .LVU428
+ 1723 00ea FFF7FEFF 		bl	LedStrip_TestPattern
+ 1724              	.LVL169:
+ 320:Core/Src/led_rgb.c ****     default:
+ 1725              		.loc 1 320 9 is_stmt 1 view .LVU429
+ 1726              		.loc 1 324 1 is_stmt 0 view .LVU430
+ 1727 00ee 98E7     		b	.L117
+ 1728              	.L139:
+ 1729              		.align	2
+ 1730              	.L138:
+ 1731 00f0 00000000 		.word	.L120
+ 1732 00f4 00000000 		.word	led_team
+ 1733 00f8 64FF3200 		.word	3342180
+ 1734 00fc FF00B400 		.word	11796735
+ 1735 0100 00004843 		.word	1128792064
+ 1736              		.cfi_endproc
+ 1737              	.LFE53:
+ 1739              		.section	.bss.shot_effect_start_tick,"aw",%nobits
+ 1740              		.align	2
+ 1743              	shot_effect_start_tick:
+ 1744 0000 00000000 		.space	4
+ 1745              		.section	.bss.shot_effect_active,"aw",%nobits
+ 1748              	shot_effect_active:
+ 1749 0000 00       		.space	1
+ 1750              		.section	.bss.boot_effect_start_tick,"aw",%nobits
+ 1751              		.align	2
+ 1754              	boot_effect_start_tick:
+ 1755 0000 00000000 		.space	4
+ 1756              		.section	.bss.boot_effect_active,"aw",%nobits
+ 1759              	boot_effect_active:
+ 1760 0000 00       		.space	1
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 41
+
+
+ 1761              		.section	.bss.led_current,"aw",%nobits
+ 1762              		.align	2
+ 1765              	led_current:
+ 1766 0000 00000000 		.space	36
+ 1766      00000000 
+ 1766      00000000 
+ 1766      00000000 
+ 1766      00000000 
+ 1767              		.section	.bss.led_desired,"aw",%nobits
+ 1768              		.align	2
+ 1771              	led_desired:
+ 1772 0000 00000000 		.space	36
+ 1772      00000000 
+ 1772      00000000 
+ 1772      00000000 
+ 1772      00000000 
+ 1773              		.section	.bss.led_referee_data,"aw",%nobits
+ 1776              	led_referee_data:
+ 1777 0000 00       		.space	1
+ 1778              		.section	.bss.led_overheat_alert,"aw",%nobits
+ 1781              	led_overheat_alert:
+ 1782 0000 00       		.space	1
+ 1783              		.section	.data.led_team,"aw"
+ 1786              	led_team:
+ 1787 0000 01       		.byte	1
+ 1788              		.text
+ 1789              	.Letext0:
+ 1790              		.file 2 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 1791              		.file 3 "E:\\STM32CubeCLT_1.21.0\\GNU-tools-for-STM32\\bin/../lib/gcc/arm-none-eabi/14.3.1/../../.
+ 1792              		.file 4 "Core/Inc/can_protocol.h"
+ 1793              		.file 5 "Core/Inc/led_rgb.h"
+ 1794              		.file 6 "Core/Inc/ws2812_uart.h"
+ 1795              		.file 7 "<built-in>"
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 42
+
+
+DEFINED SYMBOLS
+                            *ABS*:00000000 led_rgb.c
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:19     .text.color_dim:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:24     .text.color_dim:00000000 color_dim
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:119    .text.LedStrip_Init:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:125    .text.LedStrip_Init:00000000 LedStrip_Init
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:172    .text.LedStrip_Init:00000020 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1771   .bss.led_desired:00000000 led_desired
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1765   .bss.led_current:00000000 led_current
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:178    .text.LedStrip_SetTeam:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:184    .text.LedStrip_SetTeam:00000000 LedStrip_SetTeam
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:202    .text.LedStrip_SetTeam:00000008 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1786   .data.led_team:00000000 led_team
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:207    .text.LedStrip_SetOverheatAlert:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:213    .text.LedStrip_SetOverheatAlert:00000000 LedStrip_SetOverheatAlert
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:231    .text.LedStrip_SetOverheatAlert:00000008 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1781   .bss.led_overheat_alert:00000000 led_overheat_alert
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:236    .text.LedStrip_SetRefereeData:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:242    .text.LedStrip_SetRefereeData:00000000 LedStrip_SetRefereeData
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:260    .text.LedStrip_SetRefereeData:00000008 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1776   .bss.led_referee_data:00000000 led_referee_data
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:265    .text.LedStrip_Update:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:271    .text.LedStrip_Update:00000000 LedStrip_Update
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:645    .text.LedStrip_Update:0000016c $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:661    .text.LedStrip_ShowFaultAlert:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:667    .text.LedStrip_ShowFaultAlert:00000000 LedStrip_ShowFaultAlert
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:766    .text.LedStrip_StartBootEffect:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:772    .text.LedStrip_StartBootEffect:00000000 LedStrip_StartBootEffect
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:795    .text.LedStrip_StartBootEffect:0000000c $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1754   .bss.boot_effect_start_tick:00000000 boot_effect_start_tick
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1759   .bss.boot_effect_active:00000000 boot_effect_active
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:801    .text.LedStrip_ProcessBootEffect:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:807    .text.LedStrip_ProcessBootEffect:00000000 LedStrip_ProcessBootEffect
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:958    .text.LedStrip_ProcessBootEffect:00000074 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:967    .text.LedStrip_StartShotEffect:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:973    .text.LedStrip_StartShotEffect:00000000 LedStrip_StartShotEffect
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:996    .text.LedStrip_StartShotEffect:0000000c $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1743   .bss.shot_effect_start_tick:00000000 shot_effect_start_tick
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1748   .bss.shot_effect_active:00000000 shot_effect_active
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1002   .text.LedStrip_ProcessShotEffect:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1008   .text.LedStrip_ProcessShotEffect:00000000 LedStrip_ProcessShotEffect
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1247   .text.LedStrip_ProcessShotEffect:000000cc $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1258   .text.LedStrip_TestPattern:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1264   .text.LedStrip_TestPattern:00000000 LedStrip_TestPattern
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1411   .text.LedStrip_TestPattern:00000080 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1418   .text.LedStrip_ApplyCommand:00000000 $t
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1424   .text.LedStrip_ApplyCommand:00000000 LedStrip_ApplyCommand
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1464   .rodata.LedStrip_ApplyCommand:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1731   .text.LedStrip_ApplyCommand:000000f0 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1740   .bss.shot_effect_start_tick:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1749   .bss.shot_effect_active:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1751   .bss.boot_effect_start_tick:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1760   .bss.boot_effect_active:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1762   .bss.led_current:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1768   .bss.led_desired:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1777   .bss.led_referee_data:00000000 $d
+C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s:1782   .bss.led_overheat_alert:00000000 $d
+ARM GAS  C:\Users\24705\AppData\Local\Temp\cc5I5Dog.s 			page 43
+
+
+
+UNDEFINED SYMBOLS
+__aeabi_ui2f
+__aeabi_fmul
+__aeabi_f2uiz
+ws2812_uart_init
+ws2812_uart_busy
+__aeabi_uidiv
+__aeabi_uidivmod
+__aeabi_fdiv
+__aeabi_fcmplt
+__aeabi_fsub
+__aeabi_fcmpgt
+__aeabi_fadd
+__aeabi_fcmple
+ws2812_uart_send
+memset

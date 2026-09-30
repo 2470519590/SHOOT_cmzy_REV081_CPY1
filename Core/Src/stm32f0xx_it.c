@@ -62,6 +62,8 @@ extern CAN_HandleTypeDef hcan;
 extern TIM_HandleTypeDef htim14;
 extern TIM_HandleTypeDef htim15;
 extern DMA_HandleTypeDef hdma_usart3_tx;
+extern DMA_HandleTypeDef hdma_adc;
+extern ADC_HandleTypeDef hadc;
 /* USER CODE BEGIN EV */
 extern ShootDetect_t g_shoot_detect;
 extern CAN_HandleTypeDef hcan;
@@ -221,17 +223,17 @@ void CEC_CAN_IRQHandler(void)
 /**
   * @brief EXTI GPIO callback — route to shoot detection module.
   */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+/* Old sensor EXTI is intentionally not enabled in the raw-only build. */
+void DMA1_Channel1_IRQHandler(void)
 {
-    /* Physical order: PB12(IR_IIC2) fires 1st, PB5(IR_IIC1) fires 2nd.
-       RearTrigger = start waiting, FrontTrigger = calculate speed.        */
-    if (GPIO_Pin == IR_IIC2_INT_Pin) {       /* PB12 → 1st → start wait    */
-        ShootDetect_RearTrigger(&g_shoot_detect);
-    }
-    if (GPIO_Pin == IR_IIC1_INT_Pin) {       /* PB5  → 2nd → calculate     */
-        ShootDetect_FrontTrigger(&g_shoot_detect);
-    }
+    HAL_DMA_IRQHandler(&hdma_adc);
 }
+
+void ADC1_COMP_IRQHandler(void)
+{
+    HAL_ADC_IRQHandler(&hadc);
+}
+
 
 /**
   * @brief CAN Rx FIFO 0 message pending callback — route to protocol handler.
