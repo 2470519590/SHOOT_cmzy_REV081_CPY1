@@ -39,7 +39,7 @@ E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/.
 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-sbrkr.o)
                               E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-mallocr.o) (_sbrk_r)
 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_udivsi3.o)
-                              build_sensor/stm32f0xx_hal_adc.o (__aeabi_uidiv)
+                              build_sensor/ir_acquisition.o (__aeabi_uidiv)
 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_dvmd_tls.o)
                               E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_udivsi3.o) (__aeabi_idiv0)
 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_arm_cmpsf2.o)
@@ -1744,7 +1744,7 @@ LOAD E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.
                 0x08000000                g_pfnVectors
                 0x080000c0                        . = ALIGN (0x4)
 
-.text           0x080000c0     0x6170
+.text           0x080000c0     0x6654
                 0x080000c0                        . = ALIGN (0x4)
  *(.text)
  .text          0x080000c0       0x48 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
@@ -1791,1005 +1791,1133 @@ LOAD E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.
  .text          0x08001270       0x3c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_clzsi2.o)
                 0x08001270                __clzsi2
  *(.text*)
+ .text.IR_PairEvent
+                0x080012ac       0xe4 build_sensor/ir_acquisition.o
+ .text.IR_DetectSample
+                0x08001390      0x20c build_sensor/ir_acquisition.o
  .text.IR_HistogramMedian
-                0x080012ac       0x24 build_sensor/ir_acquisition.o
+                0x0800159c       0x24 build_sensor/ir_acquisition.o
  .text.IR_FinishStartupCalibration
-                0x080012d0       0xb8 build_sensor/ir_acquisition.o
+                0x080015c0       0xa8 build_sensor/ir_acquisition.o
  .text.IR_ScanCompletedBlock
-                0x08001388      0x1f0 build_sensor/ir_acquisition.o
+                0x08001668      0x404 build_sensor/ir_acquisition.o
  .text.IR_Acquisition_SetDacCodes
-                0x08001578       0x90 build_sensor/ir_acquisition.o
-                0x08001578                IR_Acquisition_SetDacCodes
+                0x08001a6c       0x90 build_sensor/ir_acquisition.o
+                0x08001a6c                IR_Acquisition_SetDacCodes
  .text.IR_Acquisition_Init
-                0x08001608      0x200 build_sensor/ir_acquisition.o
-                0x08001608                IR_Acquisition_Init
+                0x08001afc      0x1f0 build_sensor/ir_acquisition.o
+                0x08001afc                IR_Acquisition_Init
  .text.IR_Acquisition_PublishLatest
-                0x08001808       0xec build_sensor/ir_acquisition.o
-                0x08001808                IR_Acquisition_PublishLatest
+                0x08001cec       0xec build_sensor/ir_acquisition.o
+                0x08001cec                IR_Acquisition_PublishLatest
  .text.IR_Acquisition_TakeRearEvent
-                0x080018f4       0x18 build_sensor/ir_acquisition.o
-                0x080018f4                IR_Acquisition_TakeRearEvent
+                0x08001dd8       0x18 build_sensor/ir_acquisition.o
+                0x08001dd8                IR_Acquisition_TakeRearEvent
  .text.IR_Acquisition_TakeFrontEvent
-                0x0800190c       0x18 build_sensor/ir_acquisition.o
-                0x0800190c                IR_Acquisition_TakeFrontEvent
+                0x08001df0       0x18 build_sensor/ir_acquisition.o
+                0x08001df0                IR_Acquisition_TakeFrontEvent
  .text.HAL_ADC_ConvHalfCpltCallback
-                0x08001924       0x38 build_sensor/ir_acquisition.o
-                0x08001924                HAL_ADC_ConvHalfCpltCallback
+                0x08001e08       0x38 build_sensor/ir_acquisition.o
+                0x08001e08                HAL_ADC_ConvHalfCpltCallback
  .text.HAL_ADC_ConvCpltCallback
-                0x0800195c       0x38 build_sensor/ir_acquisition.o
-                0x0800195c                HAL_ADC_ConvCpltCallback
+                0x08001e40       0x38 build_sensor/ir_acquisition.o
+                0x08001e40                HAL_ADC_ConvCpltCallback
  .text.HAL_ADC_ErrorCallback
-                0x08001994       0x24 build_sensor/ir_acquisition.o
-                0x08001994                HAL_ADC_ErrorCallback
+                0x08001e78       0x24 build_sensor/ir_acquisition.o
+                0x08001e78                HAL_ADC_ErrorCallback
  .text.ADC_Enable
-                0x080019b8       0xb0 build_sensor/stm32f0xx_hal_adc.o
+                0x08001e9c       0xb0 build_sensor/stm32f0xx_hal_adc.o
  .text.HAL_ADC_Init
-                0x08001a68      0x184 build_sensor/stm32f0xx_hal_adc.o
-                0x08001a68                HAL_ADC_Init
+                0x08001f4c      0x184 build_sensor/stm32f0xx_hal_adc.o
+                0x08001f4c                HAL_ADC_Init
  .text.HAL_ADC_Start_DMA
-                0x08001bec       0xa8 build_sensor/stm32f0xx_hal_adc.o
-                0x08001bec                HAL_ADC_Start_DMA
+                0x080020d0       0xa8 build_sensor/stm32f0xx_hal_adc.o
+                0x080020d0                HAL_ADC_Start_DMA
  .text.ADC_DMAConvCplt
-                0x08001c94       0x70 build_sensor/stm32f0xx_hal_adc.o
+                0x08002178       0x70 build_sensor/stm32f0xx_hal_adc.o
  .text.ADC_DMAHalfConvCplt
-                0x08001d04        0xa build_sensor/stm32f0xx_hal_adc.o
+                0x080021e8        0xa build_sensor/stm32f0xx_hal_adc.o
  .text.HAL_ADC_LevelOutOfWindowCallback
-                0x08001d0e        0x2 build_sensor/stm32f0xx_hal_adc.o
-                0x08001d0e                HAL_ADC_LevelOutOfWindowCallback
+                0x080021f2        0x2 build_sensor/stm32f0xx_hal_adc.o
+                0x080021f2                HAL_ADC_LevelOutOfWindowCallback
  .text.ADC_DMAError
-                0x08001d10       0x1a build_sensor/stm32f0xx_hal_adc.o
- *fill*         0x08001d2a        0x2 
+                0x080021f4       0x1a build_sensor/stm32f0xx_hal_adc.o
+ *fill*         0x0800220e        0x2 
  .text.HAL_ADC_IRQHandler
-                0x08001d2c       0xd0 build_sensor/stm32f0xx_hal_adc.o
-                0x08001d2c                HAL_ADC_IRQHandler
+                0x08002210       0xd0 build_sensor/stm32f0xx_hal_adc.o
+                0x08002210                HAL_ADC_IRQHandler
  .text.HAL_ADC_ConfigChannel
-                0x08001dfc      0x138 build_sensor/stm32f0xx_hal_adc.o
-                0x08001dfc                HAL_ADC_ConfigChannel
+                0x080022e0      0x138 build_sensor/stm32f0xx_hal_adc.o
+                0x080022e0                HAL_ADC_ConfigChannel
  .text.HAL_ADCEx_Calibration_Start
-                0x08001f34       0xb8 build_sensor/stm32f0xx_hal_adc_ex.o
-                0x08001f34                HAL_ADCEx_Calibration_Start
+                0x08002418       0xb8 build_sensor/stm32f0xx_hal_adc_ex.o
+                0x08002418                HAL_ADCEx_Calibration_Start
  .text.MX_GPIO_Init
-                0x08001fec       0x4c build_sensor/main.o
+                0x080024d0       0x4c build_sensor/main.o
  .text.MX_DMA_Init
-                0x08002038       0x40 build_sensor/main.o
+                0x0800251c       0x40 build_sensor/main.o
  .text.HAL_TIM_PeriodElapsedCallback
-                0x08002078       0x30 build_sensor/main.o
-                0x08002078                HAL_TIM_PeriodElapsedCallback
+                0x0800255c       0x30 build_sensor/main.o
+                0x0800255c                HAL_TIM_PeriodElapsedCallback
  .text.Error_Handler
-                0x080020a8        0x4 build_sensor/main.o
-                0x080020a8                Error_Handler
+                0x0800258c        0x4 build_sensor/main.o
+                0x0800258c                Error_Handler
  .text.MX_CAN_Init
-                0x080020ac       0x44 build_sensor/main.o
+                0x08002590       0x44 build_sensor/main.o
  .text.MX_DAC_Init
-                0x080020f0       0x44 build_sensor/main.o
+                0x080025d4       0x44 build_sensor/main.o
  .text.MX_USART1_UART_Init
-                0x08002134       0x38 build_sensor/main.o
+                0x08002618       0x38 build_sensor/main.o
  .text.MX_USART3_UART_Init
-                0x0800216c       0x48 build_sensor/main.o
+                0x08002650       0x48 build_sensor/main.o
  .text.MX_TIM14_Init
-                0x080021b4       0xa4 build_sensor/main.o
+                0x08002698       0xa4 build_sensor/main.o
  .text.MX_TIM15_Init
-                0x08002258      0x11c build_sensor/main.o
+                0x0800273c      0x11c build_sensor/main.o
  .text.MX_TIM16_Init
-                0x08002374       0xa8 build_sensor/main.o
+                0x08002858       0xa8 build_sensor/main.o
  .text.MX_IWDG_Init
-                0x0800241c       0x30 build_sensor/main.o
+                0x08002900       0x30 build_sensor/main.o
  .text.SystemClock_Config
-                0x0800244c       0x84 build_sensor/main.o
-                0x0800244c                SystemClock_Config
- .text.main     0x080024d0      0x4a8 build_sensor/main.o
-                0x080024d0                main
+                0x08002930       0x84 build_sensor/main.o
+                0x08002930                SystemClock_Config
+ .text.main     0x080029b4      0x4a8 build_sensor/main.o
+                0x080029b4                main
  .text.NMI_Handler
-                0x08002978        0x8 build_sensor/stm32f0xx_it.o
-                0x08002978                NMI_Handler
+                0x08002e5c        0x8 build_sensor/stm32f0xx_it.o
+                0x08002e5c                NMI_Handler
  .text.HardFault_Handler
-                0x08002980        0xc build_sensor/stm32f0xx_it.o
-                0x08002980                HardFault_Handler
+                0x08002e64        0xc build_sensor/stm32f0xx_it.o
+                0x08002e64                HardFault_Handler
  .text.SVC_Handler
-                0x0800298c        0x2 build_sensor/stm32f0xx_it.o
-                0x0800298c                SVC_Handler
+                0x08002e70        0x2 build_sensor/stm32f0xx_it.o
+                0x08002e70                SVC_Handler
  .text.PendSV_Handler
-                0x0800298e        0x2 build_sensor/stm32f0xx_it.o
-                0x0800298e                PendSV_Handler
+                0x08002e72        0x2 build_sensor/stm32f0xx_it.o
+                0x08002e72                PendSV_Handler
  .text.SysTick_Handler
-                0x08002990        0x8 build_sensor/stm32f0xx_it.o
-                0x08002990                SysTick_Handler
+                0x08002e74        0x8 build_sensor/stm32f0xx_it.o
+                0x08002e74                SysTick_Handler
  .text.EXTI4_15_IRQHandler
-                0x08002998       0x12 build_sensor/stm32f0xx_it.o
-                0x08002998                EXTI4_15_IRQHandler
- *fill*         0x080029aa        0x2 
+                0x08002e7c       0x12 build_sensor/stm32f0xx_it.o
+                0x08002e7c                EXTI4_15_IRQHandler
+ *fill*         0x08002e8e        0x2 
  .text.DMA1_Channel2_3_IRQHandler
-                0x080029ac       0x10 build_sensor/stm32f0xx_it.o
-                0x080029ac                DMA1_Channel2_3_IRQHandler
+                0x08002e90       0x10 build_sensor/stm32f0xx_it.o
+                0x08002e90                DMA1_Channel2_3_IRQHandler
  .text.TIM14_IRQHandler
-                0x080029bc       0x10 build_sensor/stm32f0xx_it.o
-                0x080029bc                TIM14_IRQHandler
+                0x08002ea0       0x10 build_sensor/stm32f0xx_it.o
+                0x08002ea0                TIM14_IRQHandler
  .text.TIM15_IRQHandler
-                0x080029cc       0x10 build_sensor/stm32f0xx_it.o
-                0x080029cc                TIM15_IRQHandler
+                0x08002eb0       0x10 build_sensor/stm32f0xx_it.o
+                0x08002eb0                TIM15_IRQHandler
  .text.CEC_CAN_IRQHandler
-                0x080029dc       0x10 build_sensor/stm32f0xx_it.o
-                0x080029dc                CEC_CAN_IRQHandler
+                0x08002ec0       0x10 build_sensor/stm32f0xx_it.o
+                0x08002ec0                CEC_CAN_IRQHandler
  .text.DMA1_Channel1_IRQHandler
-                0x080029ec       0x10 build_sensor/stm32f0xx_it.o
-                0x080029ec                DMA1_Channel1_IRQHandler
+                0x08002ed0       0x10 build_sensor/stm32f0xx_it.o
+                0x08002ed0                DMA1_Channel1_IRQHandler
  .text.ADC1_COMP_IRQHandler
-                0x080029fc       0x10 build_sensor/stm32f0xx_it.o
-                0x080029fc                ADC1_COMP_IRQHandler
+                0x08002ee0       0x10 build_sensor/stm32f0xx_it.o
+                0x08002ee0                ADC1_COMP_IRQHandler
  .text.HAL_CAN_RxFifo0MsgPendingCallback
-                0x08002a0c        0xa build_sensor/stm32f0xx_it.o
-                0x08002a0c                HAL_CAN_RxFifo0MsgPendingCallback
- *fill*         0x08002a16        0x2 
+                0x08002ef0        0xa build_sensor/stm32f0xx_it.o
+                0x08002ef0                HAL_CAN_RxFifo0MsgPendingCallback
+ *fill*         0x08002efa        0x2 
  .text.HAL_MspInit
-                0x08002a18       0x30 build_sensor/stm32f0xx_hal_msp.o
-                0x08002a18                HAL_MspInit
+                0x08002efc       0x30 build_sensor/stm32f0xx_hal_msp.o
+                0x08002efc                HAL_MspInit
  .text.HAL_CAN_MspInit
-                0x08002a48       0x7c build_sensor/stm32f0xx_hal_msp.o
-                0x08002a48                HAL_CAN_MspInit
+                0x08002f2c       0x7c build_sensor/stm32f0xx_hal_msp.o
+                0x08002f2c                HAL_CAN_MspInit
  .text.HAL_DAC_MspInit
-                0x08002ac4       0x60 build_sensor/stm32f0xx_hal_msp.o
-                0x08002ac4                HAL_DAC_MspInit
+                0x08002fa8       0x60 build_sensor/stm32f0xx_hal_msp.o
+                0x08002fa8                HAL_DAC_MspInit
  .text.HAL_ADC_MspInit
-                0x08002b24       0xc0 build_sensor/stm32f0xx_hal_msp.o
-                0x08002b24                HAL_ADC_MspInit
+                0x08003008       0xc0 build_sensor/stm32f0xx_hal_msp.o
+                0x08003008                HAL_ADC_MspInit
  .text.HAL_TIM_Base_MspInit
-                0x08002be4       0x90 build_sensor/stm32f0xx_hal_msp.o
-                0x08002be4                HAL_TIM_Base_MspInit
+                0x080030c8       0x90 build_sensor/stm32f0xx_hal_msp.o
+                0x080030c8                HAL_TIM_Base_MspInit
  .text.HAL_UART_MspInit
-                0x08002c74       0xf8 build_sensor/stm32f0xx_hal_msp.o
-                0x08002c74                HAL_UART_MspInit
+                0x08003158       0xf8 build_sensor/stm32f0xx_hal_msp.o
+                0x08003158                HAL_UART_MspInit
  .text.ShootDetect_GetCount
-                0x08002d6c        0x4 build_sensor/shoot_detect.o
-                0x08002d6c                ShootDetect_GetCount
+                0x08003250        0x4 build_sensor/shoot_detect.o
+                0x08003250                ShootDetect_GetCount
  .text.ShootDetect_GetFrontIntCount
-                0x08002d70        0x4 build_sensor/shoot_detect.o
-                0x08002d70                ShootDetect_GetFrontIntCount
+                0x08003254        0x4 build_sensor/shoot_detect.o
+                0x08003254                ShootDetect_GetFrontIntCount
  .text.ShootDetect_GetRearIntCount
-                0x08002d74        0x4 build_sensor/shoot_detect.o
-                0x08002d74                ShootDetect_GetRearIntCount
+                0x08003258        0x4 build_sensor/shoot_detect.o
+                0x08003258                ShootDetect_GetRearIntCount
  .text.ShootDetect_GetLastSpeed
-                0x08002d78        0x4 build_sensor/shoot_detect.o
-                0x08002d78                ShootDetect_GetLastSpeed
+                0x0800325c        0x4 build_sensor/shoot_detect.o
+                0x0800325c                ShootDetect_GetLastSpeed
  .text.ShootDetect_GetState
-                0x08002d7c        0x6 build_sensor/shoot_detect.o
-                0x08002d7c                ShootDetect_GetState
+                0x08003260        0x6 build_sensor/shoot_detect.o
+                0x08003260                ShootDetect_GetState
  .text.ShootDetect_PeekEvent
-                0x08002d82       0x28 build_sensor/shoot_detect.o
-                0x08002d82                ShootDetect_PeekEvent
+                0x08003266       0x28 build_sensor/shoot_detect.o
+                0x08003266                ShootDetect_PeekEvent
  .text.ShootDetect_DropEvent
-                0x08002daa       0x1a build_sensor/shoot_detect.o
-                0x08002daa                ShootDetect_DropEvent
+                0x0800328e       0x1a build_sensor/shoot_detect.o
+                0x0800328e                ShootDetect_DropEvent
  .text.ShootDetect_GetDroppedEventCount
-                0x08002dc4        0x6 build_sensor/shoot_detect.o
-                0x08002dc4                ShootDetect_GetDroppedEventCount
+                0x080032a8        0x6 build_sensor/shoot_detect.o
+                0x080032a8                ShootDetect_GetDroppedEventCount
  .text.ShootDetect_TakeShotEffectPending
-                0x08002dca       0x18 build_sensor/shoot_detect.o
-                0x08002dca                ShootDetect_TakeShotEffectPending
- *fill*         0x08002de2        0x2 
+                0x080032ae       0x18 build_sensor/shoot_detect.o
+                0x080032ae                ShootDetect_TakeShotEffectPending
+ *fill*         0x080032c6        0x2 
  .text.Thermal_Init
-                0x08002de4       0x1c build_sensor/thermal.o
-                0x08002de4                Thermal_Init
+                0x080032c8       0x1c build_sensor/thermal.o
+                0x080032c8                Thermal_Init
  .text.Thermal_Update
-                0x08002e00       0x64 build_sensor/thermal.o
-                0x08002e00                Thermal_Update
+                0x080032e4       0x64 build_sensor/thermal.o
+                0x080032e4                Thermal_Update
  .text.Thermal_SetHeat
-                0x08002e64       0x40 build_sensor/thermal.o
-                0x08002e64                Thermal_SetHeat
+                0x08003348       0x40 build_sensor/thermal.o
+                0x08003348                Thermal_SetHeat
  .text.Thermal_GetHeat
-                0x08002ea4        0xc build_sensor/thermal.o
-                0x08002ea4                Thermal_GetHeat
+                0x08003388        0xc build_sensor/thermal.o
+                0x08003388                Thermal_GetHeat
  .text.Thermal_IsOverheatIndicatorActive
-                0x08002eb0       0x14 build_sensor/thermal.o
-                0x08002eb0                Thermal_IsOverheatIndicatorActive
+                0x08003394       0x14 build_sensor/thermal.o
+                0x08003394                Thermal_IsOverheatIndicatorActive
  .text.send_single_byte
-                0x08002ec4       0x54 build_sensor/can_protocol.o
+                0x080033a8       0x54 build_sensor/can_protocol.o
  .text.send_led_ack
-                0x08002f18       0x4c build_sensor/can_protocol.o
+                0x080033fc       0x4c build_sensor/can_protocol.o
  .text.send_frame_confirmed
-                0x08002f64       0xb4 build_sensor/can_protocol.o
+                0x08003448       0xb4 build_sensor/can_protocol.o
  .text.send_shoot_report
-                0x08003018       0x78 build_sensor/can_protocol.o
+                0x080034fc       0x78 build_sensor/can_protocol.o
  .text.handle_led_cmd
-                0x08003090       0x78 build_sensor/can_protocol.o
+                0x08003574       0x78 build_sensor/can_protocol.o
  .text.CANProtocol_GetLedCommand
-                0x08003108        0x8 build_sensor/can_protocol.o
-                0x08003108                CANProtocol_GetLedCommand
+                0x080035ec        0x8 build_sensor/can_protocol.o
+                0x080035ec                CANProtocol_GetLedCommand
  .text.CANProtocol_Init
-                0x08003110       0x14 build_sensor/can_protocol.o
-                0x08003110                CANProtocol_Init
+                0x080035f4       0x14 build_sensor/can_protocol.o
+                0x080035f4                CANProtocol_Init
  .text.CANProtocol_UpdateData
-                0x08003124       0x24 build_sensor/can_protocol.o
-                0x08003124                CANProtocol_UpdateData
+                0x08003608       0x24 build_sensor/can_protocol.o
+                0x08003608                CANProtocol_UpdateData
  .text.CANProtocol_SendWeakFault
-                0x08003148       0x10 build_sensor/can_protocol.o
-                0x08003148                CANProtocol_SendWeakFault
+                0x0800362c       0x10 build_sensor/can_protocol.o
+                0x0800362c                CANProtocol_SendWeakFault
  .text.CANProtocol_SendStrongFault
-                0x08003158        0xe build_sensor/can_protocol.o
-                0x08003158                CANProtocol_SendStrongFault
- *fill*         0x08003166        0x2 
+                0x0800363c        0xe build_sensor/can_protocol.o
+                0x0800363c                CANProtocol_SendStrongFault
+ *fill*         0x0800364a        0x2 
  .text.CANProtocol_SendBoot
-                0x08003168       0x54 build_sensor/can_protocol.o
-                0x08003168                CANProtocol_SendBoot
+                0x0800364c       0x54 build_sensor/can_protocol.o
+                0x0800364c                CANProtocol_SendBoot
  .text.CANProtocol_TakeCalibrationRequest
-                0x080031bc       0x1c build_sensor/can_protocol.o
-                0x080031bc                CANProtocol_TakeCalibrationRequest
+                0x080036a0       0x1c build_sensor/can_protocol.o
+                0x080036a0                CANProtocol_TakeCalibrationRequest
  .text.CANProtocol_SendShotEvent
-                0x080031d8       0xb4 build_sensor/can_protocol.o
-                0x080031d8                CANProtocol_SendShotEvent
+                0x080036bc       0xb4 build_sensor/can_protocol.o
+                0x080036bc                CANProtocol_SendShotEvent
  .text.CANProtocol_Task
-                0x0800328c       0x44 build_sensor/can_protocol.o
-                0x0800328c                CANProtocol_Task
+                0x08003770       0x44 build_sensor/can_protocol.o
+                0x08003770                CANProtocol_Task
  .text.CANProtocol_RxCallback
-                0x080032d0       0xe0 build_sensor/can_protocol.o
-                0x080032d0                CANProtocol_RxCallback
+                0x080037b4       0xe0 build_sensor/can_protocol.o
+                0x080037b4                CANProtocol_RxCallback
  .text.__NVIC_SystemReset
-                0x080033b0       0x1c build_sensor/reliability.o
+                0x08003894       0x1c build_sensor/reliability.o
  .text.fault_checksum
-                0x080033cc       0x1c build_sensor/reliability.o
+                0x080038b0       0x1c build_sensor/reliability.o
  .text.save_strong_fault
-                0x080033e8       0x24 build_sensor/reliability.o
+                0x080038cc       0x24 build_sensor/reliability.o
  .text.Reliability_EarlyInit
-                0x0800340c       0x68 build_sensor/reliability.o
-                0x0800340c                Reliability_EarlyInit
+                0x080038f0       0x68 build_sensor/reliability.o
+                0x080038f0                Reliability_EarlyInit
  .text.Reliability_GetPendingStrongMask
-                0x08003474        0xc build_sensor/reliability.o
-                0x08003474                Reliability_GetPendingStrongMask
+                0x08003958        0xc build_sensor/reliability.o
+                0x08003958                Reliability_GetPendingStrongMask
  .text.Reliability_SetWeakFault
-                0x08003480       0x1c build_sensor/reliability.o
-                0x08003480                Reliability_SetWeakFault
+                0x08003964       0x1c build_sensor/reliability.o
+                0x08003964                Reliability_SetWeakFault
  .text.Reliability_ObserveSensors
-                0x0800349c       0x70 build_sensor/reliability.o
-                0x0800349c                Reliability_ObserveSensors
+                0x08003980       0x70 build_sensor/reliability.o
+                0x08003980                Reliability_ObserveSensors
  .text.Reliability_ObserveEventQueueDropped
-                0x0800350c       0x50 build_sensor/reliability.o
-                0x0800350c                Reliability_ObserveEventQueueDropped
+                0x080039f0       0x50 build_sensor/reliability.o
+                0x080039f0                Reliability_ObserveEventQueueDropped
  .text.Reliability_GetWeakMask
-                0x0800355c        0xc build_sensor/reliability.o
-                0x0800355c                Reliability_GetWeakMask
+                0x08003a40        0xc build_sensor/reliability.o
+                0x08003a40                Reliability_GetWeakMask
  .text.Reliability_HandleHardFault
-                0x08003568       0x22 build_sensor/reliability.o
-                0x08003568                Reliability_HandleHardFault
- *fill*         0x0800358a        0x2 
+                0x08003a4c       0x22 build_sensor/reliability.o
+                0x08003a4c                Reliability_HandleHardFault
+ *fill*         0x08003a6e        0x2 
  .text.encode_color_byte
-                0x0800358c       0x48 build_sensor/ws2812_uart.o
+                0x08003a70       0x48 build_sensor/ws2812_uart.o
  .text.ws2812_reset_delay
-                0x080035d4       0x1c build_sensor/ws2812_uart.o
+                0x08003ab8       0x1c build_sensor/ws2812_uart.o
  .text.ws2812_uart_init
-                0x080035f0       0x50 build_sensor/ws2812_uart.o
-                0x080035f0                ws2812_uart_init
+                0x08003ad4       0x50 build_sensor/ws2812_uart.o
+                0x08003ad4                ws2812_uart_init
  .text.ws2812_uart_busy
-                0x08003640       0x34 build_sensor/ws2812_uart.o
-                0x08003640                ws2812_uart_busy
+                0x08003b24       0x34 build_sensor/ws2812_uart.o
+                0x08003b24                ws2812_uart_busy
  .text.ws2812_uart_send
-                0x08003674       0xc8 build_sensor/ws2812_uart.o
-                0x08003674                ws2812_uart_send
+                0x08003b58       0xc8 build_sensor/ws2812_uart.o
+                0x08003b58                ws2812_uart_send
  .text.color_dim
-                0x0800373c       0x58 build_sensor/led_rgb.o
+                0x08003c20       0x58 build_sensor/led_rgb.o
  .text.LedStrip_Init
-                0x08003794       0x28 build_sensor/led_rgb.o
-                0x08003794                LedStrip_Init
+                0x08003c78       0x28 build_sensor/led_rgb.o
+                0x08003c78                LedStrip_Init
  .text.LedStrip_SetTeam
-                0x080037bc        0xc build_sensor/led_rgb.o
-                0x080037bc                LedStrip_SetTeam
+                0x08003ca0        0xc build_sensor/led_rgb.o
+                0x08003ca0                LedStrip_SetTeam
  .text.LedStrip_SetOverheatAlert
-                0x080037c8        0xc build_sensor/led_rgb.o
-                0x080037c8                LedStrip_SetOverheatAlert
+                0x08003cac        0xc build_sensor/led_rgb.o
+                0x08003cac                LedStrip_SetOverheatAlert
  .text.LedStrip_SetRefereeData
-                0x080037d4        0xc build_sensor/led_rgb.o
-                0x080037d4                LedStrip_SetRefereeData
+                0x08003cb8        0xc build_sensor/led_rgb.o
+                0x08003cb8                LedStrip_SetRefereeData
  .text.LedStrip_Update
-                0x080037e0      0x19c build_sensor/led_rgb.o
-                0x080037e0                LedStrip_Update
+                0x08003cc4      0x19c build_sensor/led_rgb.o
+                0x08003cc4                LedStrip_Update
  .text.LedStrip_ShowFaultAlert
-                0x0800397c       0x4e build_sensor/led_rgb.o
-                0x0800397c                LedStrip_ShowFaultAlert
- *fill*         0x080039ca        0x2 
+                0x08003e60       0x4e build_sensor/led_rgb.o
+                0x08003e60                LedStrip_ShowFaultAlert
+ *fill*         0x08003eae        0x2 
  .text.LedStrip_StartBootEffect
-                0x080039cc       0x14 build_sensor/led_rgb.o
-                0x080039cc                LedStrip_StartBootEffect
+                0x08003eb0       0x14 build_sensor/led_rgb.o
+                0x08003eb0                LedStrip_StartBootEffect
  .text.LedStrip_ProcessBootEffect
-                0x080039e0       0x88 build_sensor/led_rgb.o
-                0x080039e0                LedStrip_ProcessBootEffect
+                0x08003ec4       0x88 build_sensor/led_rgb.o
+                0x08003ec4                LedStrip_ProcessBootEffect
  .text.LedStrip_StartShotEffect
-                0x08003a68       0x14 build_sensor/led_rgb.o
-                0x08003a68                LedStrip_StartShotEffect
+                0x08003f4c       0x14 build_sensor/led_rgb.o
+                0x08003f4c                LedStrip_StartShotEffect
  .text.LedStrip_ProcessShotEffect
-                0x08003a7c       0xe8 build_sensor/led_rgb.o
-                0x08003a7c                LedStrip_ProcessShotEffect
+                0x08003f60       0xe8 build_sensor/led_rgb.o
+                0x08003f60                LedStrip_ProcessShotEffect
  .text.LedStrip_TestPattern
-                0x08003b64       0x8c build_sensor/led_rgb.o
-                0x08003b64                LedStrip_TestPattern
+                0x08004048       0x8c build_sensor/led_rgb.o
+                0x08004048                LedStrip_TestPattern
  .text.LedStrip_ApplyCommand
-                0x08003bf0      0x104 build_sensor/led_rgb.o
-                0x08003bf0                LedStrip_ApplyCommand
+                0x080040d4      0x104 build_sensor/led_rgb.o
+                0x080040d4                LedStrip_ApplyCommand
  .text.HAL_CAN_Init
-                0x08003cf4      0x14e build_sensor/stm32f0xx_hal_can.o
-                0x08003cf4                HAL_CAN_Init
+                0x080041d8      0x14e build_sensor/stm32f0xx_hal_can.o
+                0x080041d8                HAL_CAN_Init
  .text.HAL_CAN_ConfigFilter
-                0x08003e42      0x10c build_sensor/stm32f0xx_hal_can.o
-                0x08003e42                HAL_CAN_ConfigFilter
+                0x08004326      0x10c build_sensor/stm32f0xx_hal_can.o
+                0x08004326                HAL_CAN_ConfigFilter
  .text.HAL_CAN_Start
-                0x08003f4e       0x60 build_sensor/stm32f0xx_hal_can.o
-                0x08003f4e                HAL_CAN_Start
+                0x08004432       0x60 build_sensor/stm32f0xx_hal_can.o
+                0x08004432                HAL_CAN_Start
  .text.HAL_CAN_AddTxMessage
-                0x08003fae       0xe4 build_sensor/stm32f0xx_hal_can.o
-                0x08003fae                HAL_CAN_AddTxMessage
+                0x08004492       0xe4 build_sensor/stm32f0xx_hal_can.o
+                0x08004492                HAL_CAN_AddTxMessage
  .text.HAL_CAN_AbortTxRequest
-                0x08004092       0x4e build_sensor/stm32f0xx_hal_can.o
-                0x08004092                HAL_CAN_AbortTxRequest
+                0x08004576       0x4e build_sensor/stm32f0xx_hal_can.o
+                0x08004576                HAL_CAN_AbortTxRequest
  .text.HAL_CAN_GetRxMessage
-                0x080040e0      0x158 build_sensor/stm32f0xx_hal_can.o
-                0x080040e0                HAL_CAN_GetRxMessage
+                0x080045c4      0x158 build_sensor/stm32f0xx_hal_can.o
+                0x080045c4                HAL_CAN_GetRxMessage
  .text.HAL_CAN_ActivateNotification
-                0x08004238       0x26 build_sensor/stm32f0xx_hal_can.o
-                0x08004238                HAL_CAN_ActivateNotification
+                0x0800471c       0x26 build_sensor/stm32f0xx_hal_can.o
+                0x0800471c                HAL_CAN_ActivateNotification
  .text.HAL_CAN_TxMailbox0CompleteCallback
-                0x0800425e        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x0800425e                HAL_CAN_TxMailbox0CompleteCallback
+                0x08004742        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004742                HAL_CAN_TxMailbox0CompleteCallback
  .text.HAL_CAN_TxMailbox1CompleteCallback
-                0x08004260        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004260                HAL_CAN_TxMailbox1CompleteCallback
+                0x08004744        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004744                HAL_CAN_TxMailbox1CompleteCallback
  .text.HAL_CAN_TxMailbox2CompleteCallback
-                0x08004262        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004262                HAL_CAN_TxMailbox2CompleteCallback
+                0x08004746        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004746                HAL_CAN_TxMailbox2CompleteCallback
  .text.HAL_CAN_TxMailbox0AbortCallback
-                0x08004264        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004264                HAL_CAN_TxMailbox0AbortCallback
+                0x08004748        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004748                HAL_CAN_TxMailbox0AbortCallback
  .text.HAL_CAN_TxMailbox1AbortCallback
-                0x08004266        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004266                HAL_CAN_TxMailbox1AbortCallback
+                0x0800474a        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x0800474a                HAL_CAN_TxMailbox1AbortCallback
  .text.HAL_CAN_TxMailbox2AbortCallback
-                0x08004268        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004268                HAL_CAN_TxMailbox2AbortCallback
+                0x0800474c        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x0800474c                HAL_CAN_TxMailbox2AbortCallback
  .text.HAL_CAN_RxFifo0FullCallback
-                0x0800426a        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x0800426a                HAL_CAN_RxFifo0FullCallback
+                0x0800474e        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x0800474e                HAL_CAN_RxFifo0FullCallback
  .text.HAL_CAN_RxFifo1MsgPendingCallback
-                0x0800426c        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x0800426c                HAL_CAN_RxFifo1MsgPendingCallback
+                0x08004750        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004750                HAL_CAN_RxFifo1MsgPendingCallback
  .text.HAL_CAN_RxFifo1FullCallback
-                0x0800426e        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x0800426e                HAL_CAN_RxFifo1FullCallback
+                0x08004752        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004752                HAL_CAN_RxFifo1FullCallback
  .text.HAL_CAN_SleepCallback
-                0x08004270        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004270                HAL_CAN_SleepCallback
+                0x08004754        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004754                HAL_CAN_SleepCallback
  .text.HAL_CAN_WakeUpFromRxMsgCallback
-                0x08004272        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004272                HAL_CAN_WakeUpFromRxMsgCallback
+                0x08004756        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004756                HAL_CAN_WakeUpFromRxMsgCallback
  .text.HAL_CAN_ErrorCallback
-                0x08004274        0x2 build_sensor/stm32f0xx_hal_can.o
-                0x08004274                HAL_CAN_ErrorCallback
+                0x08004758        0x2 build_sensor/stm32f0xx_hal_can.o
+                0x08004758                HAL_CAN_ErrorCallback
  .text.HAL_CAN_IRQHandler
-                0x08004276      0x246 build_sensor/stm32f0xx_hal_can.o
-                0x08004276                HAL_CAN_IRQHandler
+                0x0800475a      0x246 build_sensor/stm32f0xx_hal_can.o
+                0x0800475a                HAL_CAN_IRQHandler
  .text.HAL_CAN_GetState
-                0x080044bc       0x28 build_sensor/stm32f0xx_hal_can.o
-                0x080044bc                HAL_CAN_GetState
+                0x080049a0       0x28 build_sensor/stm32f0xx_hal_can.o
+                0x080049a0                HAL_CAN_GetState
  .text.HAL_RCC_OscConfig
-                0x080044e4      0x544 build_sensor/stm32f0xx_hal_rcc.o
-                0x080044e4                HAL_RCC_OscConfig
+                0x080049c8      0x544 build_sensor/stm32f0xx_hal_rcc.o
+                0x080049c8                HAL_RCC_OscConfig
  .text.HAL_RCC_EnableCSS
-                0x08004a28       0x14 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004a28                HAL_RCC_EnableCSS
+                0x08004f0c       0x14 build_sensor/stm32f0xx_hal_rcc.o
+                0x08004f0c                HAL_RCC_EnableCSS
  .text.HAL_RCC_GetSysClockFreq
-                0x08004a3c       0x84 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004a3c                HAL_RCC_GetSysClockFreq
+                0x08004f20       0x84 build_sensor/stm32f0xx_hal_rcc.o
+                0x08004f20                HAL_RCC_GetSysClockFreq
  .text.HAL_RCC_ClockConfig
-                0x08004ac0      0x144 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004ac0                HAL_RCC_ClockConfig
+                0x08004fa4      0x144 build_sensor/stm32f0xx_hal_rcc.o
+                0x08004fa4                HAL_RCC_ClockConfig
  .text.HAL_RCC_GetHCLKFreq
-                0x08004c04        0xc build_sensor/stm32f0xx_hal_rcc.o
-                0x08004c04                HAL_RCC_GetHCLKFreq
+                0x080050e8        0xc build_sensor/stm32f0xx_hal_rcc.o
+                0x080050e8                HAL_RCC_GetHCLKFreq
  .text.HAL_RCC_GetPCLK1Freq
-                0x08004c10       0x20 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004c10                HAL_RCC_GetPCLK1Freq
+                0x080050f4       0x20 build_sensor/stm32f0xx_hal_rcc.o
+                0x080050f4                HAL_RCC_GetPCLK1Freq
  .text.HAL_RCC_CSSCallback
-                0x08004c30        0x2 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004c30                HAL_RCC_CSSCallback
- *fill*         0x08004c32        0x2 
+                0x08005114        0x2 build_sensor/stm32f0xx_hal_rcc.o
+                0x08005114                HAL_RCC_CSSCallback
+ *fill*         0x08005116        0x2 
  .text.HAL_RCC_NMI_IRQHandler
-                0x08004c34       0x20 build_sensor/stm32f0xx_hal_rcc.o
-                0x08004c34                HAL_RCC_NMI_IRQHandler
+                0x08005118       0x20 build_sensor/stm32f0xx_hal_rcc.o
+                0x08005118                HAL_RCC_NMI_IRQHandler
  .text.HAL_RCCEx_PeriphCLKConfig
-                0x08004c54      0x160 build_sensor/stm32f0xx_hal_rcc_ex.o
-                0x08004c54                HAL_RCCEx_PeriphCLKConfig
+                0x08005138      0x160 build_sensor/stm32f0xx_hal_rcc_ex.o
+                0x08005138                HAL_RCCEx_PeriphCLKConfig
  .text.HAL_InitTick
-                0x08004db4       0x50 build_sensor/stm32f0xx_hal.o
-                0x08004db4                HAL_InitTick
+                0x08005298       0x50 build_sensor/stm32f0xx_hal.o
+                0x08005298                HAL_InitTick
  .text.HAL_Init
-                0x08004e04       0x20 build_sensor/stm32f0xx_hal.o
-                0x08004e04                HAL_Init
+                0x080052e8       0x20 build_sensor/stm32f0xx_hal.o
+                0x080052e8                HAL_Init
  .text.HAL_IncTick
-                0x08004e24       0x18 build_sensor/stm32f0xx_hal.o
-                0x08004e24                HAL_IncTick
+                0x08005308       0x18 build_sensor/stm32f0xx_hal.o
+                0x08005308                HAL_IncTick
  .text.HAL_GetTick
-                0x08004e3c        0xc build_sensor/stm32f0xx_hal.o
-                0x08004e3c                HAL_GetTick
+                0x08005320        0xc build_sensor/stm32f0xx_hal.o
+                0x08005320                HAL_GetTick
  .text.HAL_Delay
-                0x08004e48       0x24 build_sensor/stm32f0xx_hal.o
-                0x08004e48                HAL_Delay
+                0x0800532c       0x24 build_sensor/stm32f0xx_hal.o
+                0x0800532c                HAL_Delay
  .text.HAL_IWDG_Init
-                0x08004e6c       0x68 build_sensor/stm32f0xx_hal_iwdg.o
-                0x08004e6c                HAL_IWDG_Init
+                0x08005350       0x68 build_sensor/stm32f0xx_hal_iwdg.o
+                0x08005350                HAL_IWDG_Init
  .text.HAL_IWDG_Refresh
-                0x08004ed4       0x10 build_sensor/stm32f0xx_hal_iwdg.o
-                0x08004ed4                HAL_IWDG_Refresh
+                0x080053b8       0x10 build_sensor/stm32f0xx_hal_iwdg.o
+                0x080053b8                HAL_IWDG_Refresh
  .text.HAL_GPIO_Init
-                0x08004ee4      0x198 build_sensor/stm32f0xx_hal_gpio.o
-                0x08004ee4                HAL_GPIO_Init
+                0x080053c8      0x198 build_sensor/stm32f0xx_hal_gpio.o
+                0x080053c8                HAL_GPIO_Init
  .text.HAL_GPIO_EXTI_Callback
-                0x0800507c        0x2 build_sensor/stm32f0xx_hal_gpio.o
-                0x0800507c                HAL_GPIO_EXTI_Callback
- *fill*         0x0800507e        0x2 
+                0x08005560        0x2 build_sensor/stm32f0xx_hal_gpio.o
+                0x08005560                HAL_GPIO_EXTI_Callback
+ *fill*         0x08005562        0x2 
  .text.HAL_GPIO_EXTI_IRQHandler
-                0x08005080       0x1c build_sensor/stm32f0xx_hal_gpio.o
-                0x08005080                HAL_GPIO_EXTI_IRQHandler
+                0x08005564       0x1c build_sensor/stm32f0xx_hal_gpio.o
+                0x08005564                HAL_GPIO_EXTI_IRQHandler
  .text.DMA_SetConfig
-                0x0800509c       0x2a build_sensor/stm32f0xx_hal_dma.o
- *fill*         0x080050c6        0x2 
+                0x08005580       0x2a build_sensor/stm32f0xx_hal_dma.o
+ *fill*         0x080055aa        0x2 
  .text.DMA_CalcBaseAndBitshift
-                0x080050c8       0x24 build_sensor/stm32f0xx_hal_dma.o
+                0x080055ac       0x24 build_sensor/stm32f0xx_hal_dma.o
  .text.HAL_DMA_Init
-                0x080050ec       0x50 build_sensor/stm32f0xx_hal_dma.o
-                0x080050ec                HAL_DMA_Init
+                0x080055d0       0x50 build_sensor/stm32f0xx_hal_dma.o
+                0x080055d0                HAL_DMA_Init
  .text.HAL_DMA_Start_IT
-                0x0800513c       0x76 build_sensor/stm32f0xx_hal_dma.o
-                0x0800513c                HAL_DMA_Start_IT
+                0x08005620       0x76 build_sensor/stm32f0xx_hal_dma.o
+                0x08005620                HAL_DMA_Start_IT
  .text.HAL_DMA_IRQHandler
-                0x080051b2       0xaa build_sensor/stm32f0xx_hal_dma.o
-                0x080051b2                HAL_DMA_IRQHandler
+                0x08005696       0xaa build_sensor/stm32f0xx_hal_dma.o
+                0x08005696                HAL_DMA_IRQHandler
  .text.__NVIC_SetPriority
-                0x0800525c       0x60 build_sensor/stm32f0xx_hal_cortex.o
+                0x08005740       0x60 build_sensor/stm32f0xx_hal_cortex.o
  .text.SysTick_Config
-                0x080052bc       0x38 build_sensor/stm32f0xx_hal_cortex.o
+                0x080057a0       0x38 build_sensor/stm32f0xx_hal_cortex.o
  .text.HAL_NVIC_SetPriority
-                0x080052f4        0x8 build_sensor/stm32f0xx_hal_cortex.o
-                0x080052f4                HAL_NVIC_SetPriority
+                0x080057d8        0x8 build_sensor/stm32f0xx_hal_cortex.o
+                0x080057d8                HAL_NVIC_SetPriority
  .text.HAL_NVIC_EnableIRQ
-                0x080052fc       0x18 build_sensor/stm32f0xx_hal_cortex.o
-                0x080052fc                HAL_NVIC_EnableIRQ
+                0x080057e0       0x18 build_sensor/stm32f0xx_hal_cortex.o
+                0x080057e0                HAL_NVIC_EnableIRQ
  .text.HAL_NVIC_DisableIRQ
-                0x08005314       0x20 build_sensor/stm32f0xx_hal_cortex.o
-                0x08005314                HAL_NVIC_DisableIRQ
+                0x080057f8       0x20 build_sensor/stm32f0xx_hal_cortex.o
+                0x080057f8                HAL_NVIC_DisableIRQ
  .text.HAL_SYSTICK_Config
-                0x08005334        0x8 build_sensor/stm32f0xx_hal_cortex.o
-                0x08005334                HAL_SYSTICK_Config
+                0x08005818        0x8 build_sensor/stm32f0xx_hal_cortex.o
+                0x08005818                HAL_SYSTICK_Config
  .text.HAL_DAC_Init
-                0x0800533c       0x28 build_sensor/stm32f0xx_hal_dac.o
-                0x0800533c                HAL_DAC_Init
+                0x08005820       0x28 build_sensor/stm32f0xx_hal_dac.o
+                0x08005820                HAL_DAC_Init
  .text.HAL_DAC_SetValue
-                0x08005364       0x2c build_sensor/stm32f0xx_hal_dac.o
-                0x08005364                HAL_DAC_SetValue
+                0x08005848       0x2c build_sensor/stm32f0xx_hal_dac.o
+                0x08005848                HAL_DAC_SetValue
  .text.HAL_DAC_ConfigChannel
-                0x08005390       0x38 build_sensor/stm32f0xx_hal_dac_ex.o
-                0x08005390                HAL_DAC_ConfigChannel
+                0x08005874       0x38 build_sensor/stm32f0xx_hal_dac_ex.o
+                0x08005874                HAL_DAC_ConfigChannel
  .text.HAL_DAC_Start
-                0x080053c8       0x5c build_sensor/stm32f0xx_hal_dac_ex.o
-                0x080053c8                HAL_DAC_Start
+                0x080058ac       0x5c build_sensor/stm32f0xx_hal_dac_ex.o
+                0x080058ac                HAL_DAC_Start
  .text.TIM_OC1_SetConfig
-                0x08005424       0x8c build_sensor/stm32f0xx_hal_tim.o
+                0x08005908       0x8c build_sensor/stm32f0xx_hal_tim.o
  .text.TIM_OC3_SetConfig
-                0x080054b0       0x8c build_sensor/stm32f0xx_hal_tim.o
+                0x08005994       0x8c build_sensor/stm32f0xx_hal_tim.o
  .text.TIM_OC4_SetConfig
-                0x0800553c       0x74 build_sensor/stm32f0xx_hal_tim.o
+                0x08005a20       0x74 build_sensor/stm32f0xx_hal_tim.o
  .text.TIM_TI1_ConfigInputStage
-                0x080055b0       0x22 build_sensor/stm32f0xx_hal_tim.o
- *fill*         0x080055d2        0x2 
+                0x08005a94       0x22 build_sensor/stm32f0xx_hal_tim.o
+ *fill*         0x08005ab6        0x2 
  .text.TIM_TI2_ConfigInputStage
-                0x080055d4       0x28 build_sensor/stm32f0xx_hal_tim.o
+                0x08005ab8       0x28 build_sensor/stm32f0xx_hal_tim.o
  .text.TIM_ITRx_SetConfig
-                0x080055fc       0x10 build_sensor/stm32f0xx_hal_tim.o
+                0x08005ae0       0x10 build_sensor/stm32f0xx_hal_tim.o
  .text.HAL_TIM_Base_Start
-                0x0800560c       0x60 build_sensor/stm32f0xx_hal_tim.o
-                0x0800560c                HAL_TIM_Base_Start
+                0x08005af0       0x60 build_sensor/stm32f0xx_hal_tim.o
+                0x08005af0                HAL_TIM_Base_Start
  .text.HAL_TIM_PWM_MspInit
-                0x0800566c        0x2 build_sensor/stm32f0xx_hal_tim.o
-                0x0800566c                HAL_TIM_PWM_MspInit
+                0x08005b50        0x2 build_sensor/stm32f0xx_hal_tim.o
+                0x08005b50                HAL_TIM_PWM_MspInit
  .text.HAL_TIM_OC_DelayElapsedCallback
-                0x0800566e        0x2 build_sensor/stm32f0xx_hal_tim.o
-                0x0800566e                HAL_TIM_OC_DelayElapsedCallback
+                0x08005b52        0x2 build_sensor/stm32f0xx_hal_tim.o
+                0x08005b52                HAL_TIM_OC_DelayElapsedCallback
  .text.HAL_TIM_IC_CaptureCallback
-                0x08005670        0x2 build_sensor/stm32f0xx_hal_tim.o
-                0x08005670                HAL_TIM_IC_CaptureCallback
+                0x08005b54        0x2 build_sensor/stm32f0xx_hal_tim.o
+                0x08005b54                HAL_TIM_IC_CaptureCallback
  .text.HAL_TIM_PWM_PulseFinishedCallback
-                0x08005672        0x2 build_sensor/stm32f0xx_hal_tim.o
-                0x08005672                HAL_TIM_PWM_PulseFinishedCallback
+                0x08005b56        0x2 build_sensor/stm32f0xx_hal_tim.o
+                0x08005b56                HAL_TIM_PWM_PulseFinishedCallback
  .text.HAL_TIM_TriggerCallback
-                0x08005674        0x2 build_sensor/stm32f0xx_hal_tim.o
-                0x08005674                HAL_TIM_TriggerCallback
+                0x08005b58        0x2 build_sensor/stm32f0xx_hal_tim.o
+                0x08005b58                HAL_TIM_TriggerCallback
  .text.HAL_TIM_IRQHandler
-                0x08005676      0x13e build_sensor/stm32f0xx_hal_tim.o
-                0x08005676                HAL_TIM_IRQHandler
+                0x08005b5a      0x13e build_sensor/stm32f0xx_hal_tim.o
+                0x08005b5a                HAL_TIM_IRQHandler
  .text.TIM_Base_SetConfig
-                0x080057b4       0xb0 build_sensor/stm32f0xx_hal_tim.o
-                0x080057b4                TIM_Base_SetConfig
+                0x08005c98       0xb0 build_sensor/stm32f0xx_hal_tim.o
+                0x08005c98                TIM_Base_SetConfig
  .text.HAL_TIM_Base_Init
-                0x08005864       0x58 build_sensor/stm32f0xx_hal_tim.o
-                0x08005864                HAL_TIM_Base_Init
+                0x08005d48       0x58 build_sensor/stm32f0xx_hal_tim.o
+                0x08005d48                HAL_TIM_Base_Init
  .text.HAL_TIM_PWM_Init
-                0x080058bc       0x58 build_sensor/stm32f0xx_hal_tim.o
-                0x080058bc                HAL_TIM_PWM_Init
+                0x08005da0       0x58 build_sensor/stm32f0xx_hal_tim.o
+                0x08005da0                HAL_TIM_PWM_Init
  .text.TIM_OC2_SetConfig
-                0x08005914       0x84 build_sensor/stm32f0xx_hal_tim.o
-                0x08005914                TIM_OC2_SetConfig
+                0x08005df8       0x84 build_sensor/stm32f0xx_hal_tim.o
+                0x08005df8                TIM_OC2_SetConfig
  .text.HAL_TIM_PWM_ConfigChannel
-                0x08005998       0xf0 build_sensor/stm32f0xx_hal_tim.o
-                0x08005998                HAL_TIM_PWM_ConfigChannel
+                0x08005e7c       0xf0 build_sensor/stm32f0xx_hal_tim.o
+                0x08005e7c                HAL_TIM_PWM_ConfigChannel
  .text.TIM_ETR_SetConfig
-                0x08005a88       0x18 build_sensor/stm32f0xx_hal_tim.o
-                0x08005a88                TIM_ETR_SetConfig
+                0x08005f6c       0x18 build_sensor/stm32f0xx_hal_tim.o
+                0x08005f6c                TIM_ETR_SetConfig
  .text.HAL_TIM_ConfigClockSource
-                0x08005aa0      0x108 build_sensor/stm32f0xx_hal_tim.o
-                0x08005aa0                HAL_TIM_ConfigClockSource
+                0x08005f84      0x108 build_sensor/stm32f0xx_hal_tim.o
+                0x08005f84                HAL_TIM_ConfigClockSource
  .text.HAL_TIMEx_MasterConfigSynchronization
-                0x08005ba8       0x6c build_sensor/stm32f0xx_hal_tim_ex.o
-                0x08005ba8                HAL_TIMEx_MasterConfigSynchronization
+                0x0800608c       0x6c build_sensor/stm32f0xx_hal_tim_ex.o
+                0x0800608c                HAL_TIMEx_MasterConfigSynchronization
  .text.HAL_TIMEx_ConfigBreakDeadTime
-                0x08005c14       0x6c build_sensor/stm32f0xx_hal_tim_ex.o
-                0x08005c14                HAL_TIMEx_ConfigBreakDeadTime
+                0x080060f8       0x6c build_sensor/stm32f0xx_hal_tim_ex.o
+                0x080060f8                HAL_TIMEx_ConfigBreakDeadTime
  .text.HAL_TIMEx_CommutCallback
-                0x08005c80        0x2 build_sensor/stm32f0xx_hal_tim_ex.o
-                0x08005c80                HAL_TIMEx_CommutCallback
+                0x08006164        0x2 build_sensor/stm32f0xx_hal_tim_ex.o
+                0x08006164                HAL_TIMEx_CommutCallback
  .text.HAL_TIMEx_BreakCallback
-                0x08005c82        0x2 build_sensor/stm32f0xx_hal_tim_ex.o
-                0x08005c82                HAL_TIMEx_BreakCallback
+                0x08006166        0x2 build_sensor/stm32f0xx_hal_tim_ex.o
+                0x08006166                HAL_TIMEx_BreakCallback
  .text.UART_EndRxTransfer
-                0x08005c84       0x60 build_sensor/stm32f0xx_hal_uart.o
+                0x08006168       0x60 build_sensor/stm32f0xx_hal_uart.o
  .text.UART_SetConfig
-                0x08005ce4      0x1c8 build_sensor/stm32f0xx_hal_uart.o
-                0x08005ce4                UART_SetConfig
+                0x080061c8      0x1c8 build_sensor/stm32f0xx_hal_uart.o
+                0x080061c8                UART_SetConfig
  .text.UART_AdvFeatureConfig
-                0x08005eac       0xe0 build_sensor/stm32f0xx_hal_uart.o
-                0x08005eac                UART_AdvFeatureConfig
+                0x08006390       0xe0 build_sensor/stm32f0xx_hal_uart.o
+                0x08006390                UART_AdvFeatureConfig
  .text.UART_WaitOnFlagUntilTimeout
-                0x08005f8c       0x9e build_sensor/stm32f0xx_hal_uart.o
-                0x08005f8c                UART_WaitOnFlagUntilTimeout
- *fill*         0x0800602a        0x2 
+                0x08006470       0x9e build_sensor/stm32f0xx_hal_uart.o
+                0x08006470                UART_WaitOnFlagUntilTimeout
+ *fill*         0x0800650e        0x2 
  .text.UART_CheckIdleState
-                0x0800602c       0xd0 build_sensor/stm32f0xx_hal_uart.o
-                0x0800602c                UART_CheckIdleState
+                0x08006510       0xd0 build_sensor/stm32f0xx_hal_uart.o
+                0x08006510                UART_CheckIdleState
  .text.HAL_UART_Init
-                0x080060fc       0x6c build_sensor/stm32f0xx_hal_uart.o
-                0x080060fc                HAL_UART_Init
+                0x080065e0       0x6c build_sensor/stm32f0xx_hal_uart.o
+                0x080065e0                HAL_UART_Init
  .text.SystemInit
-                0x08006168        0x2 build_sensor/system_stm32f0xx.o
-                0x08006168                SystemInit
- *fill*         0x0800616a        0x2 
+                0x0800664c        0x2 build_sensor/system_stm32f0xx.o
+                0x0800664c                SystemInit
+ *fill*         0x0800664e        0x2 
  .text.Reset_Handler
-                0x0800616c       0x50 build_sensor/startup_stm32f072xb.o
-                0x0800616c                Reset_Handler
+                0x08006650       0x50 build_sensor/startup_stm32f072xb.o
+                0x08006650                Reset_Handler
  .text.Default_Handler
-                0x080061bc        0x2 build_sensor/startup_stm32f072xb.o
-                0x080061bc                TIM1_CC_IRQHandler
-                0x080061bc                TSC_IRQHandler
-                0x080061bc                I2C1_IRQHandler
-                0x080061bc                RCC_CRS_IRQHandler
-                0x080061bc                SPI1_IRQHandler
-                0x080061bc                TIM6_DAC_IRQHandler
-                0x080061bc                USART3_4_IRQHandler
-                0x080061bc                EXTI2_3_IRQHandler
-                0x080061bc                I2C2_IRQHandler
-                0x080061bc                TIM17_IRQHandler
-                0x080061bc                RTC_IRQHandler
-                0x080061bc                PVD_VDDIO2_IRQHandler
-                0x080061bc                DMA1_Channel4_5_6_7_IRQHandler
-                0x080061bc                TIM16_IRQHandler
-                0x080061bc                TIM3_IRQHandler
-                0x080061bc                Default_Handler
-                0x080061bc                TIM7_IRQHandler
-                0x080061bc                EXTI0_1_IRQHandler
-                0x080061bc                USB_IRQHandler
-                0x080061bc                SPI2_IRQHandler
-                0x080061bc                WWDG_IRQHandler
-                0x080061bc                TIM2_IRQHandler
-                0x080061bc                USART2_IRQHandler
-                0x080061bc                FLASH_IRQHandler
-                0x080061bc                USART1_IRQHandler
-                0x080061bc                TIM1_BRK_UP_TRG_COM_IRQHandler
- .text.memset   0x080061be       0x10 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-memset.o)
-                0x080061be                memset
- *fill*         0x080061ce        0x2 
+                0x080066a0        0x2 build_sensor/startup_stm32f072xb.o
+                0x080066a0                TIM1_CC_IRQHandler
+                0x080066a0                TSC_IRQHandler
+                0x080066a0                I2C1_IRQHandler
+                0x080066a0                RCC_CRS_IRQHandler
+                0x080066a0                SPI1_IRQHandler
+                0x080066a0                TIM6_DAC_IRQHandler
+                0x080066a0                USART3_4_IRQHandler
+                0x080066a0                EXTI2_3_IRQHandler
+                0x080066a0                I2C2_IRQHandler
+                0x080066a0                TIM17_IRQHandler
+                0x080066a0                RTC_IRQHandler
+                0x080066a0                PVD_VDDIO2_IRQHandler
+                0x080066a0                DMA1_Channel4_5_6_7_IRQHandler
+                0x080066a0                TIM16_IRQHandler
+                0x080066a0                TIM3_IRQHandler
+                0x080066a0                Default_Handler
+                0x080066a0                TIM7_IRQHandler
+                0x080066a0                EXTI0_1_IRQHandler
+                0x080066a0                USB_IRQHandler
+                0x080066a0                SPI2_IRQHandler
+                0x080066a0                WWDG_IRQHandler
+                0x080066a0                TIM2_IRQHandler
+                0x080066a0                USART2_IRQHandler
+                0x080066a0                FLASH_IRQHandler
+                0x080066a0                USART1_IRQHandler
+                0x080066a0                TIM1_BRK_UP_TRG_COM_IRQHandler
+ .text.memset   0x080066a2       0x10 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-memset.o)
+                0x080066a2                memset
+ *fill*         0x080066b2        0x2 
  .text.__libc_init_array
-                0x080061d0       0x48 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-init.o)
-                0x080061d0                __libc_init_array
+                0x080066b4       0x48 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-init.o)
+                0x080066b4                __libc_init_array
  *(.glue_7)
- .glue_7        0x08006218        0x0 linker stubs
+ .glue_7        0x080066fc        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x08006218        0x0 linker stubs
+ .glue_7t       0x080066fc        0x0 linker stubs
  *(.eh_frame)
- .eh_frame      0x08006218        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+ .eh_frame      0x080066fc        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
  *(.init)
- .init          0x08006218        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crti.o
-                0x08006218                _init
- .init          0x0800621c        0x8 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtn.o
+ .init          0x080066fc        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crti.o
+                0x080066fc                _init
+ .init          0x08006700        0x8 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtn.o
  *(.fini)
- .fini          0x08006224        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crti.o
-                0x08006224                _fini
- .fini          0x08006228        0x8 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtn.o
-                0x08006230                        . = ALIGN (0x4)
-                0x08006230                        _etext = .
+ .fini          0x08006708        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crti.o
+                0x08006708                _fini
+ .fini          0x0800670c        0x8 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtn.o
+                0x08006714                        . = ALIGN (0x4)
+                0x08006714                        _etext = .
 
-.vfp11_veneer   0x08006230        0x0
- .vfp11_veneer  0x08006230        0x0 linker stubs
+.vfp11_veneer   0x08006714        0x0
+ .vfp11_veneer  0x08006714        0x0 linker stubs
 
-.v4_bx          0x08006230        0x0
- .v4_bx         0x08006230        0x0 linker stubs
+.v4_bx          0x08006714        0x0
+ .v4_bx         0x08006714        0x0 linker stubs
 
-.iplt           0x08006230        0x0
- .iplt          0x08006230        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+.iplt           0x08006714        0x0
+ .iplt          0x08006714        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
 
-.rodata         0x08006230      0x1b8
-                0x08006230                        . = ALIGN (0x4)
+.rodata         0x08006714      0x1b8
+                0x08006714                        . = ALIGN (0x4)
  *(.rodata)
- .rodata        0x08006230       0x7c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(divsf3.o)
+ .rodata        0x08006714       0x7c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(divsf3.o)
  *(.rodata*)
  .rodata.handle_led_cmd
-                0x080062ac       0x80 build_sensor/can_protocol.o
+                0x08006790       0x80 build_sensor/can_protocol.o
  .rodata.ws2812_table
-                0x0800632c        0x4 build_sensor/ws2812_uart.o
+                0x08006810        0x4 build_sensor/ws2812_uart.o
  .rodata.LedStrip_ApplyCommand
-                0x08006330       0x80 build_sensor/led_rgb.o
+                0x08006814       0x80 build_sensor/led_rgb.o
  .rodata.aPredivFactorTable.0
-                0x080063b0       0x10 build_sensor/stm32f0xx_hal_rcc.o
+                0x08006894       0x10 build_sensor/stm32f0xx_hal_rcc.o
  .rodata.aPLLMULFactorTable.1
-                0x080063c0       0x10 build_sensor/stm32f0xx_hal_rcc.o
+                0x080068a4       0x10 build_sensor/stm32f0xx_hal_rcc.o
  .rodata.APBPrescTable
-                0x080063d0        0x8 build_sensor/system_stm32f0xx.o
-                0x080063d0                APBPrescTable
+                0x080068b4        0x8 build_sensor/system_stm32f0xx.o
+                0x080068b4                APBPrescTable
  .rodata.AHBPrescTable
-                0x080063d8       0x10 build_sensor/system_stm32f0xx.o
-                0x080063d8                AHBPrescTable
-                0x080063e8                        . = ALIGN (0x4)
+                0x080068bc       0x10 build_sensor/system_stm32f0xx.o
+                0x080068bc                AHBPrescTable
+                0x080068cc                        . = ALIGN (0x4)
 
-.ARM.extab      0x080063e8        0x0
-                0x080063e8                        . = ALIGN (0x4)
+.ARM.extab      0x080068cc        0x0
+                0x080068cc                        . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x080063e8                        . = ALIGN (0x4)
+                0x080068cc                        . = ALIGN (0x4)
 
-.ARM            0x080063e8        0x0
-                0x080063e8                        . = ALIGN (0x4)
-                0x080063e8                        __exidx_start = .
+.ARM            0x080068cc        0x0
+                0x080068cc                        . = ALIGN (0x4)
+                0x080068cc                        __exidx_start = .
  *(.ARM.exidx*)
-                0x080063e8                        __exidx_end = .
-                0x080063e8                        . = ALIGN (0x4)
+                0x080068cc                        __exidx_end = .
+                0x080068cc                        . = ALIGN (0x4)
 
-.preinit_array  0x080063e8        0x0
-                0x080063e8                        . = ALIGN (0x4)
-                0x080063e8                        PROVIDE (__preinit_array_start = .)
+.preinit_array  0x080068cc        0x0
+                0x080068cc                        . = ALIGN (0x4)
+                0x080068cc                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x080063e8                        PROVIDE (__preinit_array_end = .)
-                0x080063e8                        . = ALIGN (0x4)
+                0x080068cc                        PROVIDE (__preinit_array_end = .)
+                0x080068cc                        . = ALIGN (0x4)
 
-.init_array     0x080063e8        0x4
-                0x080063e8                        . = ALIGN (0x4)
-                0x080063e8                        PROVIDE (__init_array_start = .)
+.init_array     0x080068cc        0x4
+                0x080068cc                        . = ALIGN (0x4)
+                0x080068cc                        PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
- .init_array    0x080063e8        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
-                0x080063ec                        PROVIDE (__init_array_end = .)
-                0x080063ec                        . = ALIGN (0x4)
+ .init_array    0x080068cc        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+                0x080068d0                        PROVIDE (__init_array_end = .)
+                0x080068d0                        . = ALIGN (0x4)
 
-.fini_array     0x080063ec        0x4
-                0x080063ec                        . = ALIGN (0x4)
+.fini_array     0x080068d0        0x4
+                0x080068d0                        . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
- .fini_array    0x080063ec        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+ .fini_array    0x080068d0        0x4 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x080063f0                        . = ALIGN (0x4)
-                0x080063f0                        _sidata = LOADADDR (.data)
+                0x080068d4                        . = ALIGN (0x4)
+                0x080068d4                        _sidata = LOADADDR (.data)
 
-.rel.dyn        0x080063f0        0x0
- .rel.iplt      0x080063f0        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+.rel.dyn        0x080068d4        0x0
+ .rel.iplt      0x080068d4        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
 
-.data           0x20000000       0x18 load address 0x080063f0
+.data           0x20000000       0x40 load address 0x080068d4
                 0x20000000                        . = ALIGN (0x4)
                 0x20000000                        _sdata = .
  *(.data)
  *(.data*)
- .data.ir_dac2_code
+ .data.ir_distance_mm
                 0x20000000        0x2 build_sensor/ir_acquisition.o
-                0x20000000                ir_dac2_code
+                0x20000000                ir_distance_mm
+ *fill*         0x20000002        0x2 
+ .data.ir_rebase_after_ms
+                0x20000004        0x4 build_sensor/ir_acquisition.o
+                0x20000004                ir_rebase_after_ms
+ .data.ir_pair_min_us
+                0x20000008        0x4 build_sensor/ir_acquisition.o
+                0x20000008                ir_pair_min_us
+ .data.ir_pair_timeout_ms
+                0x2000000c        0x4 build_sensor/ir_acquisition.o
+                0x2000000c                ir_pair_timeout_ms
+ .data.ir_quiet_ms
+                0x20000010        0x4 build_sensor/ir_acquisition.o
+                0x20000010                ir_quiet_ms
+ .data.ir_release_percent
+                0x20000014        0x2 build_sensor/ir_acquisition.o
+                0x20000014                ir_release_percent
+ .data.ir_confirm_samples
+                0x20000016        0x2 build_sensor/ir_acquisition.o
+                0x20000016                ir_confirm_samples
+ .data.ir_rear_level_threshold
+                0x20000018        0x2 build_sensor/ir_acquisition.o
+                0x20000018                ir_rear_level_threshold
+ .data.ir_front_level_threshold
+                0x2000001a        0x2 build_sensor/ir_acquisition.o
+                0x2000001a                ir_front_level_threshold
+ .data.ir_rear_pp_threshold
+                0x2000001c        0x2 build_sensor/ir_acquisition.o
+                0x2000001c                ir_rear_pp_threshold
+ .data.ir_front_pp_threshold
+                0x2000001e        0x2 build_sensor/ir_acquisition.o
+                0x2000001e                ir_front_pp_threshold
+ .data.ir_window_samples
+                0x20000020        0x2 build_sensor/ir_acquisition.o
+                0x20000020                ir_window_samples
+ .data.ir_extrema_reset_request
+                0x20000022        0x1 build_sensor/ir_acquisition.o
+                0x20000022                ir_extrema_reset_request
+ *fill*         0x20000023        0x1 
+ .data.ir_rear_raw_min
+                0x20000024        0x2 build_sensor/ir_acquisition.o
+                0x20000024                ir_rear_raw_min
+ .data.ir_front_raw_min
+                0x20000026        0x2 build_sensor/ir_acquisition.o
+                0x20000026                ir_front_raw_min
+ .data.ir_dac2_code
+                0x20000028        0x2 build_sensor/ir_acquisition.o
+                0x20000028                ir_dac2_code
  .data.ir_dac1_code
-                0x20000002        0x2 build_sensor/ir_acquisition.o
-                0x20000002                ir_dac1_code
+                0x2000002a        0x2 build_sensor/ir_acquisition.o
+                0x2000002a                ir_dac1_code
  .data.g_dbg_firmware_build_magic
-                0x20000004        0x4 build_sensor/main.o
-                0x20000004                g_dbg_firmware_build_magic
- .data.led_cmd  0x20000008        0x4 build_sensor/can_protocol.o
+                0x2000002c        0x4 build_sensor/main.o
+                0x2000002c                g_dbg_firmware_build_magic
+ .data.led_cmd  0x20000030        0x4 build_sensor/can_protocol.o
  .data.led_team
-                0x2000000c        0x1 build_sensor/led_rgb.o
+                0x20000034        0x1 build_sensor/led_rgb.o
  .data.uwTickFreq
-                0x2000000d        0x1 build_sensor/stm32f0xx_hal.o
-                0x2000000d                uwTickFreq
- *fill*         0x2000000e        0x2 
+                0x20000035        0x1 build_sensor/stm32f0xx_hal.o
+                0x20000035                uwTickFreq
+ *fill*         0x20000036        0x2 
  .data.uwTickPrio
-                0x20000010        0x4 build_sensor/stm32f0xx_hal.o
-                0x20000010                uwTickPrio
+                0x20000038        0x4 build_sensor/stm32f0xx_hal.o
+                0x20000038                uwTickPrio
  .data.SystemCoreClock
-                0x20000014        0x4 build_sensor/system_stm32f0xx.o
-                0x20000014                SystemCoreClock
+                0x2000003c        0x4 build_sensor/system_stm32f0xx.o
+                0x2000003c                SystemCoreClock
  *(.RamFunc)
  *(.RamFunc*)
-                0x20000018                        . = ALIGN (0x4)
-                0x20000018                        _edata = .
+                0x20000040                        . = ALIGN (0x4)
+                0x20000040                        _edata = .
 
-.igot.plt       0x20000018        0x0 load address 0x08006408
- .igot.plt      0x20000018        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
-                0x20000018                        . = ALIGN (0x4)
+.igot.plt       0x20000040        0x0 load address 0x08006914
+ .igot.plt      0x20000040        0x0 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+                0x20000040                        . = ALIGN (0x4)
 
-.bss            0x20000018      0xa84 load address 0x08006408
-                0x20000018                        _sbss = .
-                0x20000018                        __bss_start__ = _sbss
+.bss            0x20000040      0xb4c load address 0x08006914
+                0x20000040                        _sbss = .
+                0x20000040                        __bss_start__ = _sbss
  *(.bss)
- .bss           0x20000018       0x1c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
+ .bss           0x20000040       0x1c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp/crtbegin.o
  *(.bss*)
  .bss.front_baseline_q16
-                0x20000034        0x4 build_sensor/ir_acquisition.o
+                0x2000005c        0x4 build_sensor/ir_acquisition.o
  .bss.rear_baseline_q16
-                0x20000038        0x4 build_sensor/ir_acquisition.o
+                0x20000060        0x4 build_sensor/ir_acquisition.o
  .bss.front_histogram
-                0x2000003c      0x200 build_sensor/ir_acquisition.o
+                0x20000064      0x200 build_sensor/ir_acquisition.o
  .bss.rear_histogram
-                0x2000023c      0x200 build_sensor/ir_acquisition.o
+                0x20000264      0x200 build_sensor/ir_acquisition.o
  .bss.calibration_sample_count
-                0x2000043c        0x4 build_sensor/ir_acquisition.o
- .bss.calibration_start_tick
-                0x20000440        0x4 build_sensor/ir_acquisition.o
- .bss.front_armed
-                0x20000444        0x1 build_sensor/ir_acquisition.o
- .bss.rear_armed
-                0x20000445        0x1 build_sensor/ir_acquisition.o
- .bss.baseline_ready
-                0x20000446        0x1 build_sensor/ir_acquisition.o
- *fill*         0x20000447        0x1 
- .bss.applied_dac2
-                0x20000448        0x2 build_sensor/ir_acquisition.o
- .bss.applied_dac1
-                0x2000044a        0x2 build_sensor/ir_acquisition.o
- .bss.published_sequence
-                0x2000044c        0x4 build_sensor/ir_acquisition.o
- .bss.completed_offset
-                0x20000450        0x2 build_sensor/ir_acquisition.o
- *fill*         0x20000452        0x2 
- .bss.completed_sequence
-                0x20000454        0x4 build_sensor/ir_acquisition.o
- .bss.ir_front_event_pending
-                0x20000458        0x1 build_sensor/ir_acquisition.o
-                0x20000458                ir_front_event_pending
- .bss.ir_rear_event_pending
-                0x20000459        0x1 build_sensor/ir_acquisition.o
-                0x20000459                ir_rear_event_pending
- *fill*         0x2000045a        0x2 
- .bss.ir_front_event_sample
-                0x2000045c        0x4 build_sensor/ir_acquisition.o
-                0x2000045c                ir_front_event_sample
- .bss.ir_rear_event_sample
-                0x20000460        0x4 build_sensor/ir_acquisition.o
-                0x20000460                ir_rear_event_sample
- .bss.ir_front_event_count
                 0x20000464        0x4 build_sensor/ir_acquisition.o
-                0x20000464                ir_front_event_count
- .bss.ir_rear_event_count
+ .bss.calibration_start_tick
                 0x20000468        0x4 build_sensor/ir_acquisition.o
-                0x20000468                ir_rear_event_count
- .bss.g_sensor_detection_ready
+ .bss.baseline_ready
                 0x2000046c        0x1 build_sensor/ir_acquisition.o
-                0x2000046c                g_sensor_detection_ready
- .bss.ir_acquisition_ready
-                0x2000046d        0x1 build_sensor/ir_acquisition.o
-                0x2000046d                ir_acquisition_ready
- *fill*         0x2000046e        0x2 
- .bss.adc_error_count
-                0x20000470        0x4 build_sensor/ir_acquisition.o
-                0x20000470                adc_error_count
- .bss.adc_full_count
+ *fill*         0x2000046d        0x1 
+ .bss.applied_dac2
+                0x2000046e        0x2 build_sensor/ir_acquisition.o
+ .bss.applied_dac1
+                0x20000470        0x2 build_sensor/ir_acquisition.o
+ *fill*         0x20000472        0x2 
+ .bss.published_sequence
                 0x20000474        0x4 build_sensor/ir_acquisition.o
-                0x20000474                adc_full_count
+ .bss.completed_offset
+                0x20000478        0x2 build_sensor/ir_acquisition.o
+ *fill*         0x2000047a        0x2 
+ .bss.completed_sequence
+                0x2000047c        0x4 build_sensor/ir_acquisition.o
+ .bss.rear_detector
+                0x20000480       0x30 build_sensor/ir_acquisition.o
+ .bss.front_detector
+                0x200004b0       0x30 build_sensor/ir_acquisition.o
+ .bss.pair_tail
+                0x200004e0        0x1 build_sensor/ir_acquisition.o
+ .bss.pair_head
+                0x200004e1        0x1 build_sensor/ir_acquisition.o
+ *fill*         0x200004e2        0x2 
+ .bss.pair_ticks
+                0x200004e4       0x20 build_sensor/ir_acquisition.o
+ .bss.sample_tick
+                0x20000504        0x4 build_sensor/ir_acquisition.o
+ .bss.ir_last_speed_mm_s
+                0x20000508        0x4 build_sensor/ir_acquisition.o
+                0x20000508                ir_last_speed_mm_s
+ .bss.ir_last_pair_us
+                0x2000050c        0x4 build_sensor/ir_acquisition.o
+                0x2000050c                ir_last_pair_us
+ .bss.ir_unpaired_front_count
+                0x20000510        0x4 build_sensor/ir_acquisition.o
+                0x20000510                ir_unpaired_front_count
+ .bss.ir_pair_dropped_count
+                0x20000514        0x4 build_sensor/ir_acquisition.o
+                0x20000514                ir_pair_dropped_count
+ .bss.ir_pair_timeout_count
+                0x20000518        0x4 build_sensor/ir_acquisition.o
+                0x20000518                ir_pair_timeout_count
+ .bss.ir_shot_count
+                0x2000051c        0x4 build_sensor/ir_acquisition.o
+                0x2000051c                ir_shot_count
+ .bss.ir_rear_active
+                0x20000520        0x1 build_sensor/ir_acquisition.o
+                0x20000520                ir_rear_active
+ .bss.ir_front_active
+                0x20000521        0x1 build_sensor/ir_acquisition.o
+                0x20000521                ir_front_active
+ .bss.ir_rear_pp_max_5s
+                0x20000522        0x2 build_sensor/ir_acquisition.o
+                0x20000522                ir_rear_pp_max_5s
+ .bss.ir_front_pp_max_5s
+                0x20000524        0x2 build_sensor/ir_acquisition.o
+                0x20000524                ir_front_pp_max_5s
+ .bss.ir_rear_pp
+                0x20000526        0x2 build_sensor/ir_acquisition.o
+                0x20000526                ir_rear_pp
+ .bss.ir_front_pp
+                0x20000528        0x2 build_sensor/ir_acquisition.o
+                0x20000528                ir_front_pp
+ *fill*         0x2000052a        0x2 
+ .bss.adc_max_window_tick
+                0x2000052c        0x4 build_sensor/ir_acquisition.o
+ .bss.ir_rear_adc_max_5s
+                0x20000530        0x2 build_sensor/ir_acquisition.o
+                0x20000530                ir_rear_adc_max_5s
+ .bss.ir_front_adc_max_5s
+                0x20000532        0x2 build_sensor/ir_acquisition.o
+                0x20000532                ir_front_adc_max_5s
+ .bss.ir_extrema_hold
+                0x20000534        0x1 build_sensor/ir_acquisition.o
+                0x20000534                ir_extrema_hold
+ *fill*         0x20000535        0x3 
+ .bss.ir_extrema_reset_count
+                0x20000538        0x4 build_sensor/ir_acquisition.o
+                0x20000538                ir_extrema_reset_count
+ .bss.ir_extrema_sample_count
+                0x2000053c        0x4 build_sensor/ir_acquisition.o
+                0x2000053c                ir_extrema_sample_count
+ .bss.ir_rear_raw_reference
+                0x20000540        0x2 build_sensor/ir_acquisition.o
+                0x20000540                ir_rear_raw_reference
+ .bss.ir_front_raw_reference
+                0x20000542        0x2 build_sensor/ir_acquisition.o
+                0x20000542                ir_front_raw_reference
+ .bss.ir_rear_raw_max
+                0x20000544        0x2 build_sensor/ir_acquisition.o
+                0x20000544                ir_rear_raw_max
+ .bss.ir_front_raw_max
+                0x20000546        0x2 build_sensor/ir_acquisition.o
+                0x20000546                ir_front_raw_max
+ .bss.ir_front_event_pending
+                0x20000548        0x1 build_sensor/ir_acquisition.o
+                0x20000548                ir_front_event_pending
+ .bss.ir_rear_event_pending
+                0x20000549        0x1 build_sensor/ir_acquisition.o
+                0x20000549                ir_rear_event_pending
+ *fill*         0x2000054a        0x2 
+ .bss.ir_front_event_sample
+                0x2000054c        0x4 build_sensor/ir_acquisition.o
+                0x2000054c                ir_front_event_sample
+ .bss.ir_rear_event_sample
+                0x20000550        0x4 build_sensor/ir_acquisition.o
+                0x20000550                ir_rear_event_sample
+ .bss.ir_front_event_count
+                0x20000554        0x4 build_sensor/ir_acquisition.o
+                0x20000554                ir_front_event_count
+ .bss.ir_rear_event_count
+                0x20000558        0x4 build_sensor/ir_acquisition.o
+                0x20000558                ir_rear_event_count
+ .bss.g_sensor_detection_ready
+                0x2000055c        0x1 build_sensor/ir_acquisition.o
+                0x2000055c                g_sensor_detection_ready
+ .bss.ir_acquisition_ready
+                0x2000055d        0x1 build_sensor/ir_acquisition.o
+                0x2000055d                ir_acquisition_ready
+ *fill*         0x2000055e        0x2 
+ .bss.adc_error_count
+                0x20000560        0x4 build_sensor/ir_acquisition.o
+                0x20000560                adc_error_count
+ .bss.adc_full_count
+                0x20000564        0x4 build_sensor/ir_acquisition.o
+                0x20000564                adc_full_count
  .bss.adc_half_count
-                0x20000478        0x4 build_sensor/ir_acquisition.o
-                0x20000478                adc_half_count
- .bss.et2_raw   0x2000047c        0x2 build_sensor/ir_acquisition.o
-                0x2000047c                et2_raw
- .bss.et1_raw   0x2000047e        0x2 build_sensor/ir_acquisition.o
-                0x2000047e                et1_raw
+                0x20000568        0x4 build_sensor/ir_acquisition.o
+                0x20000568                adc_half_count
+ .bss.et2_raw   0x2000056c        0x2 build_sensor/ir_acquisition.o
+                0x2000056c                et2_raw
+ .bss.et1_raw   0x2000056e        0x2 build_sensor/ir_acquisition.o
+                0x2000056e                et1_raw
  .bss.adc_dma_buf
-                0x20000480       0x40 build_sensor/ir_acquisition.o
-                0x20000480                adc_dma_buf
+                0x20000570       0x40 build_sensor/ir_acquisition.o
+                0x20000570                adc_dma_buf
  .bss.weak_fault_tx_tick.0
-                0x200004c0        0x4 build_sensor/main.o
+                0x200005b0        0x4 build_sensor/main.o
  .bss.last_weak_mask.1
-                0x200004c4        0x1 build_sensor/main.o
+                0x200005b4        0x1 build_sensor/main.o
  .bss.weak_mask_initialized.2
-                0x200004c5        0x1 build_sensor/main.o
+                0x200005b5        0x1 build_sensor/main.o
  .bss.g_heat_debug
-                0x200004c6        0x1 build_sensor/main.o
-                0x200004c6                g_heat_debug
+                0x200005b6        0x1 build_sensor/main.o
+                0x200005b6                g_heat_debug
  .bss.g_led_cmd_count
-                0x200004c7        0x1 build_sensor/main.o
-                0x200004c7                g_led_cmd_count
+                0x200005b7        0x1 build_sensor/main.o
+                0x200005b7                g_led_cmd_count
  .bss.g_led_cmd
-                0x200004c8        0x1 build_sensor/main.o
-                0x200004c8                g_led_cmd
+                0x200005b8        0x1 build_sensor/main.o
+                0x200005b8                g_led_cmd
  .bss.g_dbg_can_bus_off
-                0x200004c9        0x1 build_sensor/main.o
-                0x200004c9                g_dbg_can_bus_off
+                0x200005b9        0x1 build_sensor/main.o
+                0x200005b9                g_dbg_can_bus_off
  .bss.g_dbg_can_rec
-                0x200004ca        0x1 build_sensor/main.o
-                0x200004ca                g_dbg_can_rec
+                0x200005ba        0x1 build_sensor/main.o
+                0x200005ba                g_dbg_can_rec
  .bss.g_dbg_can_tec
-                0x200004cb        0x1 build_sensor/main.o
-                0x200004cb                g_dbg_can_tec
+                0x200005bb        0x1 build_sensor/main.o
+                0x200005bb                g_dbg_can_tec
  .bss.g_dbg_can_lec
-                0x200004cc        0x1 build_sensor/main.o
-                0x200004cc                g_dbg_can_lec
- *fill*         0x200004cd        0x3 
+                0x200005bc        0x1 build_sensor/main.o
+                0x200005bc                g_dbg_can_lec
+ *fill*         0x200005bd        0x3 
  .bss.g_dbg_can_btr
-                0x200004d0        0x4 build_sensor/main.o
-                0x200004d0                g_dbg_can_btr
+                0x200005c0        0x4 build_sensor/main.o
+                0x200005c0                g_dbg_can_btr
  .bss.g_dbg_can_esr
-                0x200004d4        0x4 build_sensor/main.o
-                0x200004d4                g_dbg_can_esr
+                0x200005c4        0x4 build_sensor/main.o
+                0x200005c4                g_dbg_can_esr
  .bss.g_dbg_last_shot_led_event_count
-                0x200004d8        0x4 build_sensor/main.o
-                0x200004d8                g_dbg_last_shot_led_event_count
+                0x200005c8        0x4 build_sensor/main.o
+                0x200005c8                g_dbg_last_shot_led_event_count
  .bss.g_dbg_shot_led_start_count
-                0x200004dc        0x4 build_sensor/main.o
-                0x200004dc                g_dbg_shot_led_start_count
+                0x200005cc        0x4 build_sensor/main.o
+                0x200005cc                g_dbg_shot_led_start_count
  .bss.g_dbg_shot_mailbox_accept_count
-                0x200004e0        0x4 build_sensor/main.o
-                0x200004e0                g_dbg_shot_mailbox_accept_count
+                0x200005d0        0x4 build_sensor/main.o
+                0x200005d0                g_dbg_shot_mailbox_accept_count
  .bss.gbd_shoot_count
-                0x200004e4        0x4 build_sensor/main.o
-                0x200004e4                gbd_shoot_count
+                0x200005d4        0x4 build_sensor/main.o
+                0x200005d4                gbd_shoot_count
  .bss.g_dbg_rear_int_count
-                0x200004e8        0x4 build_sensor/main.o
-                0x200004e8                g_dbg_rear_int_count
+                0x200005d8        0x4 build_sensor/main.o
+                0x200005d8                g_dbg_rear_int_count
  .bss.g_dbg_front_int_count
-                0x200004ec        0x4 build_sensor/main.o
-                0x200004ec                g_dbg_front_int_count
+                0x200005dc        0x4 build_sensor/main.o
+                0x200005dc                g_dbg_front_int_count
  .bss.g_dbg_rear_threshold
-                0x200004f0        0x2 build_sensor/main.o
-                0x200004f0                g_dbg_rear_threshold
+                0x200005e0        0x2 build_sensor/main.o
+                0x200005e0                g_dbg_rear_threshold
  .bss.g_dbg_front_threshold
-                0x200004f2        0x2 build_sensor/main.o
-                0x200004f2                g_dbg_front_threshold
+                0x200005e2        0x2 build_sensor/main.o
+                0x200005e2                g_dbg_front_threshold
  .bss.g_dbg_rear_baseline
-                0x200004f4        0x2 build_sensor/main.o
-                0x200004f4                g_dbg_rear_baseline
+                0x200005e4        0x2 build_sensor/main.o
+                0x200005e4                g_dbg_rear_baseline
  .bss.g_dbg_front_baseline
-                0x200004f6        0x2 build_sensor/main.o
-                0x200004f6                g_dbg_front_baseline
+                0x200005e6        0x2 build_sensor/main.o
+                0x200005e6                g_dbg_front_baseline
  .bss.g_dbg_sensor_pair_rate_hz
-                0x200004f8        0x4 build_sensor/main.o
-                0x200004f8                g_dbg_sensor_pair_rate_hz
+                0x200005e8        0x4 build_sensor/main.o
+                0x200005e8                g_dbg_sensor_pair_rate_hz
  .bss.g_dbg_sensor_sample_count
-                0x200004fc        0x4 build_sensor/main.o
-                0x200004fc                g_dbg_sensor_sample_count
+                0x200005ec        0x4 build_sensor/main.o
+                0x200005ec                g_dbg_sensor_sample_count
  .bss.g_dbg_rear_prox
-                0x20000500        0x2 build_sensor/main.o
-                0x20000500                g_dbg_rear_prox
+                0x200005f0        0x2 build_sensor/main.o
+                0x200005f0                g_dbg_rear_prox
  .bss.g_dbg_front_prox
-                0x20000502        0x2 build_sensor/main.o
-                0x20000502                g_dbg_front_prox
+                0x200005f2        0x2 build_sensor/main.o
+                0x200005f2                g_dbg_front_prox
  .bss.g_led_tick_10hz
-                0x20000504        0x1 build_sensor/main.o
-                0x20000504                g_led_tick_10hz
+                0x200005f4        0x1 build_sensor/main.o
+                0x200005f4                g_led_tick_10hz
  .bss.g_sensor_tick_10hz
-                0x20000505        0x1 build_sensor/main.o
-                0x20000505                g_sensor_tick_10hz
- *fill*         0x20000506        0x2 
+                0x200005f5        0x1 build_sensor/main.o
+                0x200005f5                g_sensor_tick_10hz
+ *fill*         0x200005f6        0x2 
  .bss.g_can_stats
-                0x20000508       0x4c build_sensor/main.o
-                0x20000508                g_can_stats
+                0x200005f8       0x4c build_sensor/main.o
+                0x200005f8                g_can_stats
  .bss.g_shoot_report
-                0x20000554       0x18 build_sensor/main.o
-                0x20000554                g_shoot_report
+                0x20000644       0x18 build_sensor/main.o
+                0x20000644                g_shoot_report
  .bss.g_shoot_detect
-                0x2000056c       0xe4 build_sensor/main.o
-                0x2000056c                g_shoot_detect
- .bss.hiwdg     0x20000650       0x10 build_sensor/main.o
-                0x20000650                hiwdg
+                0x2000065c       0xe4 build_sensor/main.o
+                0x2000065c                g_shoot_detect
+ .bss.hiwdg     0x20000740       0x10 build_sensor/main.o
+                0x20000740                hiwdg
  .bss.hdma_usart3_tx
-                0x20000660       0x44 build_sensor/main.o
-                0x20000660                hdma_usart3_tx
- .bss.huart3    0x200006a4       0x88 build_sensor/main.o
-                0x200006a4                huart3
- .bss.huart1    0x2000072c       0x88 build_sensor/main.o
-                0x2000072c                huart1
- .bss.htim16    0x200007b4       0x48 build_sensor/main.o
-                0x200007b4                htim16
- .bss.htim15    0x200007fc       0x48 build_sensor/main.o
-                0x200007fc                htim15
- .bss.htim14    0x20000844       0x48 build_sensor/main.o
-                0x20000844                htim14
- .bss.htim3     0x2000088c       0x48 build_sensor/main.o
-                0x2000088c                htim3
- .bss.hdma_adc  0x200008d4       0x44 build_sensor/main.o
-                0x200008d4                hdma_adc
- .bss.hadc      0x20000918       0x40 build_sensor/main.o
-                0x20000918                hadc
- .bss.hdac      0x20000958       0x14 build_sensor/main.o
-                0x20000958                hdac
- .bss.hcan      0x2000096c       0x28 build_sensor/main.o
-                0x2000096c                hcan
+                0x20000750       0x44 build_sensor/main.o
+                0x20000750                hdma_usart3_tx
+ .bss.huart3    0x20000794       0x88 build_sensor/main.o
+                0x20000794                huart3
+ .bss.huart1    0x2000081c       0x88 build_sensor/main.o
+                0x2000081c                huart1
+ .bss.htim16    0x200008a4       0x48 build_sensor/main.o
+                0x200008a4                htim16
+ .bss.htim15    0x200008ec       0x48 build_sensor/main.o
+                0x200008ec                htim15
+ .bss.htim14    0x20000934       0x48 build_sensor/main.o
+                0x20000934                htim14
+ .bss.htim3     0x2000097c       0x48 build_sensor/main.o
+                0x2000097c                htim3
+ .bss.hdma_adc  0x200009c4       0x44 build_sensor/main.o
+                0x200009c4                hdma_adc
+ .bss.hadc      0x20000a08       0x40 build_sensor/main.o
+                0x20000a08                hadc
+ .bss.hdac      0x20000a48       0x14 build_sensor/main.o
+                0x20000a48                hdac
+ .bss.hcan      0x20000a5c       0x28 build_sensor/main.o
+                0x20000a5c                hcan
  .bss.thermal_overheat_led_until
-                0x20000994        0x4 build_sensor/thermal.o
+                0x20000a84        0x4 build_sensor/thermal.o
  .bss.thermal_cool_tick
-                0x20000998        0x4 build_sensor/thermal.o
+                0x20000a88        0x4 build_sensor/thermal.o
  .bss.thermal_heat
-                0x2000099c        0x1 build_sensor/thermal.o
+                0x20000a8c        0x1 build_sensor/thermal.o
  .bss.shoot_report_request_count
-                0x2000099d        0x1 build_sensor/can_protocol.o
+                0x20000a8d        0x1 build_sensor/can_protocol.o
  .bss.calibration_requested
-                0x2000099e        0x1 build_sensor/can_protocol.o
- *fill*         0x2000099f        0x1 
+                0x20000a8e        0x1 build_sensor/can_protocol.o
+ *fill*         0x20000a8f        0x1 
  .bss.shoot_data
-                0x200009a0       0x18 build_sensor/can_protocol.o
+                0x20000a90       0x18 build_sensor/can_protocol.o
  .bss.can_handle
-                0x200009b8        0x4 build_sensor/can_protocol.o
+                0x20000aa8        0x4 build_sensor/can_protocol.o
  .bss.g_dbg_reset_flags_on_boot
-                0x200009bc        0x4 build_sensor/reliability.o
-                0x200009bc                g_dbg_reset_flags_on_boot
+                0x20000aac        0x4 build_sensor/reliability.o
+                0x20000aac                g_dbg_reset_flags_on_boot
  .bss.queue_fault_last_tick
-                0x200009c0        0x4 build_sensor/reliability.o
+                0x20000ab0        0x4 build_sensor/reliability.o
  .bss.last_queue_dropped
-                0x200009c4        0x4 build_sensor/reliability.o
+                0x20000ab4        0x4 build_sensor/reliability.o
  .bss.rear_fail_count
-                0x200009c8        0x1 build_sensor/reliability.o
+                0x20000ab8        0x1 build_sensor/reliability.o
  .bss.front_fail_count
-                0x200009c9        0x1 build_sensor/reliability.o
+                0x20000ab9        0x1 build_sensor/reliability.o
  .bss.weak_mask
-                0x200009ca        0x1 build_sensor/reliability.o
+                0x20000aba        0x1 build_sensor/reliability.o
  .bss.pending_strong_mask
-                0x200009cb        0x1 build_sensor/reliability.o
+                0x20000abb        0x1 build_sensor/reliability.o
  .bss.frame_sent
-                0x200009cc        0x1 build_sensor/ws2812_uart.o
- *fill*         0x200009cd        0x3 
- .bss.tx_buf    0x200009d0       0x6c build_sensor/ws2812_uart.o
+                0x20000abc        0x1 build_sensor/ws2812_uart.o
+ *fill*         0x20000abd        0x3 
+ .bss.tx_buf    0x20000ac0       0x6c build_sensor/ws2812_uart.o
  .bss.shot_effect_start_tick
-                0x20000a3c        0x4 build_sensor/led_rgb.o
+                0x20000b2c        0x4 build_sensor/led_rgb.o
  .bss.shot_effect_active
-                0x20000a40        0x1 build_sensor/led_rgb.o
- *fill*         0x20000a41        0x3 
+                0x20000b30        0x1 build_sensor/led_rgb.o
+ *fill*         0x20000b31        0x3 
  .bss.boot_effect_start_tick
-                0x20000a44        0x4 build_sensor/led_rgb.o
+                0x20000b34        0x4 build_sensor/led_rgb.o
  .bss.boot_effect_active
-                0x20000a48        0x1 build_sensor/led_rgb.o
- *fill*         0x20000a49        0x3 
+                0x20000b38        0x1 build_sensor/led_rgb.o
+ *fill*         0x20000b39        0x3 
  .bss.led_current
-                0x20000a4c       0x24 build_sensor/led_rgb.o
+                0x20000b3c       0x24 build_sensor/led_rgb.o
  .bss.led_desired
-                0x20000a70       0x24 build_sensor/led_rgb.o
+                0x20000b60       0x24 build_sensor/led_rgb.o
  .bss.led_referee_data
-                0x20000a94        0x1 build_sensor/led_rgb.o
+                0x20000b84        0x1 build_sensor/led_rgb.o
  .bss.led_overheat_alert
-                0x20000a95        0x1 build_sensor/led_rgb.o
- *fill*         0x20000a96        0x2 
- .bss.uwTick    0x20000a98        0x4 build_sensor/stm32f0xx_hal.o
-                0x20000a98                uwTick
+                0x20000b85        0x1 build_sensor/led_rgb.o
+ *fill*         0x20000b86        0x2 
+ .bss.uwTick    0x20000b88        0x4 build_sensor/stm32f0xx_hal.o
+                0x20000b88                uwTick
  *(COMMON)
-                0x20000a9c                        . = ALIGN (0x4)
-                0x20000a9c                        _ebss = .
-                0x20000a9c                        __bss_end__ = _ebss
+                0x20000b8c                        . = ALIGN (0x4)
+                0x20000b8c                        _ebss = .
+                0x20000b8c                        __bss_end__ = _ebss
 
-.noinit         0x20000a9c       0x18 load address 0x08006408
-                0x20000a9c                        . = ALIGN (0x4)
+.noinit         0x20000b8c       0x18 load address 0x08006914
+                0x20000b8c                        . = ALIGN (0x4)
  *(.noinit)
- .noinit        0x20000a9c       0x18 build_sensor/reliability.o
-                0x20000ab4                        . = ALIGN (0x4)
+ .noinit        0x20000b8c       0x18 build_sensor/reliability.o
+                0x20000ba4                        . = ALIGN (0x4)
 
 ._user_heap_stack
-                0x20000ab4      0x604 load address 0x08006408
-                0x20000ab8                        . = ALIGN (0x8)
- *fill*         0x20000ab4        0x4 
+                0x20000ba4      0x604 load address 0x08006914
+                0x20000ba8                        . = ALIGN (0x8)
+ *fill*         0x20000ba4        0x4 
                 [!provide]                        PROVIDE (end = .)
-                0x20000ab8                        PROVIDE (_end = .)
-                0x20000cb8                        . = (. + _Min_Heap_Size)
- *fill*         0x20000ab8      0x200 
-                0x200010b8                        . = (. + _Min_Stack_Size)
- *fill*         0x20000cb8      0x400 
-                0x200010b8                        . = ALIGN (0x8)
+                0x20000ba8                        PROVIDE (_end = .)
+                0x20000da8                        . = (. + _Min_Heap_Size)
+ *fill*         0x20000ba8      0x200 
+                0x200011a8                        . = (. + _Min_Stack_Size)
+ *fill*         0x20000da8      0x400 
+                0x200011a8                        . = ALIGN (0x8)
 
 /DISCARD/
  libc.a(*)
@@ -2925,276 +3053,276 @@ LOAD E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.
  .comment       0x00000043       0x44 build_sensor/stm32f0xx_hal_uart.o
  .comment       0x00000043       0x44 build_sensor/system_stm32f0xx.o
 
-.debug_info     0x00000000    0x1fa80
- .debug_info    0x00000000     0x17c5 build_sensor/ir_acquisition.o
- .debug_info    0x000017c5     0x110a build_sensor/stm32f0xx_hal_adc.o
- .debug_info    0x000028cf      0x651 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_info    0x00002f20     0x3bdc build_sensor/main.o
- .debug_info    0x00006afc     0x1013 build_sensor/stm32f0xx_it.o
- .debug_info    0x00007b0f     0x2338 build_sensor/stm32f0xx_hal_msp.o
- .debug_info    0x00009e47     0x1559 build_sensor/shoot_detect.o
- .debug_info    0x0000b3a0      0x40e build_sensor/thermal.o
- .debug_info    0x0000b7ae     0x165b build_sensor/can_protocol.o
- .debug_info    0x0000ce09      0x71a build_sensor/reliability.o
- .debug_info    0x0000d523      0x4f2 build_sensor/ws2812_uart.o
- .debug_info    0x0000da15      0xbf9 build_sensor/led_rgb.o
- .debug_info    0x0000e60e     0x132e build_sensor/stm32f0xx_hal_can.o
- .debug_info    0x0000f93c      0xba8 build_sensor/stm32f0xx_hal_rcc.o
- .debug_info    0x000104e4      0x7dd build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_info    0x00010cc1      0x84b build_sensor/stm32f0xx_hal.o
- .debug_info    0x0001150c      0x24a build_sensor/stm32f0xx_hal_iwdg.o
- .debug_info    0x00011756      0x6da build_sensor/stm32f0xx_hal_gpio.o
- .debug_info    0x00011e30      0x93e build_sensor/stm32f0xx_hal_dma.o
- .debug_info    0x0001276e      0x8ff build_sensor/stm32f0xx_hal_cortex.o
- .debug_info    0x0001306d      0x9df build_sensor/stm32f0xx_hal_dac.o
- .debug_info    0x00013a4c      0xbf1 build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_info    0x0001463d     0x40f0 build_sensor/stm32f0xx_hal_tim.o
- .debug_info    0x0001872d     0x1cb9 build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_info    0x0001a3e6     0x539c build_sensor/stm32f0xx_hal_uart.o
- .debug_info    0x0001f782      0x2ce build_sensor/system_stm32f0xx.o
- .debug_info    0x0001fa50       0x30 build_sensor/startup_stm32f072xb.o
+.debug_info     0x00000000    0x202fb
+ .debug_info    0x00000000     0x2040 build_sensor/ir_acquisition.o
+ .debug_info    0x00002040     0x110a build_sensor/stm32f0xx_hal_adc.o
+ .debug_info    0x0000314a      0x651 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_info    0x0000379b     0x3bdc build_sensor/main.o
+ .debug_info    0x00007377     0x1013 build_sensor/stm32f0xx_it.o
+ .debug_info    0x0000838a     0x2338 build_sensor/stm32f0xx_hal_msp.o
+ .debug_info    0x0000a6c2     0x1559 build_sensor/shoot_detect.o
+ .debug_info    0x0000bc1b      0x40e build_sensor/thermal.o
+ .debug_info    0x0000c029     0x165b build_sensor/can_protocol.o
+ .debug_info    0x0000d684      0x71a build_sensor/reliability.o
+ .debug_info    0x0000dd9e      0x4f2 build_sensor/ws2812_uart.o
+ .debug_info    0x0000e290      0xbf9 build_sensor/led_rgb.o
+ .debug_info    0x0000ee89     0x132e build_sensor/stm32f0xx_hal_can.o
+ .debug_info    0x000101b7      0xba8 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_info    0x00010d5f      0x7dd build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_info    0x0001153c      0x84b build_sensor/stm32f0xx_hal.o
+ .debug_info    0x00011d87      0x24a build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_info    0x00011fd1      0x6da build_sensor/stm32f0xx_hal_gpio.o
+ .debug_info    0x000126ab      0x93e build_sensor/stm32f0xx_hal_dma.o
+ .debug_info    0x00012fe9      0x8ff build_sensor/stm32f0xx_hal_cortex.o
+ .debug_info    0x000138e8      0x9df build_sensor/stm32f0xx_hal_dac.o
+ .debug_info    0x000142c7      0xbf1 build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_info    0x00014eb8     0x40f0 build_sensor/stm32f0xx_hal_tim.o
+ .debug_info    0x00018fa8     0x1cb9 build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_info    0x0001ac61     0x539c build_sensor/stm32f0xx_hal_uart.o
+ .debug_info    0x0001fffd      0x2ce build_sensor/system_stm32f0xx.o
+ .debug_info    0x000202cb       0x30 build_sensor/startup_stm32f072xb.o
 
-.debug_abbrev   0x00000000     0x4161
- .debug_abbrev  0x00000000      0x383 build_sensor/ir_acquisition.o
- .debug_abbrev  0x00000383      0x2a5 build_sensor/stm32f0xx_hal_adc.o
- .debug_abbrev  0x00000628      0x181 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_abbrev  0x000007a9      0x370 build_sensor/main.o
- .debug_abbrev  0x00000b19      0x217 build_sensor/stm32f0xx_it.o
- .debug_abbrev  0x00000d30      0x28d build_sensor/stm32f0xx_hal_msp.o
- .debug_abbrev  0x00000fbd      0x49f build_sensor/shoot_detect.o
- .debug_abbrev  0x0000145c      0x1c9 build_sensor/thermal.o
- .debug_abbrev  0x00001625      0x406 build_sensor/can_protocol.o
- .debug_abbrev  0x00001a2b      0x291 build_sensor/reliability.o
- .debug_abbrev  0x00001cbc      0x1df build_sensor/ws2812_uart.o
- .debug_abbrev  0x00001e9b      0x2dd build_sensor/led_rgb.o
- .debug_abbrev  0x00002178      0x1f2 build_sensor/stm32f0xx_hal_can.o
- .debug_abbrev  0x0000236a      0x2b4 build_sensor/stm32f0xx_hal_rcc.o
- .debug_abbrev  0x0000261e      0x1f0 build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_abbrev  0x0000280e      0x237 build_sensor/stm32f0xx_hal.o
- .debug_abbrev  0x00002a45      0x15d build_sensor/stm32f0xx_hal_iwdg.o
- .debug_abbrev  0x00002ba2      0x222 build_sensor/stm32f0xx_hal_gpio.o
- .debug_abbrev  0x00002dc4      0x242 build_sensor/stm32f0xx_hal_dma.o
- .debug_abbrev  0x00003006      0x2f4 build_sensor/stm32f0xx_hal_cortex.o
- .debug_abbrev  0x000032fa      0x1e6 build_sensor/stm32f0xx_hal_dac.o
- .debug_abbrev  0x000034e0      0x29a build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_abbrev  0x0000377a      0x2bd build_sensor/stm32f0xx_hal_tim.o
- .debug_abbrev  0x00003a37      0x29d build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_abbrev  0x00003cd4      0x33c build_sensor/stm32f0xx_hal_uart.o
- .debug_abbrev  0x00004010      0x134 build_sensor/system_stm32f0xx.o
- .debug_abbrev  0x00004144       0x1d build_sensor/startup_stm32f072xb.o
+.debug_abbrev   0x00000000     0x417e
+ .debug_abbrev  0x00000000      0x3a0 build_sensor/ir_acquisition.o
+ .debug_abbrev  0x000003a0      0x2a5 build_sensor/stm32f0xx_hal_adc.o
+ .debug_abbrev  0x00000645      0x181 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_abbrev  0x000007c6      0x370 build_sensor/main.o
+ .debug_abbrev  0x00000b36      0x217 build_sensor/stm32f0xx_it.o
+ .debug_abbrev  0x00000d4d      0x28d build_sensor/stm32f0xx_hal_msp.o
+ .debug_abbrev  0x00000fda      0x49f build_sensor/shoot_detect.o
+ .debug_abbrev  0x00001479      0x1c9 build_sensor/thermal.o
+ .debug_abbrev  0x00001642      0x406 build_sensor/can_protocol.o
+ .debug_abbrev  0x00001a48      0x291 build_sensor/reliability.o
+ .debug_abbrev  0x00001cd9      0x1df build_sensor/ws2812_uart.o
+ .debug_abbrev  0x00001eb8      0x2dd build_sensor/led_rgb.o
+ .debug_abbrev  0x00002195      0x1f2 build_sensor/stm32f0xx_hal_can.o
+ .debug_abbrev  0x00002387      0x2b4 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_abbrev  0x0000263b      0x1f0 build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_abbrev  0x0000282b      0x237 build_sensor/stm32f0xx_hal.o
+ .debug_abbrev  0x00002a62      0x15d build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_abbrev  0x00002bbf      0x222 build_sensor/stm32f0xx_hal_gpio.o
+ .debug_abbrev  0x00002de1      0x242 build_sensor/stm32f0xx_hal_dma.o
+ .debug_abbrev  0x00003023      0x2f4 build_sensor/stm32f0xx_hal_cortex.o
+ .debug_abbrev  0x00003317      0x1e6 build_sensor/stm32f0xx_hal_dac.o
+ .debug_abbrev  0x000034fd      0x29a build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_abbrev  0x00003797      0x2bd build_sensor/stm32f0xx_hal_tim.o
+ .debug_abbrev  0x00003a54      0x29d build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_abbrev  0x00003cf1      0x33c build_sensor/stm32f0xx_hal_uart.o
+ .debug_abbrev  0x0000402d      0x134 build_sensor/system_stm32f0xx.o
+ .debug_abbrev  0x00004161       0x1d build_sensor/startup_stm32f072xb.o
 
-.debug_loc      0x00000000    0x168d0
- .debug_loc     0x00000000      0x683 build_sensor/ir_acquisition.o
- .debug_loc     0x00000683     0x11b3 build_sensor/stm32f0xx_hal_adc.o
- .debug_loc     0x00001836      0x148 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_loc     0x0000197e      0x303 build_sensor/main.o
- .debug_loc     0x00001c81      0x16b build_sensor/stm32f0xx_it.o
- .debug_loc     0x00001dec      0x63d build_sensor/stm32f0xx_hal_msp.o
- .debug_loc     0x00002429      0x91e build_sensor/shoot_detect.o
- .debug_loc     0x00002d47      0x1fc build_sensor/thermal.o
- .debug_loc     0x00002f43      0x965 build_sensor/can_protocol.o
- .debug_loc     0x000038a8      0x3b5 build_sensor/reliability.o
- .debug_loc     0x00003c5d      0x21e build_sensor/ws2812_uart.o
- .debug_loc     0x00003e7b      0x872 build_sensor/led_rgb.o
- .debug_loc     0x000046ed     0x137f build_sensor/stm32f0xx_hal_can.o
- .debug_loc     0x00005a6c      0x816 build_sensor/stm32f0xx_hal_rcc.o
- .debug_loc     0x00006282      0x9cb build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_loc     0x00006c4d      0x1f9 build_sensor/stm32f0xx_hal.o
- .debug_loc     0x00006e46       0xbf build_sensor/stm32f0xx_hal_iwdg.o
- .debug_loc     0x00006f05      0x47a build_sensor/stm32f0xx_hal_gpio.o
- .debug_loc     0x0000737f      0xb4c build_sensor/stm32f0xx_hal_dma.o
- .debug_loc     0x00007ecb      0x3d4 build_sensor/stm32f0xx_hal_cortex.o
- .debug_loc     0x0000829f      0x42f build_sensor/stm32f0xx_hal_dac.o
- .debug_loc     0x000086ce      0xa5c build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_loc     0x0000912a     0x68e3 build_sensor/stm32f0xx_hal_tim.o
- .debug_loc     0x0000fa0d     0x292c build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_loc     0x00012339     0x43e9 build_sensor/stm32f0xx_hal_uart.o
- .debug_loc     0x00016722      0x1ae build_sensor/system_stm32f0xx.o
+.debug_loc      0x00000000    0x16f30
+ .debug_loc     0x00000000      0xce3 build_sensor/ir_acquisition.o
+ .debug_loc     0x00000ce3     0x11b3 build_sensor/stm32f0xx_hal_adc.o
+ .debug_loc     0x00001e96      0x148 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_loc     0x00001fde      0x303 build_sensor/main.o
+ .debug_loc     0x000022e1      0x16b build_sensor/stm32f0xx_it.o
+ .debug_loc     0x0000244c      0x63d build_sensor/stm32f0xx_hal_msp.o
+ .debug_loc     0x00002a89      0x91e build_sensor/shoot_detect.o
+ .debug_loc     0x000033a7      0x1fc build_sensor/thermal.o
+ .debug_loc     0x000035a3      0x965 build_sensor/can_protocol.o
+ .debug_loc     0x00003f08      0x3b5 build_sensor/reliability.o
+ .debug_loc     0x000042bd      0x21e build_sensor/ws2812_uart.o
+ .debug_loc     0x000044db      0x872 build_sensor/led_rgb.o
+ .debug_loc     0x00004d4d     0x137f build_sensor/stm32f0xx_hal_can.o
+ .debug_loc     0x000060cc      0x816 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_loc     0x000068e2      0x9cb build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_loc     0x000072ad      0x1f9 build_sensor/stm32f0xx_hal.o
+ .debug_loc     0x000074a6       0xbf build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_loc     0x00007565      0x47a build_sensor/stm32f0xx_hal_gpio.o
+ .debug_loc     0x000079df      0xb4c build_sensor/stm32f0xx_hal_dma.o
+ .debug_loc     0x0000852b      0x3d4 build_sensor/stm32f0xx_hal_cortex.o
+ .debug_loc     0x000088ff      0x42f build_sensor/stm32f0xx_hal_dac.o
+ .debug_loc     0x00008d2e      0xa5c build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_loc     0x0000978a     0x68e3 build_sensor/stm32f0xx_hal_tim.o
+ .debug_loc     0x0001006d     0x292c build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_loc     0x00012999     0x43e9 build_sensor/stm32f0xx_hal_uart.o
+ .debug_loc     0x00016d82      0x1ae build_sensor/system_stm32f0xx.o
 
-.debug_aranges  0x00000000     0x1370
+.debug_aranges  0x00000000     0x1380
  .debug_aranges
-                0x00000000       0x70 build_sensor/ir_acquisition.o
+                0x00000000       0x80 build_sensor/ir_acquisition.o
  .debug_aranges
-                0x00000070       0xf8 build_sensor/stm32f0xx_hal_adc.o
+                0x00000080       0xf8 build_sensor/stm32f0xx_hal_adc.o
  .debug_aranges
-                0x00000168       0x20 build_sensor/stm32f0xx_hal_adc_ex.o
+                0x00000178       0x20 build_sensor/stm32f0xx_hal_adc_ex.o
  .debug_aranges
-                0x00000188       0x88 build_sensor/main.o
+                0x00000198       0x88 build_sensor/main.o
  .debug_aranges
-                0x00000210       0x80 build_sensor/stm32f0xx_it.o
+                0x00000220       0x80 build_sensor/stm32f0xx_it.o
  .debug_aranges
-                0x00000290       0x80 build_sensor/stm32f0xx_hal_msp.o
+                0x000002a0       0x80 build_sensor/stm32f0xx_hal_msp.o
  .debug_aranges
-                0x00000310       0xa0 build_sensor/shoot_detect.o
+                0x00000320       0xa0 build_sensor/shoot_detect.o
  .debug_aranges
-                0x000003b0       0x48 build_sensor/thermal.o
+                0x000003c0       0x48 build_sensor/thermal.o
  .debug_aranges
-                0x000003f8       0xa0 build_sensor/can_protocol.o
+                0x00000408       0xa0 build_sensor/can_protocol.o
  .debug_aranges
-                0x00000498       0x70 build_sensor/reliability.o
+                0x000004a8       0x70 build_sensor/reliability.o
  .debug_aranges
-                0x00000508       0x40 build_sensor/ws2812_uart.o
+                0x00000518       0x40 build_sensor/ws2812_uart.o
  .debug_aranges
-                0x00000548       0x80 build_sensor/led_rgb.o
+                0x00000558       0x80 build_sensor/led_rgb.o
  .debug_aranges
-                0x000005c8      0x138 build_sensor/stm32f0xx_hal_can.o
+                0x000005d8      0x138 build_sensor/stm32f0xx_hal_can.o
  .debug_aranges
-                0x00000700       0x80 build_sensor/stm32f0xx_hal_rcc.o
+                0x00000710       0x80 build_sensor/stm32f0xx_hal_rcc.o
  .debug_aranges
-                0x00000780       0x78 build_sensor/stm32f0xx_hal_rcc_ex.o
+                0x00000790       0x78 build_sensor/stm32f0xx_hal_rcc_ex.o
  .debug_aranges
-                0x000007f8       0xd0 build_sensor/stm32f0xx_hal.o
+                0x00000808       0xd0 build_sensor/stm32f0xx_hal.o
  .debug_aranges
-                0x000008c8       0x28 build_sensor/stm32f0xx_hal_iwdg.o
+                0x000008d8       0x28 build_sensor/stm32f0xx_hal_iwdg.o
  .debug_aranges
-                0x000008f0       0x58 build_sensor/stm32f0xx_hal_gpio.o
+                0x00000900       0x58 build_sensor/stm32f0xx_hal_gpio.o
  .debug_aranges
-                0x00000948       0x88 build_sensor/stm32f0xx_hal_dma.o
+                0x00000958       0x88 build_sensor/stm32f0xx_hal_dma.o
  .debug_aranges
-                0x000009d0       0x98 build_sensor/stm32f0xx_hal_cortex.o
+                0x000009e0       0x98 build_sensor/stm32f0xx_hal_cortex.o
  .debug_aranges
-                0x00000a68       0xa8 build_sensor/stm32f0xx_hal_dac.o
+                0x00000a78       0xa8 build_sensor/stm32f0xx_hal_dac.o
  .debug_aranges
-                0x00000b10       0xb0 build_sensor/stm32f0xx_hal_dac_ex.o
+                0x00000b20       0xb0 build_sensor/stm32f0xx_hal_dac_ex.o
  .debug_aranges
-                0x00000bc0      0x3d0 build_sensor/stm32f0xx_hal_tim.o
+                0x00000bd0      0x3d0 build_sensor/stm32f0xx_hal_tim.o
  .debug_aranges
-                0x00000f90      0x168 build_sensor/stm32f0xx_hal_tim_ex.o
+                0x00000fa0      0x168 build_sensor/stm32f0xx_hal_tim_ex.o
  .debug_aranges
-                0x000010f8      0x228 build_sensor/stm32f0xx_hal_uart.o
+                0x00001108      0x228 build_sensor/stm32f0xx_hal_uart.o
  .debug_aranges
-                0x00001320       0x28 build_sensor/system_stm32f0xx.o
+                0x00001330       0x28 build_sensor/system_stm32f0xx.o
  .debug_aranges
-                0x00001348       0x28 build_sensor/startup_stm32f072xb.o
+                0x00001358       0x28 build_sensor/startup_stm32f072xb.o
 
-.debug_ranges   0x00000000     0x1440
- .debug_ranges  0x00000000       0xa8 build_sensor/ir_acquisition.o
- .debug_ranges  0x000000a8       0xe8 build_sensor/stm32f0xx_hal_adc.o
- .debug_ranges  0x00000190       0x10 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_ranges  0x000001a0       0x90 build_sensor/main.o
- .debug_ranges  0x00000230       0x70 build_sensor/stm32f0xx_it.o
- .debug_ranges  0x000002a0       0x70 build_sensor/stm32f0xx_hal_msp.o
- .debug_ranges  0x00000310       0xc8 build_sensor/shoot_detect.o
- .debug_ranges  0x000003d8       0x68 build_sensor/thermal.o
- .debug_ranges  0x00000440       0x90 build_sensor/can_protocol.o
- .debug_ranges  0x000004d0       0x60 build_sensor/reliability.o
- .debug_ranges  0x00000530       0x30 build_sensor/ws2812_uart.o
- .debug_ranges  0x00000560      0x178 build_sensor/led_rgb.o
- .debug_ranges  0x000006d8      0x128 build_sensor/stm32f0xx_hal_can.o
- .debug_ranges  0x00000800       0x88 build_sensor/stm32f0xx_hal_rcc.o
- .debug_ranges  0x00000888       0x80 build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_ranges  0x00000908       0xc0 build_sensor/stm32f0xx_hal.o
- .debug_ranges  0x000009c8       0x18 build_sensor/stm32f0xx_hal_iwdg.o
- .debug_ranges  0x000009e0       0x48 build_sensor/stm32f0xx_hal_gpio.o
- .debug_ranges  0x00000a28       0x78 build_sensor/stm32f0xx_hal_dma.o
- .debug_ranges  0x00000aa0       0xa0 build_sensor/stm32f0xx_hal_cortex.o
- .debug_ranges  0x00000b40       0x98 build_sensor/stm32f0xx_hal_dac.o
- .debug_ranges  0x00000bd8       0xa0 build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_ranges  0x00000c78      0x3c0 build_sensor/stm32f0xx_hal_tim.o
- .debug_ranges  0x00001038      0x158 build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_ranges  0x00001190      0x278 build_sensor/stm32f0xx_hal_uart.o
- .debug_ranges  0x00001408       0x18 build_sensor/system_stm32f0xx.o
- .debug_ranges  0x00001420       0x20 build_sensor/startup_stm32f072xb.o
+.debug_ranges   0x00000000     0x14c8
+ .debug_ranges  0x00000000      0x130 build_sensor/ir_acquisition.o
+ .debug_ranges  0x00000130       0xe8 build_sensor/stm32f0xx_hal_adc.o
+ .debug_ranges  0x00000218       0x10 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_ranges  0x00000228       0x90 build_sensor/main.o
+ .debug_ranges  0x000002b8       0x70 build_sensor/stm32f0xx_it.o
+ .debug_ranges  0x00000328       0x70 build_sensor/stm32f0xx_hal_msp.o
+ .debug_ranges  0x00000398       0xc8 build_sensor/shoot_detect.o
+ .debug_ranges  0x00000460       0x68 build_sensor/thermal.o
+ .debug_ranges  0x000004c8       0x90 build_sensor/can_protocol.o
+ .debug_ranges  0x00000558       0x60 build_sensor/reliability.o
+ .debug_ranges  0x000005b8       0x30 build_sensor/ws2812_uart.o
+ .debug_ranges  0x000005e8      0x178 build_sensor/led_rgb.o
+ .debug_ranges  0x00000760      0x128 build_sensor/stm32f0xx_hal_can.o
+ .debug_ranges  0x00000888       0x88 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_ranges  0x00000910       0x80 build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_ranges  0x00000990       0xc0 build_sensor/stm32f0xx_hal.o
+ .debug_ranges  0x00000a50       0x18 build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_ranges  0x00000a68       0x48 build_sensor/stm32f0xx_hal_gpio.o
+ .debug_ranges  0x00000ab0       0x78 build_sensor/stm32f0xx_hal_dma.o
+ .debug_ranges  0x00000b28       0xa0 build_sensor/stm32f0xx_hal_cortex.o
+ .debug_ranges  0x00000bc8       0x98 build_sensor/stm32f0xx_hal_dac.o
+ .debug_ranges  0x00000c60       0xa0 build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_ranges  0x00000d00      0x3c0 build_sensor/stm32f0xx_hal_tim.o
+ .debug_ranges  0x000010c0      0x158 build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_ranges  0x00001218      0x278 build_sensor/stm32f0xx_hal_uart.o
+ .debug_ranges  0x00001490       0x18 build_sensor/system_stm32f0xx.o
+ .debug_ranges  0x000014a8       0x20 build_sensor/startup_stm32f072xb.o
 
-.debug_line     0x00000000    0x15eb9
- .debug_line    0x00000000      0xad6 build_sensor/ir_acquisition.o
- .debug_line    0x00000ad6     0x1007 build_sensor/stm32f0xx_hal_adc.o
- .debug_line    0x00001add      0x2e5 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_line    0x00001dc2      0xf03 build_sensor/main.o
- .debug_line    0x00002cc5      0x3c4 build_sensor/stm32f0xx_it.o
- .debug_line    0x00003089      0x7b6 build_sensor/stm32f0xx_hal_msp.o
- .debug_line    0x0000383f      0xa46 build_sensor/shoot_detect.o
- .debug_line    0x00004285      0x3d5 build_sensor/thermal.o
- .debug_line    0x0000465a      0xc7f build_sensor/can_protocol.o
- .debug_line    0x000052d9      0x530 build_sensor/reliability.o
- .debug_line    0x00005809      0x433 build_sensor/ws2812_uart.o
- .debug_line    0x00005c3c      0x8e4 build_sensor/led_rgb.o
- .debug_line    0x00006520     0x119f build_sensor/stm32f0xx_hal_can.o
- .debug_line    0x000076bf      0xd76 build_sensor/stm32f0xx_hal_rcc.o
- .debug_line    0x00008435      0x953 build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_line    0x00008d88      0x563 build_sensor/stm32f0xx_hal.o
- .debug_line    0x000092eb      0x2cc build_sensor/stm32f0xx_hal_iwdg.o
- .debug_line    0x000095b7      0x6f7 build_sensor/stm32f0xx_hal_gpio.o
- .debug_line    0x00009cae      0xa79 build_sensor/stm32f0xx_hal_dma.o
- .debug_line    0x0000a727      0x56e build_sensor/stm32f0xx_hal_cortex.o
- .debug_line    0x0000ac95      0x505 build_sensor/stm32f0xx_hal_dac.o
- .debug_line    0x0000b19a      0x778 build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_line    0x0000b912     0x4932 build_sensor/stm32f0xx_hal_tim.o
- .debug_line    0x00010244     0x1a72 build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_line    0x00011cb6     0x3f10 build_sensor/stm32f0xx_hal_uart.o
- .debug_line    0x00015bc6      0x27f build_sensor/system_stm32f0xx.o
- .debug_line    0x00015e45       0x74 build_sensor/startup_stm32f072xb.o
+.debug_line     0x00000000    0x16556
+ .debug_line    0x00000000     0x1173 build_sensor/ir_acquisition.o
+ .debug_line    0x00001173     0x1007 build_sensor/stm32f0xx_hal_adc.o
+ .debug_line    0x0000217a      0x2e5 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_line    0x0000245f      0xf03 build_sensor/main.o
+ .debug_line    0x00003362      0x3c4 build_sensor/stm32f0xx_it.o
+ .debug_line    0x00003726      0x7b6 build_sensor/stm32f0xx_hal_msp.o
+ .debug_line    0x00003edc      0xa46 build_sensor/shoot_detect.o
+ .debug_line    0x00004922      0x3d5 build_sensor/thermal.o
+ .debug_line    0x00004cf7      0xc7f build_sensor/can_protocol.o
+ .debug_line    0x00005976      0x530 build_sensor/reliability.o
+ .debug_line    0x00005ea6      0x433 build_sensor/ws2812_uart.o
+ .debug_line    0x000062d9      0x8e4 build_sensor/led_rgb.o
+ .debug_line    0x00006bbd     0x119f build_sensor/stm32f0xx_hal_can.o
+ .debug_line    0x00007d5c      0xd76 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_line    0x00008ad2      0x953 build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_line    0x00009425      0x563 build_sensor/stm32f0xx_hal.o
+ .debug_line    0x00009988      0x2cc build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_line    0x00009c54      0x6f7 build_sensor/stm32f0xx_hal_gpio.o
+ .debug_line    0x0000a34b      0xa79 build_sensor/stm32f0xx_hal_dma.o
+ .debug_line    0x0000adc4      0x56e build_sensor/stm32f0xx_hal_cortex.o
+ .debug_line    0x0000b332      0x505 build_sensor/stm32f0xx_hal_dac.o
+ .debug_line    0x0000b837      0x778 build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_line    0x0000bfaf     0x4932 build_sensor/stm32f0xx_hal_tim.o
+ .debug_line    0x000108e1     0x1a72 build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_line    0x00012353     0x3f10 build_sensor/stm32f0xx_hal_uart.o
+ .debug_line    0x00016263      0x27f build_sensor/system_stm32f0xx.o
+ .debug_line    0x000164e2       0x74 build_sensor/startup_stm32f072xb.o
 
-.debug_str      0x00000000     0x6348
- .debug_str     0x00000000     0x6348 build_sensor/ir_acquisition.o
-                                0xf92 (size before relaxing)
- .debug_str     0x00006348      0x8dc build_sensor/stm32f0xx_hal_adc.o
- .debug_str     0x00006348      0x5a3 build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_str     0x00006348     0x26e4 build_sensor/main.o
- .debug_str     0x00006348      0xbc3 build_sensor/stm32f0xx_it.o
- .debug_str     0x00006348     0x147e build_sensor/stm32f0xx_hal_msp.o
- .debug_str     0x00006348      0xd22 build_sensor/shoot_detect.o
- .debug_str     0x00006348      0x2b6 build_sensor/thermal.o
- .debug_str     0x00006348      0xae5 build_sensor/can_protocol.o
- .debug_str     0x00006348      0x448 build_sensor/reliability.o
- .debug_str     0x00006348      0x2a4 build_sensor/ws2812_uart.o
- .debug_str     0x00006348      0x50b build_sensor/led_rgb.o
- .debug_str     0x00006348      0x9ec build_sensor/stm32f0xx_hal_can.o
- .debug_str     0x00006348      0x64a build_sensor/stm32f0xx_hal_rcc.o
- .debug_str     0x00006348      0x60b build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_str     0x00006348      0x6f3 build_sensor/stm32f0xx_hal.o
- .debug_str     0x00006348      0x265 build_sensor/stm32f0xx_hal_iwdg.o
- .debug_str     0x00006348      0x3de build_sensor/stm32f0xx_hal_gpio.o
- .debug_str     0x00006348      0x601 build_sensor/stm32f0xx_hal_dma.o
- .debug_str     0x00006348      0x634 build_sensor/stm32f0xx_hal_cortex.o
- .debug_str     0x00006348      0x696 build_sensor/stm32f0xx_hal_dac.o
- .debug_str     0x00006348      0x791 build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_str     0x00006348     0x1663 build_sensor/stm32f0xx_hal_tim.o
- .debug_str     0x00006348      0xe6f build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_str     0x00006348      0xec7 build_sensor/stm32f0xx_hal_uart.o
- .debug_str     0x00006348      0x25b build_sensor/system_stm32f0xx.o
- .debug_str     0x00006348       0x68 build_sensor/startup_stm32f072xb.o
+.debug_str      0x00000000     0x668f
+ .debug_str     0x00000000     0x668f build_sensor/ir_acquisition.o
+                               0x1377 (size before relaxing)
+ .debug_str     0x0000668f      0x8dc build_sensor/stm32f0xx_hal_adc.o
+ .debug_str     0x0000668f      0x5a3 build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_str     0x0000668f     0x26e4 build_sensor/main.o
+ .debug_str     0x0000668f      0xbc3 build_sensor/stm32f0xx_it.o
+ .debug_str     0x0000668f     0x147e build_sensor/stm32f0xx_hal_msp.o
+ .debug_str     0x0000668f      0xd22 build_sensor/shoot_detect.o
+ .debug_str     0x0000668f      0x2b6 build_sensor/thermal.o
+ .debug_str     0x0000668f      0xae5 build_sensor/can_protocol.o
+ .debug_str     0x0000668f      0x448 build_sensor/reliability.o
+ .debug_str     0x0000668f      0x2a4 build_sensor/ws2812_uart.o
+ .debug_str     0x0000668f      0x50b build_sensor/led_rgb.o
+ .debug_str     0x0000668f      0x9ec build_sensor/stm32f0xx_hal_can.o
+ .debug_str     0x0000668f      0x64a build_sensor/stm32f0xx_hal_rcc.o
+ .debug_str     0x0000668f      0x60b build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_str     0x0000668f      0x6f3 build_sensor/stm32f0xx_hal.o
+ .debug_str     0x0000668f      0x265 build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_str     0x0000668f      0x3de build_sensor/stm32f0xx_hal_gpio.o
+ .debug_str     0x0000668f      0x601 build_sensor/stm32f0xx_hal_dma.o
+ .debug_str     0x0000668f      0x634 build_sensor/stm32f0xx_hal_cortex.o
+ .debug_str     0x0000668f      0x696 build_sensor/stm32f0xx_hal_dac.o
+ .debug_str     0x0000668f      0x791 build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_str     0x0000668f     0x1663 build_sensor/stm32f0xx_hal_tim.o
+ .debug_str     0x0000668f      0xe6f build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_str     0x0000668f      0xec7 build_sensor/stm32f0xx_hal_uart.o
+ .debug_str     0x0000668f      0x25b build_sensor/system_stm32f0xx.o
+ .debug_str     0x0000668f       0x68 build_sensor/startup_stm32f072xb.o
 
-.debug_frame    0x00000000     0x3398
- .debug_frame   0x00000000      0x120 build_sensor/ir_acquisition.o
- .debug_frame   0x00000120      0x2a4 build_sensor/stm32f0xx_hal_adc.o
- .debug_frame   0x000003c4       0x2c build_sensor/stm32f0xx_hal_adc_ex.o
- .debug_frame   0x000003f0      0x15c build_sensor/main.o
- .debug_frame   0x0000054c      0x130 build_sensor/stm32f0xx_it.o
- .debug_frame   0x0000067c      0x158 build_sensor/stm32f0xx_hal_msp.o
- .debug_frame   0x000007d4      0x180 build_sensor/shoot_detect.o
- .debug_frame   0x00000954       0x78 build_sensor/thermal.o
- .debug_frame   0x000009cc      0x1c8 build_sensor/can_protocol.o
- .debug_frame   0x00000b94       0xf0 build_sensor/reliability.o
- .debug_frame   0x00000c84       0x94 build_sensor/ws2812_uart.o
- .debug_frame   0x00000d18      0x170 build_sensor/led_rgb.o
- .debug_frame   0x00000e88      0x2c8 build_sensor/stm32f0xx_hal_can.o
- .debug_frame   0x00001150      0x138 build_sensor/stm32f0xx_hal_rcc.o
- .debug_frame   0x00001288       0xfc build_sensor/stm32f0xx_hal_rcc_ex.o
- .debug_frame   0x00001384      0x1b0 build_sensor/stm32f0xx_hal.o
- .debug_frame   0x00001534       0x3c build_sensor/stm32f0xx_hal_iwdg.o
- .debug_frame   0x00001570       0xc0 build_sensor/stm32f0xx_hal_gpio.o
- .debug_frame   0x00001630      0x168 build_sensor/stm32f0xx_hal_dma.o
- .debug_frame   0x00001798      0x144 build_sensor/stm32f0xx_hal_cortex.o
- .debug_frame   0x000018dc      0x160 build_sensor/stm32f0xx_hal_dac.o
- .debug_frame   0x00001a3c      0x1b4 build_sensor/stm32f0xx_hal_dac_ex.o
- .debug_frame   0x00001bf0      0xae4 build_sensor/stm32f0xx_hal_tim.o
- .debug_frame   0x000026d4      0x420 build_sensor/stm32f0xx_hal_tim_ex.o
- .debug_frame   0x00002af4      0x62c build_sensor/stm32f0xx_hal_uart.o
- .debug_frame   0x00003120       0x38 build_sensor/system_stm32f0xx.o
- .debug_frame   0x00003158       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-memset.o)
- .debug_frame   0x00003178       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-init.o)
- .debug_frame   0x000031a4       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_udivsi3.o)
- .debug_frame   0x000031c4       0x28 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_fixunssfsi.o)
- .debug_frame   0x000031ec       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(addsf3.o)
- .debug_frame   0x00003224       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(divsf3.o)
- .debug_frame   0x0000325c       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(eqsf2.o)
- .debug_frame   0x00003288       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(gesf2.o)
- .debug_frame   0x000032b4       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(lesf2.o)
- .debug_frame   0x000032e0       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(mulsf3.o)
- .debug_frame   0x00003318       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(subsf3.o)
- .debug_frame   0x00003350       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(fixsfsi.o)
- .debug_frame   0x00003370       0x28 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(floatunsisf.o)
+.debug_frame    0x00000000     0x33d4
+ .debug_frame   0x00000000      0x15c build_sensor/ir_acquisition.o
+ .debug_frame   0x0000015c      0x2a4 build_sensor/stm32f0xx_hal_adc.o
+ .debug_frame   0x00000400       0x2c build_sensor/stm32f0xx_hal_adc_ex.o
+ .debug_frame   0x0000042c      0x15c build_sensor/main.o
+ .debug_frame   0x00000588      0x130 build_sensor/stm32f0xx_it.o
+ .debug_frame   0x000006b8      0x158 build_sensor/stm32f0xx_hal_msp.o
+ .debug_frame   0x00000810      0x180 build_sensor/shoot_detect.o
+ .debug_frame   0x00000990       0x78 build_sensor/thermal.o
+ .debug_frame   0x00000a08      0x1c8 build_sensor/can_protocol.o
+ .debug_frame   0x00000bd0       0xf0 build_sensor/reliability.o
+ .debug_frame   0x00000cc0       0x94 build_sensor/ws2812_uart.o
+ .debug_frame   0x00000d54      0x170 build_sensor/led_rgb.o
+ .debug_frame   0x00000ec4      0x2c8 build_sensor/stm32f0xx_hal_can.o
+ .debug_frame   0x0000118c      0x138 build_sensor/stm32f0xx_hal_rcc.o
+ .debug_frame   0x000012c4       0xfc build_sensor/stm32f0xx_hal_rcc_ex.o
+ .debug_frame   0x000013c0      0x1b0 build_sensor/stm32f0xx_hal.o
+ .debug_frame   0x00001570       0x3c build_sensor/stm32f0xx_hal_iwdg.o
+ .debug_frame   0x000015ac       0xc0 build_sensor/stm32f0xx_hal_gpio.o
+ .debug_frame   0x0000166c      0x168 build_sensor/stm32f0xx_hal_dma.o
+ .debug_frame   0x000017d4      0x144 build_sensor/stm32f0xx_hal_cortex.o
+ .debug_frame   0x00001918      0x160 build_sensor/stm32f0xx_hal_dac.o
+ .debug_frame   0x00001a78      0x1b4 build_sensor/stm32f0xx_hal_dac_ex.o
+ .debug_frame   0x00001c2c      0xae4 build_sensor/stm32f0xx_hal_tim.o
+ .debug_frame   0x00002710      0x420 build_sensor/stm32f0xx_hal_tim_ex.o
+ .debug_frame   0x00002b30      0x62c build_sensor/stm32f0xx_hal_uart.o
+ .debug_frame   0x0000315c       0x38 build_sensor/system_stm32f0xx.o
+ .debug_frame   0x00003194       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-memset.o)
+ .debug_frame   0x000031b4       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libc_nano.a(libc_a-init.o)
+ .debug_frame   0x000031e0       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_udivsi3.o)
+ .debug_frame   0x00003200       0x28 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_fixunssfsi.o)
+ .debug_frame   0x00003228       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(addsf3.o)
+ .debug_frame   0x00003260       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(divsf3.o)
+ .debug_frame   0x00003298       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(eqsf2.o)
+ .debug_frame   0x000032c4       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(gesf2.o)
+ .debug_frame   0x000032f0       0x2c E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(lesf2.o)
+ .debug_frame   0x0000331c       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(mulsf3.o)
+ .debug_frame   0x00003354       0x38 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(subsf3.o)
+ .debug_frame   0x0000338c       0x20 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(fixsfsi.o)
+ .debug_frame   0x000033ac       0x28 E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(floatunsisf.o)
 
 Cross Reference Table
 
@@ -4034,6 +4162,7 @@ __aeabi_uidiv                                     E:/STM32CubeCLT_1.21.0/GNU-too
                                                   build_sensor/can_protocol.o
                                                   build_sensor/shoot_detect.o
                                                   build_sensor/stm32f0xx_hal_adc.o
+                                                  build_sensor/ir_acquisition.o
 __aeabi_uidivmod                                  E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v6-m/nofp\libgcc.a(_udivsi3.o)
                                                   build_sensor/led_rgb.o
 __bss_end__                                       E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/crt0.o
@@ -4293,16 +4422,52 @@ huart3                                            build_sensor/main.o
 initialise_monitor_handles                        build_sensor/syscalls.o
 ir_acquisition_ready                              build_sensor/ir_acquisition.o
                                                   build_sensor/main.o
+ir_confirm_samples                                build_sensor/ir_acquisition.o
 ir_dac1_code                                      build_sensor/ir_acquisition.o
 ir_dac2_code                                      build_sensor/ir_acquisition.o
+ir_distance_mm                                    build_sensor/ir_acquisition.o
+ir_extrema_hold                                   build_sensor/ir_acquisition.o
+ir_extrema_reset_count                            build_sensor/ir_acquisition.o
+ir_extrema_reset_request                          build_sensor/ir_acquisition.o
+ir_extrema_sample_count                           build_sensor/ir_acquisition.o
+ir_front_active                                   build_sensor/ir_acquisition.o
+ir_front_adc_max_5s                               build_sensor/ir_acquisition.o
 ir_front_event_count                              build_sensor/ir_acquisition.o
                                                   build_sensor/main.o
 ir_front_event_pending                            build_sensor/ir_acquisition.o
 ir_front_event_sample                             build_sensor/ir_acquisition.o
+ir_front_level_threshold                          build_sensor/ir_acquisition.o
+ir_front_pp                                       build_sensor/ir_acquisition.o
+ir_front_pp_max_5s                                build_sensor/ir_acquisition.o
+ir_front_pp_threshold                             build_sensor/ir_acquisition.o
+ir_front_raw_max                                  build_sensor/ir_acquisition.o
+ir_front_raw_min                                  build_sensor/ir_acquisition.o
+ir_front_raw_reference                            build_sensor/ir_acquisition.o
+ir_last_pair_us                                   build_sensor/ir_acquisition.o
+ir_last_speed_mm_s                                build_sensor/ir_acquisition.o
+ir_pair_dropped_count                             build_sensor/ir_acquisition.o
+ir_pair_min_us                                    build_sensor/ir_acquisition.o
+ir_pair_timeout_count                             build_sensor/ir_acquisition.o
+ir_pair_timeout_ms                                build_sensor/ir_acquisition.o
+ir_quiet_ms                                       build_sensor/ir_acquisition.o
+ir_rear_active                                    build_sensor/ir_acquisition.o
+ir_rear_adc_max_5s                                build_sensor/ir_acquisition.o
 ir_rear_event_count                               build_sensor/ir_acquisition.o
                                                   build_sensor/main.o
 ir_rear_event_pending                             build_sensor/ir_acquisition.o
 ir_rear_event_sample                              build_sensor/ir_acquisition.o
+ir_rear_level_threshold                           build_sensor/ir_acquisition.o
+ir_rear_pp                                        build_sensor/ir_acquisition.o
+ir_rear_pp_max_5s                                 build_sensor/ir_acquisition.o
+ir_rear_pp_threshold                              build_sensor/ir_acquisition.o
+ir_rear_raw_max                                   build_sensor/ir_acquisition.o
+ir_rear_raw_min                                   build_sensor/ir_acquisition.o
+ir_rear_raw_reference                             build_sensor/ir_acquisition.o
+ir_rebase_after_ms                                build_sensor/ir_acquisition.o
+ir_release_percent                                build_sensor/ir_acquisition.o
+ir_shot_count                                     build_sensor/ir_acquisition.o
+ir_unpaired_front_count                           build_sensor/ir_acquisition.o
+ir_window_samples                                 build_sensor/ir_acquisition.o
 main                                              build_sensor/main.o
                                                   build_sensor/startup_stm32f072xb.o
                                                   E:/STM32CubeCLT_1.21.0/GNU-tools-for-STM32/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp/crt0.o

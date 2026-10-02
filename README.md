@@ -21,6 +21,23 @@ Ozone 变量：`adc_dma_buf[]`、`et1_raw`、`et2_raw`、`adc_half_count`、`adc
 
 ### 1.2 ADC 实时触发层
 
+#### DMA 原始峰谷观测
+
+简单观察只需添加 `ir_front_adc_max_5s`（ET1/PA1 前端）和
+`ir_rear_adc_max_5s`（ET2/PA3 后端）：显示当前 5 秒窗口内逐样本
+记录的 ADC 最高值，每 5 秒自动重置并开始下一窗口，无需手动操作。
+这是连续分段窗口，不是滑动窗口；小球经过后峰值保留到当前窗口结束。
+
+`ir_front_raw_min/max/reference` 对应 ET1/PA1 前端，
+`ir_rear_raw_min/max/reference` 对应 ET2/PA3 后端，名称直接对应物理位置。
+DMA 中断逐样本记录，不依赖阈值或 Ozone 刷新率。
+
+1. 上电等约 1 s，空管且光照稳定时，在 Ozone 把 `ir_extrema_hold` 写为 0、`ir_extrema_reset_request` 写为 1。
+2. 请求自动恢复为 0、`ir_extrema_reset_count` 增加表示已重置；reference 是重置后 DMA 块的首个原始样本，保持不变，不是自适应基线。
+3. 让一颗小球经过，把 `ir_extrema_hold` 写为 1，冻结峰谷便于读取；ADC 和检测继续运行。
+4. 查看各路 max-reference 和 min-reference（表达式先转为 int，避免无符号减法下溢）。
+5. 下一轮重新执行步骤 1。先做一轮同样时长的空管记录，比较噪声和过球峰谷。峰谷覆盖重置到冻结整个窗口，期间光照改变也会计入。
+
 当前已加入最小实时检测层，但仍不连接旧的测速和射击应用逻辑：
 
 - 上电后的约 1 s 只采样环境。两路使用 8 位量化直方图取中位数作为静态基线；短暂滑落弹药或噪声只占少量样本，不会直接抬高基线。
