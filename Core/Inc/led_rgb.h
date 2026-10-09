@@ -2,11 +2,12 @@
   ******************************************************************************
   * @file           : led_rgb.h
   * @brief          : WS2812B LED strip control — projectile status indication
-  * @description    : 9 LEDs in series:
+  * @description    : 9 logical LEDs across two independent physical outputs:
   *                   [0]     On-board debug LED
-  *                   [1-8]   Shooting heat progress bar (8-bit referee data)
+  *                   [1-8]   External WS2812 heat bar via four-pin RGB_TX2
   *                   Red  team → pink,  Blue team → lake blue
-  *                   Occluded → 100 % team color on LED[0]
+  *                   Valid shot → 100 ms team color flash on LED[0]
+  *                   Overheat → full team color on LED[0]
   *                   Idle     →  20 % yellow    on LED[0]
   *                   Updated every 100 ms via TIM15 tick.
   ******************************************************************************
@@ -48,9 +49,14 @@ typedef enum {
 
 void LedStrip_Init(void);
 void LedStrip_SetTeam(Team_t team);
-void LedStrip_SetOcclusion(bool occluded);
+void LedStrip_SetOverheatAlert(bool active);
 void LedStrip_SetRefereeData(uint8_t data);
 void LedStrip_Update(void);    /* Call every 100 ms (TIM15 tick)              */
+void LedStrip_ShowFaultAlert(uint32_t tick_ms); /* red/blue/green cyclic alert */
+void LedStrip_StartBootEffect(uint32_t tick_ms);
+bool LedStrip_ProcessBootEffect(uint32_t tick_ms);
+void LedStrip_StartShotEffect(uint32_t tick_ms);
+bool LedStrip_ProcessShotEffect(uint32_t tick_ms);
 
 /* Debug / CAN test patterns */
 void LedStrip_TestPattern(uint8_t pattern, uint8_t count);  /* count=0→all 9 LEDs */

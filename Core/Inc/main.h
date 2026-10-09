@@ -57,30 +57,27 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define RGB_UART2_TX_Pin GPIO_PIN_2
-#define RGB_UART2_TX_GPIO_Port GPIOA
-#define RGB_UART2_RX_Pin GPIO_PIN_3
-#define RGB_UART2_RX_GPIO_Port GPIOA
 #define IND_1_Pin GPIO_PIN_5
 #define IND_1_GPIO_Port GPIOA
 #define RGB_UART3_TX_Pin GPIO_PIN_10
 #define RGB_UART3_TX_GPIO_Port GPIOB
-#define IR_IIC2_INT_Pin GPIO_PIN_12
-#define IR_IIC2_INT_GPIO_Port GPIOB
-#define IR_IIC2_INT_EXTI_IRQn EXTI4_15_IRQn
-#define IR_IIC2_SCL_Pin GPIO_PIN_13
-#define IR_IIC2_SCL_GPIO_Port GPIOB
-#define IR_IIC2_SDA_Pin GPIO_PIN_14
-#define IR_IIC2_SDA_GPIO_Port GPIOB
-#define IR_IIC1_INT_Pin GPIO_PIN_5
-#define IR_IIC1_INT_GPIO_Port GPIOB
-#define IR_IIC1_INT_EXTI_IRQn EXTI4_15_IRQn
-#define IR_IIC1_SCL_Pin GPIO_PIN_6
-#define IR_IIC1_SCL_GPIO_Port GPIOB
-#define IR_IIC1_SDA_Pin GPIO_PIN_7
-#define IR_IIC1_SDA_GPIO_Port GPIOB
+#define IR_DAC1_Pin GPIO_PIN_4
+#define IR_DAC1_GPIO_Port GPIOA
+#define IR_DAC2_Pin GPIO_PIN_5
+#define IR_DAC2_GPIO_Port GPIOA
+#define IR_ET1_Pin GPIO_PIN_1
+#define IR_ET1_GPIO_Port GPIOA
+#define IR_ET2_Pin GPIO_PIN_3
+#define IR_ET2_GPIO_Port GPIOA
+#define CAN_RX_Pin GPIO_PIN_8
+#define CAN_RX_GPIO_Port GPIOB
+#define CAN_TX_Pin GPIO_PIN_9
+#define CAN_TX_GPIO_Port GPIOB
+#define RGB_UART1_TX_Pin GPIO_PIN_6
+#define RGB_UART1_TX_GPIO_Port GPIOB
+#define RGB_UART1_RX_Pin GPIO_PIN_7
+#define RGB_UART1_RX_GPIO_Port GPIOB
 
-/* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
 

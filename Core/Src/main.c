@@ -21,10 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "vcnl4040.h"
-#include "shoot_detect.h"
+#include "ir_acquisition.h"
+#include "ir_detection.h"
 #include "can_protocol.h"
 #include "led_rgb.h"
+#include "ws2812_uart.h"
+#include "reliability.h"
+#include "thermal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,35 +49,57 @@
 CAN_HandleTypeDef hcan;
 
 DAC_HandleTypeDef hdac;
+ADC_HandleTypeDef hadc;
+DMA_HandleTypeDef hdma_adc;
 
-I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
+TIM_HandleTypeDef htim3;
 
 TIM_HandleTypeDef htim14;
 TIM_HandleTypeDef htim15;
 TIM_HandleTypeDef htim16;
 
-UART_HandleTypeDef huart2;
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_tx;
+IWDG_HandleTypeDef hiwdg;
 
 /* USER CODE BEGIN PV */
-/* Global detection instance — accessed by ISR callbacks */
-ShootDetect_t g_shoot_detect;
 ShootData_Report_t g_shoot_report;
+CAN_ErrorStats_t g_can_stats = {0};
 
-/* 10 Hz sensor-reading tick (set by TIM14 ISR, cleared by main loop) */
+/* 10 Hz status-report tick (set by TIM14 ISR, cleared by main loop) */
 volatile bool g_sensor_tick_10hz = false;
 
 /* 10 Hz LED refresh tick (set by TIM15 ISR, cleared by main loop) */
 volatile bool g_led_tick_10hz = false;
 
-/* CAN ready flag: false when CAN bus is not connected */
-volatile bool g_can_ready = false;
+/* Firmware identity and shot-to-LED trace points.
+   This value is deliberately changed with this diagnostic build.  It lets the
+   debugger prove which image is executing; it is not derived from the source
+   timestamp. */
+#if SHOOT_CAN_DIAGNOSTIC_SILENT
+#define FW_BUILD_MAGIC  0x26091002UL /* CAN silent diagnostic image */
+#elif SHOOT_CAN_DIAGNOSTIC_NO_APP_TX
+#define FW_BUILD_MAGIC  0x26091004UL /* RX-only + reset-cause diagnostic */
+#else
+#define FW_BUILD_MAGIC  0x26083001UL /* normal operational image */
+#endif
+volatile uint32_t g_dbg_firmware_build_magic = FW_BUILD_MAGIC;
+/* A mailbox accept is not yet a physical CAN ACK; it only means bxCAN took
+   the 0x230 request.  Keep the two counters separate from sensor counters. */
+volatile uint32_t g_dbg_shot_mailbox_accept_count = 0;
+volatile uint32_t g_dbg_shot_led_start_count = 0;
+volatile uint32_t g_dbg_last_shot_led_event_count = 0;
 
-/* Live sensor data (watch in debugger at runtime) */
-volatile uint16_t g_dbg_front_prox = 0;
-volatile uint16_t g_dbg_rear_prox  = 0;
+/* Keep CAN fault evidence as scalar volatile symbols.  Some GDB frontends
+ * cannot create a watch for a member of CAN_ErrorStats_t, especially after
+ * -Og optimisation.  These are deliberately boring debugger entry points. */
+volatile uint32_t g_dbg_can_esr = 0U;
+volatile uint32_t g_dbg_can_btr = 0U;
+volatile uint8_t  g_dbg_can_lec = 0U;
+volatile uint8_t  g_dbg_can_tec = 0U;
+volatile uint8_t  g_dbg_can_rec = 0U;
+volatile uint8_t  g_dbg_can_bus_off = 0U;
 
 /* Debug LED override — write from debugger:
    g_led_cmd = 1 → 9 LEDs all green  (WS2812_COLOR(255,0,0))
@@ -86,24 +111,26 @@ volatile uint16_t g_dbg_rear_prox  = 0;
    Set g_led_cmd_count to limit lit LEDs (0 = all 9). */
 volatile uint8_t  g_led_cmd        = 0;
 volatile uint8_t  g_led_cmd_count  = 0;
-volatile uint8_t  g_heat_debug     = 0;   /* manual heat data (0–255)           */
+volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–200           */
+/* ADC detection owns calibration readiness after its startup window. */
+static bool g_boot_report_pending = true;
+static uint8_t g_pending_strong_fault;
 /* USER CODE END PV */
 
-/* USER CODE END PV */
+
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_CAN_Init(void);
+static void MX_USART1_UART_Init(void);
 static void MX_DAC_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_I2C2_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_TIM14_Init(void);
 static void MX_TIM15_Init(void);
 static void MX_TIM16_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -129,6 +156,9 @@ int main(void)
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
+  /* Read the reset cause and any retained HardFault/CAN Bus-Off note. */
+  Reliability_EarlyInit();
+
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -145,9 +175,7 @@ int main(void)
   MX_DMA_Init();
   MX_CAN_Init();
   MX_DAC_Init();
-  MX_I2C1_Init();
-  MX_I2C2_Init();
-  MX_USART2_UART_Init();
+  MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_TIM14_Init();
   MX_TIM15_Init();
@@ -155,8 +183,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* ---- NVIC configuration ---- */
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);   /* EXTI: PB5/PB12 (highest)   */
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+  Thermal_Init(HAL_GetTick());
+  HAL_NVIC_DisableIRQ(EXTI4_15_IRQn);
   HAL_NVIC_SetPriority(TIM14_IRQn, 3, 0);      /* TIM14: 10 Hz sensor tick   */
   HAL_NVIC_EnableIRQ(TIM14_IRQn);
   HAL_NVIC_SetPriority(TIM15_IRQn, 3, 0);      /* TIM15: 10 Hz LED tick       */
@@ -167,43 +195,59 @@ int main(void)
   /* Start TIM16 free-running counter (PSC/ARR set by MX_TIM16_Init) */
   __HAL_TIM_ENABLE(&htim16);
 
-  /* ---- Init VCNL4040 sensors ---- */
-  if (VCNL4040_Init(&hi2c1) != HAL_OK) {
+  /* ---- Start fixed-code DAC emitters and timer-triggered raw acquisition ---- */
+  IR_Detection_Init();
+  IR_Acquisition_RegisterSampleHandler(IR_Detection_OnPhysicalSample);
+  if (IR_Acquisition_Init() != HAL_OK) {
       Error_Handler();
   }
-  if (VCNL4040_Init(&hi2c2) != HAL_OK) {
-      Error_Handler();
-  }
+  /* The ADC detector owns the application shot path. */
+  Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
 
-  /* ---- Init projectile detection ---- */
-  /* front_i2c=hi2c1 (PB6/PB7, 2nd in path), rear_i2c=hi2c2 (PB13/PB14, 1st) */
-  ShootDetect_Init(&g_shoot_detect, &hi2c1, &hi2c2);
-  ShootDetect_SetParams(&g_shoot_detect,
-                        DEFAULT_SPEED_MIN_MPS,
-                        DEFAULT_SPEED_MAX_MPS,
-                        DEFAULT_TIMEOUT_MS);
-
-  /* ---- Calibrate baseline & set thresholds ---- */
-  if (!ShootDetect_Calibrate(&g_shoot_detect)) {
-      Error_Handler();
-  }
-
-  /* ---- Init success: light IND_1 (PA5 DAC_OUT2, max = on) ---- */
-  HAL_DAC_SetValue(&hdac, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 4095);
-  HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
-
-  /* ---- Init LED strip (WS2812 via USART3 PB10) ---- */
+  /* ---- Init board status LED (RGB_TX3) and eight-pixel strip (RGB_TX2) ---- */
   LedStrip_Init();
   LedStrip_SetTeam(TEAM_BLUE);
+  LedStrip_StartBootEffect(HAL_GetTick());
 
   /* ---- Init CAN protocol (slave-only) ---- */
   CANProtocol_Init(&hcan);
-  /* CAN bus not connected → g_can_ready stays false.
-     When CAN is wired, uncomment the 3 lines below to activate CAN: */
-  /* HAL_CAN_Start(&hcan); */
-  /* HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING); */
-  /* g_can_ready = true; */
+  /* Only receive the gun command range (0x220..0x23F), standard data frames.
+     Armor-board traffic never reaches this CAN RX ISR. */
+  CAN_FilterTypeDef can_filter = {0};
+  can_filter.FilterBank = 0;
+  can_filter.FilterMode = CAN_FILTERMODE_IDMASK;
+  can_filter.FilterScale = CAN_FILTERSCALE_32BIT;
+  can_filter.FilterIdHigh = 0x4400; /* 0x220 << 5 */
+  can_filter.FilterIdLow = 0x0000;
+  can_filter.FilterMaskIdHigh = 0xFC00; /* match 0x220..0x23F */
+  can_filter.FilterMaskIdLow = 0x0006;  /* IDE=0, RTR=0 */
+  can_filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  can_filter.FilterActivation = ENABLE;
+  can_filter.SlaveStartFilterBank = 0;
+  if (HAL_CAN_ConfigFilter(&hcan, &can_filter) != HAL_OK) {
+      Error_Handler();
+  }
+  /* Start CAN and enable receive interrupt.  The silent diagnostic image
+     deliberately remains fully powered and receives 0x220..0x23F, but bxCAN
+     neither ACKs nor drives any CAN bit.  It is only for isolating a
+     gun-side CAN fault; production builds always use normal mode. */
+  if (HAL_CAN_Start(&hcan) != HAL_OK) {
+      Error_Handler();
+  }
+  if (HAL_CAN_ActivateNotification(&hcan,
+        CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+      Error_Handler();
+  }
+  g_can_stats.state = (uint8_t)HAL_CAN_GetState(&hcan);
 
+  MX_IWDG_Init();
+
+  /* Report a prior strong reset before announcing this successful startup. */
+  g_pending_strong_fault = Reliability_GetPendingStrongMask();
+  /* Keep the debugger-visible image identity linked into the final ELF. */
+  if (g_dbg_firmware_build_magic != FW_BUILD_MAGIC) {
+      Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -213,46 +257,200 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* Always check timeout + clear sensor interrupts (fast) */
-    ShootDetect_Process(&g_shoot_detect);
+    if (CANProtocol_TakeCalibrationRequest()) {
+        (void)IR_Detection_RequestCalibration();
+    }
 
-    /* 10 Hz tasks: sensor reading + CAN report refresh */
+    IR_Acquisition_PublishLatest();
+    IR_Acquisition_ServiceRawCapture();
+    if (g_pending_strong_fault != 0U &&
+        CANProtocol_SendStrongFault(g_pending_strong_fault) == HAL_OK) {
+        g_pending_strong_fault = 0U;
+    }
+    if (g_boot_report_pending && g_pending_strong_fault == 0U &&
+        IR_Detection_IsCalibrationReady() &&
+        CANProtocol_SendBoot() == HAL_OK) {
+        g_boot_report_pending = false;
+    }
+
+    static uint16_t old_front, new_front, old_rear, new_rear;
+    static bool calibration_ack_pending;
+    if (!calibration_ack_pending &&
+        IR_Detection_TakeCalibrationResult(&old_front, &new_front,
+                                           &old_rear, &new_rear)) {
+        calibration_ack_pending = true;
+    }
+    if (calibration_ack_pending &&
+        CANProtocol_SendCalibrationAck(old_front, new_front,
+                                       old_rear, new_rear) == HAL_OK) {
+        calibration_ack_pending = false;
+    }
+
+    uint32_t now_tick = HAL_GetTick();
+    Thermal_Update(now_tick);
+    g_heat_debug = Thermal_GetHeat();
+    LedStrip_SetOverheatAlert(
+        Thermal_IsOverheatIndicatorActive(now_tick));
+
+    /* Drain acquisition events regardless of CAN availability. */
+    static ShootEvent_t can_shots[IR_SHOT_EVENT_CAPACITY];
+    static uint8_t can_shot_head, can_shot_count;
+    static uint32_t can_shot_dropped;
+    static uint32_t locally_accounted_shots;
+    ShootEvent_t shot_event;
+    while (IR_Detection_PeekShotEvent(&shot_event)) {
+        IR_Detection_DropShotEvent();
+        /* Count gaps represent detection queue loss, not lost physical shots. */
+        while ((int32_t)(shot_event.shot_count - locally_accounted_shots) > 0) {
+            locally_accounted_shots++;
+            g_heat_debug = Thermal_AddShot(now_tick);
+            g_dbg_shot_led_start_count++;
+            g_dbg_last_shot_led_event_count = locally_accounted_shots;
+            LedStrip_StartShotEffect(now_tick);
+        }
+        shot_event.heat_level = g_heat_debug;
+        if (can_shot_count < IR_SHOT_EVENT_CAPACITY) {
+            uint8_t tail = (uint8_t)((can_shot_head + can_shot_count) % IR_SHOT_EVENT_CAPACITY);
+            can_shots[tail] = shot_event;
+            can_shot_count++;
+        } else {
+            can_shot_dropped++;
+        }
+    }
+    /* Preserve local behavior even when the detection event queue overflowed. */
+    uint32_t shot_primask = __get_PRIMASK();
+    __disable_irq();
+    uint32_t detected_shots = IR_Detection_PeekShotEvent(&shot_event)
+        ? locally_accounted_shots : ir_shot_count;
+    __set_PRIMASK(shot_primask);
+    while ((int32_t)(detected_shots - locally_accounted_shots) > 0) {
+        locally_accounted_shots++;
+        g_heat_debug = Thermal_AddShot(now_tick);
+        g_dbg_shot_led_start_count++;
+        g_dbg_last_shot_led_event_count = locally_accounted_shots;
+        LedStrip_StartShotEffect(now_tick);
+    }
+    if (can_shot_count != 0U &&
+        CANProtocol_SendShotEvent(&can_shots[can_shot_head]) == HAL_OK) {
+        g_dbg_shot_mailbox_accept_count++;
+        can_shot_head = (uint8_t)((can_shot_head + 1U) % IR_SHOT_EVENT_CAPACITY);
+        can_shot_count--;
+    }
+
+    /* Queries are queued by CAN RX ISR and replied from the main loop. */
+    CANProtocol_Task();
+
+    /* CAN 0x200 remains reserved for debug heartbeat but is idle in this build. */
+
+    /* Keep raw CAN controller diagnostics visible in the debugger. */
+    uint32_t can_esr = CAN->ESR;
+    g_dbg_can_esr = can_esr;
+    g_dbg_can_btr = CAN->BTR;
+    g_dbg_can_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
+    g_dbg_can_tec = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
+    g_dbg_can_rec = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
+    g_dbg_can_bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
+    g_can_stats.last_error_lec = (uint8_t)((can_esr & CAN_ESR_LEC) >> CAN_ESR_LEC_Pos);
+    g_can_stats.tx_error_counter = (uint8_t)((can_esr & CAN_ESR_TEC) >> CAN_ESR_TEC_Pos);
+    g_can_stats.rx_error_counter = (uint8_t)((can_esr & CAN_ESR_REC) >> CAN_ESR_REC_Pos);
+    g_can_stats.bus_off = (uint8_t)((can_esr & CAN_ESR_BOFF) != 0U);
+    g_can_stats.state = (uint8_t)HAL_CAN_GetState(&hcan);
+
+    /* 10 Hz tasks: status report refresh */
     if (g_sensor_tick_10hz) {
         g_sensor_tick_10hz = false;
 
-        g_dbg_front_prox = VCNL4040_GetProximity(&hi2c1);
-        g_dbg_rear_prox  = VCNL4040_GetProximity(&hi2c2);
+        static uint32_t last_adc_activity;
+        uint32_t adc_activity = adc_activity_count;
+        bool adc_alive = ir_acquisition_ready &&
+                         (adc_activity != last_adc_activity);
+        last_adc_activity = adc_activity;
+        Reliability_ObserveSensors(adc_alive, adc_alive);
+        /* A valid startup/recalibration window establishes ADC thresholds. */
+        if (!IR_Detection_IsCalibrationReady()) {
+            Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+        } else {
+            Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, false);
+        }
+        Reliability_ObserveEventQueueDropped(
+            IR_Detection_GetDroppedEventCount() + can_shot_dropped);
 
-        g_shoot_report.shot_count      = ShootDetect_GetCount(&g_shoot_detect);
-        g_shoot_report.front_int_count = ShootDetect_GetFrontIntCount(&g_shoot_detect);
-        g_shoot_report.rear_int_count  = ShootDetect_GetRearIntCount(&g_shoot_detect);
-        g_shoot_report.last_speed_mps  = ShootDetect_GetLastSpeed(&g_shoot_detect);
-        g_shoot_report.barrel_mask     = ShootDetect_GetState(&g_shoot_detect);
+        g_shoot_report.shot_count      = ir_shot_count;
+        g_shoot_report.front_int_count = barrel_front_event_count;
+        g_shoot_report.rear_int_count  = barrel_rear_event_count;
+        g_shoot_report.last_speed_mps  = ir_last_speed_valid ? ir_last_speed_mps : 0.0f;
+        g_shoot_report.barrel_mask     = 0U;
         g_shoot_report.heat_level      = g_heat_debug;
-        g_shoot_report.front_prox      = g_dbg_front_prox;
-        g_shoot_report.rear_prox       = g_dbg_rear_prox;
+        g_shoot_report.front_prox      = IR_GetBarrelPhysicalFrontAdc();
+        g_shoot_report.rear_prox       = IR_GetBarrelPhysicalRearAdc();
         CANProtocol_UpdateData(&g_shoot_report);
+    }
+
+    /* Feed the display model before any animation renders. Team commands
+       configure the automatic strip; heat includes shots accounted above.
+       The CAN ISR never calls the LED transport or renderer. */
+    LedStrip_SetTeam(CANProtocol_GetLedCommand()->team == 0U
+                     ? TEAM_RED : TEAM_BLUE);
+    LedStrip_SetRefereeData(g_heat_debug);
+    bool boot_effect_active = LedStrip_ProcessBootEffect(now_tick);
+    bool shot_effect_active = false;
+    if (!boot_effect_active &&
+        (Reliability_GetWeakMask() & (uint8_t)~REL_WEAK_SHOOT_DETECT) == 0U &&
+        g_led_cmd == 0 && CANProtocol_GetLedCommand()->source != LED_SRC_DEBUG) {
+        shot_effect_active = LedStrip_ProcessShotEffect(now_tick);
     }
 
     if (g_led_tick_10hz) {
         g_led_tick_10hz = false;
 
-        /* Priority 1: debugger override (g_led_cmd = 1~5) */
-        if (g_led_cmd != 0) {
+        /* Priority 1: one-shot power-on confirmation of the lower eight LEDs. */
+        if (boot_effect_active) {
+            /* LedStrip_ProcessBootEffect() has already sent this frame. */
+        }
+        /* Priority 2: any active fault overrides ordinary LED control. */
+        else if ((Reliability_GetWeakMask() & (uint8_t)~REL_WEAK_SHOOT_DETECT) != 0U) {
+            LedStrip_ShowFaultAlert(HAL_GetTick());
+        }
+        /* Priority 3: debugger override (g_led_cmd = 1~5) */
+        else if (g_led_cmd != 0) {
             LedStrip_TestPattern(g_led_cmd, g_led_cmd_count);
         }
-        /* Priority 2: CAN LED command */
+        /* Priority 4: CAN LED command */
         else if (CANProtocol_GetLedCommand()->source == LED_SRC_DEBUG) {
             LedStrip_ApplyCommand(CANProtocol_GetLedCommand());
         }
-        /* Priority 3: auto — follow shoot detection */
+        /* Priority 5: valid-shot animation; it is updated every main-loop pass. */
+        else if (shot_effect_active) {
+            /* LedStrip_ProcessShotEffect() has already sent this frame. */
+        }
+        /* Priority 6: auto — follow shoot detection */
         else {
-            LedStrip_SetOcclusion(g_shoot_detect.barrel_mask != 0);
             LedStrip_SetRefereeData(g_heat_debug);
             LedStrip_Update();
         }
     }
 
+    /* Weak fault notification is best-effort and never blocks the main loop. */
+    static uint8_t last_weak_mask = 0U;
+    static bool weak_mask_initialized = false;
+    static uint32_t weak_fault_tx_tick = 0U;
+    uint8_t weak_mask = Reliability_GetWeakMask();
+    if ((!weak_mask_initialized && weak_mask != 0U) ||
+        (weak_mask_initialized && weak_mask != last_weak_mask &&
+         (now_tick - weak_fault_tx_tick) >= 100U) ||
+        (weak_mask != 0U &&
+         (now_tick - weak_fault_tx_tick) >= 100U)) {
+        HAL_StatusTypeDef weak_tx_status =
+            CANProtocol_SendWeakFault(weak_mask);
+        weak_fault_tx_tick = now_tick;
+        if (weak_tx_status == HAL_OK) {
+            last_weak_mask = weak_mask;
+        }
+    }
+    weak_mask_initialized = true;
+
+    /* Main-loop-only watchdog feed: do not feed it from any ISR. */
+    (void)HAL_IWDG_Refresh(&hiwdg);
     HAL_Delay(1);
   }
   /* USER CODE END 3 */
@@ -266,7 +464,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -294,16 +491,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_I2C1;
-  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_SYSCLK;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Enables the Clock Security System
-  */
   HAL_RCC_EnableCSS();
 }
 
@@ -323,15 +510,25 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN;
-  hcan.Init.Prescaler = 16;
+  /* 48 MHz / 6 / (1 + 13 + 2) = 500 kbps, sample point 87.5%.
+     This matches the L431PM and all armor boards. */
+  hcan.Init.Prescaler = 6;
+#if SHOOT_CAN_DIAGNOSTIC_SILENT
+  hcan.Init.Mode = CAN_MODE_SILENT;
+#else
   hcan.Init.Mode = CAN_MODE_NORMAL;
+#endif
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
-  hcan.Init.AutoBusOff = DISABLE;
+  /* Let bxCAN leave Bus-Off after the bus has recovered. A missing CAN
+     network must not reset the whole barrel application. */
+  hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = DISABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
+  /* 2026-09-10：开启自动重传（NART=0）。失败帧由硬件重发；
+   * 发送侧 send_frame_confirmed() 的超时路径会 abort 邮箱，避免无 ACK 帧把邮箱占死。 */
+  hcan.Init.AutoRetransmission = ENABLE;
   hcan.Init.ReceiveFifoLocked = DISABLE;
   hcan.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan) != HAL_OK)
@@ -344,8 +541,38 @@ static void MX_CAN_Init(void)
 
 }
 
+static void MX_IWDG_Init(void)
+{
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_64;
+  hiwdg.Init.Reload = 1000U;
+  hiwdg.Init.Window = IWDG_WINDOW_DISABLE;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+static void MX_USART1_UART_Init(void)
+{
+  huart1.Instance = USART1;
+  /* RGB_TX2/PB6 carries WS2812 waveforms through the four-pin connector.
+     Two LED bits per 8N1 UART frame require 4 Mbaud and idle-low TX. */
+  huart1.Init.BaudRate = 4000000;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_8;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT;
+  huart1.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
+  if (HAL_UART_Init(&huart1) != HAL_OK) Error_Handler();
+}
+
 /**
-  * @brief DAC Initialization Function
+  * @brief DAC initialization.
   * @param None
   * @retval None
   */
@@ -381,102 +608,6 @@ static void MX_DAC_Init(void)
   /* USER CODE BEGIN DAC_Init 2 */
 
   /* USER CODE END DAC_Init 2 */
-
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x10805D88;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief I2C2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C2_Init(void)
-{
-
-  /* USER CODE BEGIN I2C2_Init 0 */
-
-  /* USER CODE END I2C2_Init 0 */
-
-  /* USER CODE BEGIN I2C2_Init 1 */
-
-  /* USER CODE END I2C2_Init 1 */
-  hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x20303E5D;
-  hi2c2.Init.OwnAddress1 = 0;
-  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c2.Init.OwnAddress2 = 0;
-  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C2_Init 2 */
-
-  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -671,41 +802,6 @@ static void MX_TIM16_Init(void)
 }
 
 /**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 38400;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -721,13 +817,17 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 3000000;
+  /* GL5050RGB01H-T uses the WS2812-style 1.25 us bit cell.  The UART
+     encoder emits five UART bits per LED bit, so 4 Mbps is required. */
+  huart3.Init.BaudRate = 4000000;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
   huart3.Init.Mode = UART_MODE_TX_RX;
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  /* 16x oversampling would produce BRR=12 at 48 MHz/4 Mbps, which this
+     STM32F0 HAL rejects (minimum BRR is 0x10).  8x keeps the same baud. */
+  huart3.Init.OverSampling = UART_OVERSAMPLING_8;
   huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT;
   huart3.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
@@ -751,6 +851,9 @@ static void MX_DMA_Init(void)
   __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
+  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+
   /* DMA1_Channel2_3_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
@@ -764,7 +867,6 @@ static void MX_DMA_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -774,23 +876,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pins : IR_IIC2_INT_Pin IR_IIC1_INT_Pin */
-  GPIO_InitStruct.Pin = IR_IIC2_INT_Pin|IR_IIC1_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-  /* VCNL4040 INT open-drain → PULLUP for clean rising edge (leave event) */
-  GPIO_InitStruct.Pin  = IR_IIC1_INT_Pin | IR_IIC2_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-  /* USER CODE END MX_GPIO_Init_2 */
+  /* Old PB5/PB12 sensor interrupts are not configured on the new board. */
+  HAL_NVIC_DisableIRQ(EXTI4_15_IRQn);
 }
 
 /* USER CODE BEGIN 4 */

@@ -182,6 +182,14 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
+  /* Retained across software/IWDG reset; startup code must not clear it. */
+  .noinit (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.noinit)
+    . = ALIGN(4);
+  } >RAM
+
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack :
   {

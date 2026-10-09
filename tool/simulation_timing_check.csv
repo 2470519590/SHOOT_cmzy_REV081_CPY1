@@ -1,0 +1,2 @@
+﻿file,type,shot,front_entry_us,front_exit_us,front_peak_us,front_peak_adc,front_amplitude_adc,front_width_us,front_pre_dip_adc,rear_entry_us,rear_front_delta_us,rear_front_peak_delta_us,speed_mps,rear_matched
+tool\data\ir_capture_1791094663519114100_001.csv,shot,1,32550,34400,33150,1630,129.945,1850,26.055,26100,6450,6500,7.6923,True
