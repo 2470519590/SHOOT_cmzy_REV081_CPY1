@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 #include "stm32f0xx_hal.h"
-#include "shoot_detect.h"
+#include "ir_detection.h"
 #include <stdbool.h>
 
 /* ========================== CAN Message IDs ================================= */
@@ -47,7 +47,7 @@ extern "C" {
 
 typedef struct __attribute__((packed)) {
     uint32_t shot_count;          /* [ 3: 0] cumulative valid shots             */
-    uint16_t last_speed_cmps;     /* [ 5: 4] last speed × 100 (cm/s)           */
+    uint16_t last_speed_deci_mps; /* [ 5: 4] last speed × 10 (m/s), 0.1 m/s   */
     uint8_t  barrel_mask;         /* [ 6   ] projectiles in barrel, bits[4:0]  */
     uint8_t  heat_level;          /* [ 7   ] current heat 0-200                */
 } CAN_ShootReport_t;

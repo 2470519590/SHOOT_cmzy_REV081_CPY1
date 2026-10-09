@@ -22,7 +22,6 @@
 #include "stm32f0xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "shoot_detect.h"
 #include "can_protocol.h"
 #include "reliability.h"
 /* USER CODE END Includes */
@@ -65,7 +64,6 @@ extern DMA_HandleTypeDef hdma_usart3_tx;
 extern DMA_HandleTypeDef hdma_adc;
 extern ADC_HandleTypeDef hadc;
 /* USER CODE BEGIN EV */
-extern ShootDetect_t g_shoot_detect;
 extern CAN_HandleTypeDef hcan;
 /* USER CODE END EV */
 
@@ -146,21 +144,6 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f0xx.s).                    */
 /******************************************************************************/
-
-/**
-  * @brief This function handles EXTI line 4 to 15 interrupts.
-  */
-void EXTI4_15_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI4_15_IRQn 0 */
-
-  /* USER CODE END EXTI4_15_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(IR_IIC1_INT_Pin);
-  HAL_GPIO_EXTI_IRQHandler(IR_IIC2_INT_Pin);
-  /* USER CODE BEGIN EXTI4_15_IRQn 1 */
-
-  /* USER CODE END EXTI4_15_IRQn 1 */
-}
 
 /**
   * @brief This function handles DMA1 channel 2 and 3 interrupts.

@@ -2,7 +2,13 @@
 /VCNL4040_Xplorer_v2_6_35
 /ws2812-uart
 /.cache
-/tools/logs/
-/tools/__pycache__/
+/tool/logs/
+/tool/data/
+/tool/data1/
+/tool/tests/
+/tool/__pycache__/
 /3Ds/
 /ref/
+/tmp
+/data/
+/docs/aegis/

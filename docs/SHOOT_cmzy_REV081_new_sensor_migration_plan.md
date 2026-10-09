@@ -1,46 +1,17 @@
-# SHOOT_cmzy_REV081 新传感器固件迁移方案
+# SHOOT_cmzy_REV081 新传感器迁移方案
 
-版本：v2.0（第一版仅迁移外设和采集原始值）
+> 历史方案，已由 `docs/ir_detection_algorithm_migration_prompt.md` 和当前固件实现取代。以下原始采集范围保留用于追溯，不再代表运行时行为。
 
-依据：旧工程、旧原理图、新原理图、`docs/new_docs/SHOOT_cmzy_REV081.ioc`。
+## 最终状态
 
-## 1. 本版交付范围
+旧 VCNL4040 的 I2C/EXTI 采集和 `shoot_detect` 算法已删除。DAC + ADC + DMA 是唯一检测源，并已接入射击计数、可选峰值测速、热量、顶部 LED、CAN `0x230/0x232` 和 `0x220/0x221` 校准流程。
 
-把旧 VCNL4040 的 I2C/EXTI 采集链路换成新板的 DAC 供电和 ADC DMA 采集链路。固件烧入后，用户在 Ozone 中直接观察两路原始 ADC 数据，并自行拿未装管的传感器做读数实验。
+物理映射固定为 `ET1/PA1 -> barrel_rear`、`ET2/PA3 -> barrel_front`。采样间隔 50 us。前端有效脉冲始终产生事件；后端只用于 `3333~25000 us` 峰值时间窗内的可选测速。前/后阈值偏移为 `+60/+18 ADC`，最大脉宽 6 ms，后端最小脉宽 0.3 ms，速度范围 2~15 m/s，距离 50 mm。无效速度编码为 `0xFFFF`，`barrel_mask` 固定为 0。
 
-本版只做外设迁移和原始数据可观测性。弹丸检测方向、阈值、滤波、去抖、空管校准结果、前后配对、速度、热量更新和射击事件的传感器应用逻辑暂不定义、不实现；等 Ozone 读数和装管后的实际信号出来再改。CAN 传感器相关命令与状态先保留接口，不伪造校准成功或射击结果。
+## 保留的硬件边界
 
-## 2. 新旧硬件对应
+PA4/PA5 DAC、PA1/PA3 ADC DMA、CAN PB8/PB9、USART1、USART3 WS2812 和 IWDG 保持。SWD 原始捕获仍为 2000 帧、500 帧预触发和 1500 帧后触发。未执行刷机；Ozone、CAN 电气和机械过管验证仍需硬件完成。
 
-| 功能 | 新板连接 | 第一版动作 |
-|---|---|---|
-| 红外发射端 1/2 | PA4/DAC_OUT1、PA5/DAC_OUT2，经外部 LM321 跟随器 | 两路 DAC 都开启 output buffer，输出可修改的固定码；PA5 不再作旧指示灯 |
-| 红外接收端 1/2 | PA1/ADC_IN1 = IR_ET1；PA3/ADC_IN3 = IR_ET2 | ADC 两通道扫描，DMA circular 搬运原始 12 位值 |
-| CAN | PB8/PB9 | 按新板引脚配置，保持旧协议和 500 kbps |
-| RGB_TX2/RX2 | PB6/PB7，经 USART1 接原理图 U5 外接接口 | 保留接口功能与初始化；旧工程没有该链路的运行时收发代码，不新增协议 |
-| RGB_TX3 | PB10，经 USART3 + DMA 接 U4 及可选灯带 | 保持原有 WS2812 驱动和 CAN 灯效 |
-| 看门狗 | IWDG | 沿用旧主循环喂狗和复位原因上报 |
+## 追溯
 
-COMP1/COMP2 本版不用。新原理图上的 LM321 是 DAC 发射端的**外部电压跟随器**；ADC 输入 PA1/PA3 只按模拟输入配置，不存在需要在 HAL 中打开的“ADC 跟随器”开关。
-
-## 3. 第一版固件怎么改
-
-1. 以新 IOC 的引脚为准迁移 GPIO/MSP、CAN、DAC、ADC、DMA、USART1/USART3 和现有定时器。新 IOC 的 CAN 速率改回 500 kbps。旧 I2C、PB5/PB12 传感器中断及 VCNL4040 读取路径停用。
-2. DAC1/2 均配置 `DAC_OUTPUTBUFFER_ENABLE`。启动后输出两路固定码，码值集中放在可调变量或配置项中；不沿用 PA5 指示灯的 4095。DAC 仅设定发射端电压，本版不做自动调节。
-3. ADC 配置 PA1、PA3 两通道扫描，12 位、DMA circular，缓冲顺序固定为 `[ET1_0, ET2_0, ET1_1, ET2_1, ...]`。当前物理映射为 `ET1 -> rear`、`ET2 -> front`，原始变量名不改。采样率先按每路约 20 kS/s 配置为起始值；这只是为了取得原始读数，后续按真实波形调整。选择能完成双通道转换的采样时间与时钟配置。
-4. DMA 半缓冲/满缓冲回调只更新状态。在主循环或简单采集函数中更新最新 ET1/ET2 原始值。不在回调中计算阈值、速度或发送 CAN。
-5. 旧 `shoot_detect` 与 VCNL4040 耦合的路径暂时隔离；保留上层接口及协议结构，传感器未就绪状态明确可见。`0x220` 可记录“收到重新校准请求”，但不返回虚假的校准成功；`0x230` 本版不产生射击报文。旧 RGB_TX3 灯效、其他 CAN 功能和 IWDG 继续运行。
-
-## 4. Ozone 直接看的变量
-
-在全局保留稳定名称的 `volatile` 调试变量，避免只存在于优化后的局部变量中：
-
-`adc_dma_buf[]`：按 ET1、ET2 交错排列的原始采样；`et1_raw`、`et2_raw`：最新一对 0–4095 ADC 值；`adc_half_count`、`adc_full_count`：DMA 回调计数；`adc_error_count`：ADC/DMA 错误计数；`ir_dac1_code`、`ir_dac2_code`：当前两路 DAC 码；`ir_acquisition_ready`：采集链路已启动标志。
-
-Ozone 先看计数是否持续增加、两路原始值是否随物体靠近/移开而变化，并查看一小段 `adc_dma_buf[]`。用户提供这些读数后，再讨论方向、阈值和后续检测算法。不要求这一版从静态手动移动推算弹速。
-
-## 5. 本版完成条件与后续
-
-固件能够启动；两路 DAC 已启动且 output buffer 开启；ADC DMA 持续更新两路原始值；Ozone 可看到上述变量；CAN 保持 500 kbps/PB8/PB9；旧 RGB_TX3 灯效和 IWDG 不被采集链路破坏。
-
-后续待 Ozone 原始读数和装管后的波形出现，再单独决定发射端 DAC 码、触发方向、阈值/滤波、传感器先后映射、约 50 mm 名义间距的测速计算，以及 10 mm 弹丸在最高 30 m/s 下需要的实际采样率。本版不预设这些应用层数值。
+原 v2.0 文档描述了最初的 raw-only 阶段。该阶段的“保留旧模块”“不产生 `0x230`”“暂不定义算法”结论均已被后续批准迁移和当前代码取代。当前字段和报文以 [CAN_PROTOCOL.md](CAN_PROTOCOL.md) 为准，调参和诊断以 [adc_detection_tuning.md](adc_detection_tuning.md) 为准。

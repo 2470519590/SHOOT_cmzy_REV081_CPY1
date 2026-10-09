@@ -7,6 +7,7 @@
 
 #include "can_protocol.h"
 #include "thermal.h"
+#include <string.h>
 
 extern CAN_ErrorStats_t g_can_stats;
 
@@ -16,6 +17,11 @@ static LedCommand_t        led_cmd    = { .source = LED_SRC_NORMAL,
                                            .cmd = 0, .heat_data = 0, .team = 1 };
 static volatile bool calibration_requested;
 static volatile uint8_t shoot_report_request_count;
+#define LED_ACK_QUEUE_DEPTH 4U
+static uint8_t led_ack_queue[LED_ACK_QUEUE_DEPTH][8];
+static volatile uint8_t led_ack_head;
+static volatile uint8_t led_ack_tail;
+static volatile uint32_t led_ack_drop_count;
 
 #define CAN_PROTOCOL_TX_TIMEOUT_MS 2U
 
@@ -30,6 +36,9 @@ void CANProtocol_Init(CAN_HandleTypeDef *hcan)
 {
     can_handle = hcan;
     shoot_report_request_count = 0U;
+    led_ack_head = 0U;
+    led_ack_tail = 0U;
+    led_ack_drop_count = 0U;
 }
 
 /* ---- Shoot data refresh ------------------------------------------------- */
@@ -217,7 +226,7 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
 {
     CAN_TxHeaderTypeDef tx_header = {0};
     uint8_t payload[8] = {0};
-    uint16_t speed_cmps;
+    uint16_t speed_deci_mps;
 
     if (event == NULL || can_handle == NULL ||
         HAL_CAN_GetState(can_handle) != HAL_CAN_STATE_LISTENING) {
@@ -225,14 +234,16 @@ HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event)
         return HAL_ERROR;
     }
 
-    speed_cmps = (uint16_t)(event->speed_mps * 100.0f + 0.5f);
+    speed_deci_mps = event->speed_valid
+        ? (uint16_t)(event->speed_mps * 10.0f + 0.5f)
+        : 0xFFFFU;
     payload[0] = (uint8_t)(event->shot_count >> 0);
     payload[1] = (uint8_t)(event->shot_count >> 8);
     payload[2] = (uint8_t)(event->shot_count >> 16);
     payload[3] = (uint8_t)(event->shot_count >> 24);
-    payload[4] = (uint8_t)(speed_cmps >> 0);
-    payload[5] = (uint8_t)(speed_cmps >> 8);
-    payload[6] = (uint8_t)(event->barrel_mask & 0x1FU);
+    payload[4] = (uint8_t)(speed_deci_mps >> 0);
+    payload[5] = (uint8_t)(speed_deci_mps >> 8);
+    payload[6] = 0U;
     payload[7] = event->heat_level;
 
     tx_header.StdId = CAN_SHOT_EVENT_ID;
@@ -262,9 +273,10 @@ static HAL_StatusTypeDef send_shoot_report(void)
     primask = __get_PRIMASK();
     __disable_irq();
     payload.shot_count      = shoot_data.shot_count;
-    payload.last_speed_cmps = (uint16_t)(shoot_data.last_speed_mps * 100.0f
-                                         + 0.5f);
-    payload.barrel_mask     = shoot_data.barrel_mask;
+    payload.last_speed_deci_mps = (shoot_data.last_speed_mps > 0.0f)
+        ? (uint16_t)(shoot_data.last_speed_mps * 10.0f + 0.5f)
+        : 0xFFFFU;
+    payload.barrel_mask     = 0U;
     payload.heat_level      = shoot_data.heat_level;
     __set_PRIMASK(primask);
 
@@ -293,16 +305,36 @@ void CANProtocol_Task(void)
     __disable_irq();
     have_request = shoot_report_request_count;
     __set_PRIMASK(primask);
-    if (have_request == 0U || send_shoot_report() != HAL_OK) {
-        return;
+    if (have_request != 0U && send_shoot_report() == HAL_OK) {
+        primask = __get_PRIMASK();
+        __disable_irq();
+        if (shoot_report_request_count != 0U) {
+            shoot_report_request_count--;
+        }
+        __set_PRIMASK(primask);
     }
 
-    primask = __get_PRIMASK();
-    __disable_irq();
-    if (shoot_report_request_count != 0U) {
-        shoot_report_request_count--;
+    if (led_ack_tail != led_ack_head) {
+        CAN_TxHeaderTypeDef tx_header = {0};
+        uint32_t tx_mailbox = 0U;
+        tx_header.StdId = CAN_LED_ACK_ID;
+        tx_header.IDE = CAN_ID_STD;
+        tx_header.RTR = CAN_RTR_DATA;
+        tx_header.DLC = 8U;
+        tx_header.TransmitGlobalTime = DISABLE;
+        if (can_handle != NULL &&
+            HAL_CAN_AddTxMessage(can_handle, &tx_header,
+                                 led_ack_queue[led_ack_tail],
+                                 &tx_mailbox) == HAL_OK) {
+            g_can_stats.tx_led_ack_ok++;
+            primask = __get_PRIMASK();
+            __disable_irq();
+            led_ack_tail = (uint8_t)((led_ack_tail + 1U) % LED_ACK_QUEUE_DEPTH);
+            __set_PRIMASK(primask);
+        } else {
+            g_can_stats.tx_led_ack_fail++;
+        }
     }
-    __set_PRIMASK(primask);
 }
 
 /* ---- LED command handler ------------------------------------------------ */
@@ -310,13 +342,15 @@ static bool handle_led_cmd(const CAN_LedCmd_t *rx)
 {
     switch (rx->cmd) {
     case CAN_LED_TEAM_RED:
-        led_cmd.source = LED_SRC_DEBUG;
-        led_cmd.cmd    = CAN_LED_TEAM_RED;
+        /* Team selection configures automatic effects; only test colours
+           take manual ownership of the strip. Rendering stays in main. */
+        led_cmd.source = LED_SRC_NORMAL;
+        led_cmd.cmd    = CAN_LED_NORMAL;
         led_cmd.team   = 0;
         break;
     case CAN_LED_TEAM_BLUE:
-        led_cmd.source = LED_SRC_DEBUG;
-        led_cmd.cmd    = CAN_LED_TEAM_BLUE;
+        led_cmd.source = LED_SRC_NORMAL;
+        led_cmd.cmd    = CAN_LED_NORMAL;
         led_cmd.team   = 1;
         break;
     case CAN_LED_HEAT_DATA:
@@ -346,31 +380,12 @@ static bool handle_led_cmd(const CAN_LedCmd_t *rx)
     return true;
 }
 
-/* ---- Acknowledge one accepted LED command (0x234) ---------------------- */
-static void send_led_ack(CAN_HandleTypeDef *hcan, const uint8_t *payload)
-{
-    CAN_TxHeaderTypeDef tx_header = {0};
-    uint32_t tx_mailbox = 0;
-
-    tx_header.StdId = CAN_LED_ACK_ID;
-    tx_header.IDE = CAN_ID_STD;
-    tx_header.RTR = CAN_RTR_DATA;
-    tx_header.DLC = 8;
-    tx_header.TransmitGlobalTime = DISABLE;
-
-    if (HAL_CAN_AddTxMessage(hcan, &tx_header, (uint8_t *)payload,
-                             &tx_mailbox) == HAL_OK) {
-        g_can_stats.tx_led_ack_ok++;
-    } else {
-        g_can_stats.tx_led_ack_fail++;
-    }
-}
-
 /* ---- Rx callback -------------------------------------------------------- */
 void CANProtocol_RxCallback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
 {
     CAN_RxHeaderTypeDef rx_header;
     uint8_t             rx_data[8];
+    uint32_t            primask;
 
     if (HAL_CAN_GetRxMessage(hcan, RxFifo, &rx_header, rx_data) != HAL_OK)
         return;
@@ -410,7 +425,20 @@ void CANProtocol_RxCallback(CAN_HandleTypeDef *hcan, uint32_t RxFifo)
             return;
         }
         g_can_stats.rx_led_cmd++;
-        send_led_ack(hcan, rx_data);
+        primask = __get_PRIMASK();
+        __disable_irq();
+        {
+            uint8_t next = (uint8_t)((led_ack_head + 1U) % LED_ACK_QUEUE_DEPTH);
+            if (next != led_ack_tail) {
+                memcpy(led_ack_queue[led_ack_head], rx_data, 8U);
+                led_ack_head = next;
+            } else if (led_ack_drop_count != UINT32_MAX) {
+                /* ACKs are diagnostic responses; never overwrite an older
+                 * response when CAN commands arrive faster than the main loop. */
+                led_ack_drop_count++;
+            }
+        }
+        __set_PRIMASK(primask);
         return;
     }
 

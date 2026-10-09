@@ -1,40 +1,51 @@
 
 
-GraphedExpression="g_dbg_front_prox", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#e56a6f
-GraphedExpression="g_dbg_rear_prox", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#35792b
-OpenDocument="stm32f0xx_it.c", FilePath="E:/STM32_PROJ/SHOOT_cmzy_REV081/Core/Src/stm32f0xx_it.c", Line=196
-OpenDocument="main.c", FilePath="E:/STM32_PROJ/SHOOT_cmzy_REV081/Core/Src/main.c", Line=149
+GraphedExpression="barrel_front_adc_raw", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#e56a6f
+GraphedExpression="barrel_front_baseline", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#35792b
+GraphedExpression="barrel_rear_adc_raw", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#769dda, Show=0
+GraphedExpression="barrel_rear_baseline", DisplayFormat=DISPLAY_FORMAT_DEC, Color=#b14f0d
+OpenDocument="main.c", FilePath="E:/STM32_PROJ/l431_power_management/SHOOT_cmzy_REV081/Core/Src/main.c", Line=137
+OpenDocument="stm32f0xx_hal.c", FilePath="E:/STM32_PROJ/l431_power_management/SHOOT_cmzy_REV081/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.c", Line=283
+OpenDocument="ir_acquisition.c", FilePath="E:/STM32_PROJ/l431_power_management/SHOOT_cmzy_REV081/Core/Src/ir_acquisition.c", Line=70
+OpenDocument="ir_detection.c", FilePath="E:/STM32_PROJ/l431_power_management/SHOOT_cmzy_REV081/Core/Src/ir_detection.c", Line=198
 OpenToolbar="Debug", Floating=0, x=0, y=0
-OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=833, h=1163, TabPos=1, TopOfStack=0, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=833, h=1163, TabPos=0, TopOfStack=1, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
-OpenWindow="Data Sampling", DockArea=RIGHT, x=0, y=0, w=1038, h=348, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
-OpenWindow="Timeline", DockArea=RIGHT, x=0, y=1, w=1038, h=841, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="1 s / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="0;0", DataGraphShowNamesAtCursor=1, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="70;0", CodeGraphLegendShown=0, CodeGraphLegendPosition="726;0"
-OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=2560, h=215, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Source Files", DockArea=LEFT, x=0, y=0, w=688, h=1153, TabPos=1, TopOfStack=0, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Watched Data 1", DockArea=LEFT, x=0, y=0, w=688, h=1153, TabPos=0, TopOfStack=1, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
+OpenWindow="Data Sampling", DockArea=RIGHT, x=0, y=0, w=1038, h=421, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0, VisibleTab=0, UniformSampleSpacing=0
+OpenWindow="Timeline", DockArea=RIGHT, x=0, y=1, w=1038, h=758, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=1, DataPaneShown=1, PowerPaneShown=0, CodePaneShown=0, PinCursor="Cursor Movable", TimePerDiv="20 ms / Div", TimeStampFormat="Time", DataGraphDrawAsPoints=0, DataGraphLegendShown=1, DataGraphUniformSampleSpacing=0, DataGraphLegendPosition="0;0", DataGraphShowNamesAtCursor=1, PowerGraphDrawAsPoints=0, PowerGraphLegendShown=0, PowerGraphAvgFilterTime=Off, PowerGraphAvgFilterLen=Off, PowerGraphUniformSampleSpacing=0, PowerGraphLegendPosition="776;-93", CodeGraphLegendShown=0, CodeGraphLegendPosition="810;0"
+OpenWindow="Console", DockArea=BOTTOM, x=0, y=0, w=2560, h=225, FilterBarShown=0, TotalValueBarShown=0, ToolBarShown=0
 SmartViewPlugin="", Page="", Toolbar="Hidden", Window="SmartView 1"
 TableHeader="Source Files", SortCol="File", SortOrder="ASCENDING", VisibleCols=["File";"Status";"Size";"#Insts";"Path"], ColWidths=[233;100;100;100;1154]
-TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Location";"Refresh"], ColWidths=[232;243;100;258]
-TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" g_dbg_front_prox";" g_dbg_rear_prox"], ColWidths=[100;100;100;712]
-TableHeader="Data Sampling Setup", SortCol="Min. Change", SortOrder="DESCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[174;267;100;100;100;124;128;147;150]
+TableHeader="Data Sampling Table", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";" barrel_front_adc_raw";" barrel_front_baseline";" barrel_rear_adc_raw";" barrel_rear_baseline"], ColWidths=[100;100;100;100;100;512]
+TableHeader="Data Sampling Setup", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Type";"Value";"Min";"Max";"Average";"# Changes";"Min. Change";"Max. Change"], ColWidths=[274;267;100;100;100;124;128;147;150]
 TableHeader="Power Sampling", SortCol="None", SortOrder="ASCENDING", VisibleCols=["Index";"Time";"Ch 0"], ColWidths=[100;100;100]
 TableHeader="RegisterSelectionDialog", SortCol="None", SortOrder="ASCENDING", VisibleCols=[], ColWidths=[]
-TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;196;191;850]
-WatchedExpression="g_shoot_detect", RefreshRate=5, Window=Watched Data 1
-WatchedExpression="hi2c1", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="hi2c2", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="g_dbg_front_prox", RefreshRate=5, Window=Watched Data 1
-WatchedExpression="g_dbg_rear_prox", RefreshRate=5, Window=Watched Data 1
-WatchedExpression="g_shoot_report", RefreshRate=5, Window=Watched Data 1
-WatchedExpression="huart3", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="cnt", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="dbg_busy_count", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="dbg_send_count", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="dbg_block_count", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="htim16", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="led_target", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="led_occluded", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="led_referee_data", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="g_shoot_detect", RefreshRate=2, Window=Watched Data 1
-WatchedExpression="g_led_cmd", RefreshRate=1, Window=Watched Data 1
-WatchedExpression="g_led_cmd_count", RefreshRate=1, Window=Watched Data 1
-WatchedExpression="g_heat_debug", RefreshRate=1, Window=Watched Data 1
-WatchedExpression="led_team", RefreshRate=1, Window=Watched Data 1
+TableHeader="Watched Data 1", SortCol="Expression", SortOrder="ASCENDING", VisibleCols=["Expression";"Value";"Refresh"], ColWidths=[300;243;145]
+TableHeader="TargetExceptionDialog", SortCol="Name", SortOrder="ASCENDING", VisibleCols=["Name";"Value";"Address";"Description"], ColWidths=[200;196;191;153]
+WatchedExpression="ir_acquisition_ready", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="adc_half_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="adc_full_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="adc_error_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_dac1_code", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_dac2_code", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_front_trigger_offset", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_rear_trigger_offset", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_pulse_max_us", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_front_event_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_rear_event_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_front_long_pulse_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_rear_long_pulse_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_last_pair_us", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_last_speed_mm_s", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_pair_timeout_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_pair_dropped_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_unpaired_front_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_unpaired_rear_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_front_adc_max_5s", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_rear_adc_max_5s", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_front_adc_peak_hold_5s", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="barrel_rear_adc_peak_hold_5s", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_peak_sample_count", RefreshRate=2, Window=Watched Data 1
+WatchedExpression="ir_shot_count", Window=Watched Data 1
+WatchedExpression="ir_last_peak_delta_us", Window=Watched Data 1
+WatchedExpression="ir_last_speed_valid", Window=Watched Data 1

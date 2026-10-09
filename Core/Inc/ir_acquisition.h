@@ -6,63 +6,51 @@
 #include <stdbool.h>
 
 #define IR_ADC_DMA_LENGTH 32U
+#define IR_RAW_CAPTURE_FRAMES 2000U
+#define IR_RAW_CAPTURE_WORDS (IR_RAW_CAPTURE_FRAMES * 2U)
+#define IR_RAW_CAPTURE_PRETRIGGER_FRAMES 500U
+#define IR_RAW_CAPTURE_POSTTRIGGER_FRAMES 1500U
+#define IR_RAW_CAPTURE_BASELINE_FRAMES 200U
 #define IR_DAC1_DEFAULT_CODE 1550U
 #define IR_DAC2_DEFAULT_CODE 1550U
-#define IR_TRIGGER_DELTA 45U
-#define IR_STARTUP_CALIBRATION_MS 1000U
-#define IR_BASELINE_TRACK_DIVISOR 2048
+
+/* Acquisition owns ADC/DMA order and physical mapping: ET1/PA1 is rear,
+   ET2/PA3 is front. Detection receives named physical samples only. */
+typedef void (*IR_PhysicalSampleHandler)(uint16_t barrel_front_adc,
+                                         uint16_t barrel_rear_adc,
+                                         uint32_t sample_number);
 
 extern ADC_HandleTypeDef hadc;
 extern DMA_HandleTypeDef hdma_adc;
 extern TIM_HandleTypeDef htim3;
-
-extern volatile uint16_t adc_dma_buf[IR_ADC_DMA_LENGTH];
-extern volatile uint16_t et1_raw;
-extern volatile uint16_t et2_raw;
-extern volatile uint32_t adc_half_count;
-extern volatile uint32_t adc_full_count;
-extern volatile uint32_t adc_error_count;
-extern volatile uint16_t ir_dac1_code;
-extern volatile uint16_t ir_dac2_code;
+extern volatile uint32_t adc_half_count, adc_full_count, adc_error_count;
+extern volatile uint32_t adc_activity_count;
+extern volatile uint16_t ir_dac1_code, ir_dac2_code;
 extern volatile bool ir_acquisition_ready;
-extern volatile bool g_sensor_detection_ready;
-extern volatile uint32_t ir_rear_event_count;
-extern volatile uint32_t ir_front_event_count;
-extern volatile uint32_t ir_rear_event_sample;
-extern volatile uint32_t ir_front_event_sample;
-extern volatile bool ir_rear_event_pending;
-extern volatile bool ir_front_event_pending;
-/* DMA peak/valley capture; physical front=ET1, rear=ET2. */
-extern volatile uint16_t ir_front_raw_min;
-extern volatile uint16_t ir_front_raw_max;
-extern volatile uint16_t ir_rear_raw_min;
-extern volatile uint16_t ir_rear_raw_max;
-extern volatile uint16_t ir_front_raw_reference;
-extern volatile uint16_t ir_rear_raw_reference;
-extern volatile uint32_t ir_extrema_sample_count;
-extern volatile uint32_t ir_extrema_reset_count;
-extern volatile bool ir_extrema_reset_request;
-extern volatile bool ir_extrema_hold;
-/* Current 5 s window maxima; reset automatically, no debugger writes needed. */
-extern volatile uint16_t ir_front_adc_max_5s;
-extern volatile uint16_t ir_rear_adc_max_5s;
-extern volatile uint16_t ir_window_samples;
-extern volatile uint16_t ir_front_pp_threshold, ir_rear_pp_threshold;
-extern volatile uint16_t ir_front_level_threshold, ir_rear_level_threshold;
-extern volatile uint16_t ir_confirm_samples, ir_release_percent;
-extern volatile uint32_t ir_quiet_ms, ir_pair_timeout_ms, ir_pair_min_us;
-extern volatile uint32_t ir_rebase_after_ms;
-extern volatile uint16_t ir_distance_mm;
-extern volatile uint16_t ir_front_pp, ir_rear_pp;
-extern volatile uint16_t ir_front_pp_max_5s, ir_rear_pp_max_5s;
-extern volatile bool ir_front_active, ir_rear_active;
-extern volatile uint32_t ir_shot_count, ir_pair_timeout_count, ir_pair_dropped_count;
-extern volatile uint32_t ir_unpaired_front_count, ir_last_pair_us, ir_last_speed_mm_s;
+extern volatile uint16_t barrel_front_adc_raw, barrel_rear_adc_raw;
+/* SWD-controlled raw capture. Buffer order is raw ADC scan order [ET1, ET2]. */
+extern volatile uint16_t ir_raw_capture_dma[IR_RAW_CAPTURE_WORDS];
+extern volatile uint32_t ir_raw_capture_arm;
+extern volatile uint32_t ir_raw_capture_active;
+extern volatile uint32_t ir_raw_capture_done;
+extern volatile uint32_t ir_raw_capture_frame_count;
+extern volatile uint32_t ir_raw_capture_error_count;
+extern volatile uint32_t ir_raw_capture_triggered;
+extern volatile uint32_t ir_raw_capture_trigger_frame;
+extern volatile uint32_t ir_raw_capture_start_word;
+extern volatile uint32_t ir_raw_capture_trigger_index;
+extern volatile uint32_t ir_raw_capture_valid_frames;
+extern volatile uint16_t ir_raw_capture_baseline_front;
+extern volatile uint16_t ir_raw_capture_baseline_rear;
+extern volatile uint16_t ir_raw_capture_trigger_offset;
 
 HAL_StatusTypeDef IR_Acquisition_Init(void);
-HAL_StatusTypeDef IR_Acquisition_SetDacCodes(uint16_t dac1_code, uint16_t dac2_code);
+HAL_StatusTypeDef IR_Acquisition_SetDacCodes(uint16_t dac1_code,
+                                             uint16_t dac2_code);
+void IR_Acquisition_RegisterSampleHandler(IR_PhysicalSampleHandler handler);
+uint16_t IR_GetBarrelPhysicalFrontAdc(void);
+uint16_t IR_GetBarrelPhysicalRearAdc(void);
 void IR_Acquisition_PublishLatest(void);
-bool IR_Acquisition_TakeRearEvent(void);
-bool IR_Acquisition_TakeFrontEvent(void);
+void IR_Acquisition_ServiceRawCapture(void);
 
 #endif

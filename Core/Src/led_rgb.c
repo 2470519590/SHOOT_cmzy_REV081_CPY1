@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file           : led_rgb.c
   * @brief          : WS2812B LED strip control logic
-  * @details        : LED[0]  = debug (occlusion → team color, idle → dim yellow)
+  * @details        : LED[0]  = status (shot/overheat → team color, idle → dim yellow)
   *                   LED[1-8] = heat progress bar (referee data → team color)
   *                   Smooth brightness lerp every 100 ms update.
   ******************************************************************************
@@ -172,9 +172,8 @@ bool LedStrip_ProcessBootEffect(uint32_t tick_ms)
 
     uint32_t out[LED_COUNT] = {0};
     uint32_t color = team_color();
-    /* The new board has one onboard GL5050RGB01H-T on RGB_TX3.  Keep the
-       legacy heat-bar positions for an attached downstream chain, but make
-       the onboard pixel visible during the boot indication as well. */
+    /* Logical pixel 0 is board status; pixels 1..8 are the separate external
+       strip. The transport owns the physical output mapping. */
     out[LED_DEBUG_IDX] = color;
     for (uint8_t i = 0U; i < LED_HEAT_COUNT; i++) {
         out[LED_HEAT_START + i] = color;

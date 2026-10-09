@@ -1,6 +1,6 @@
 [
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -30,7 +30,7 @@
   "file": "Core/Src/main.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -60,7 +60,7 @@
   "file": "Core/Src/stm32f0xx_it.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -90,67 +90,7 @@
   "file": "Core/Src/stm32f0xx_hal_msp.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
-  "arguments": [
-   "arm-none-eabi-gcc",
-   "-c",
-   "-mcpu=cortex-m0",
-   "-mthumb",
-   "-DUSE_HAL_DRIVER",
-   "-DSTM32F072xB",
-   "-ICore/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
-   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
-   "-IDrivers/CMSIS/Include",
-   "-Og",
-   "-Wall",
-   "-fdata-sections",
-   "-ffunction-sections",
-   "-g",
-   "-gdwarf-2",
-   "-MMD",
-   "-MP",
-   "-MFbuild/vcnl4040.d",
-   "-Wa,-a,-ad,-alms=build/vcnl4040.lst",
-   "Core/Src/vcnl4040.c",
-   "-o",
-   "build/vcnl4040.o"
-  ],
-  "file": "Core/Src/vcnl4040.c"
- },
- {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
-  "arguments": [
-   "arm-none-eabi-gcc",
-   "-c",
-   "-mcpu=cortex-m0",
-   "-mthumb",
-   "-DUSE_HAL_DRIVER",
-   "-DSTM32F072xB",
-   "-ICore/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
-   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
-   "-IDrivers/CMSIS/Include",
-   "-Og",
-   "-Wall",
-   "-fdata-sections",
-   "-ffunction-sections",
-   "-g",
-   "-gdwarf-2",
-   "-MMD",
-   "-MP",
-   "-MFbuild/shoot_detect.d",
-   "-Wa,-a,-ad,-alms=build/shoot_detect.lst",
-   "Core/Src/shoot_detect.c",
-   "-o",
-   "build/shoot_detect.o"
-  ],
-  "file": "Core/Src/shoot_detect.c"
- },
- {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -180,7 +120,7 @@
   "file": "Core/Src/can_protocol.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -210,7 +150,7 @@
   "file": "Core/Src/ws2812_uart.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -240,7 +180,7 @@
   "file": "Core/Src/led_rgb.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -270,7 +210,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_can.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -300,7 +240,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_rcc.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -330,7 +270,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_rcc_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -360,67 +300,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
-  "arguments": [
-   "arm-none-eabi-gcc",
-   "-c",
-   "-mcpu=cortex-m0",
-   "-mthumb",
-   "-DUSE_HAL_DRIVER",
-   "-DSTM32F072xB",
-   "-ICore/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
-   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
-   "-IDrivers/CMSIS/Include",
-   "-Og",
-   "-Wall",
-   "-fdata-sections",
-   "-ffunction-sections",
-   "-g",
-   "-gdwarf-2",
-   "-MMD",
-   "-MP",
-   "-MFbuild/stm32f0xx_hal_i2c.d",
-   "-Wa,-a,-ad,-alms=build/stm32f0xx_hal_i2c.lst",
-   "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c.c",
-   "-o",
-   "build/stm32f0xx_hal_i2c.o"
-  ],
-  "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c.c"
- },
- {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
-  "arguments": [
-   "arm-none-eabi-gcc",
-   "-c",
-   "-mcpu=cortex-m0",
-   "-mthumb",
-   "-DUSE_HAL_DRIVER",
-   "-DSTM32F072xB",
-   "-ICore/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
-   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
-   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
-   "-IDrivers/CMSIS/Include",
-   "-Og",
-   "-Wall",
-   "-fdata-sections",
-   "-ffunction-sections",
-   "-g",
-   "-gdwarf-2",
-   "-MMD",
-   "-MP",
-   "-MFbuild/stm32f0xx_hal_i2c_ex.d",
-   "-Wa,-a,-ad,-alms=build/stm32f0xx_hal_i2c_ex.lst",
-   "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c_ex.c",
-   "-o",
-   "build/stm32f0xx_hal_i2c_ex.o"
-  ],
-  "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c_ex.c"
- },
- {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -450,7 +330,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_gpio.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -480,7 +360,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dma.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -510,7 +390,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_cortex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -540,7 +420,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_pwr.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -570,7 +450,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_pwr_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -600,7 +480,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_flash.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -630,7 +510,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_flash_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -660,7 +540,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_exti.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -690,7 +570,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dac.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -720,7 +600,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dac_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -750,7 +630,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_smbus.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -780,7 +660,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_tim.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -810,7 +690,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_tim_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -840,7 +720,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -870,7 +750,7 @@
   "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart_ex.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -900,7 +780,7 @@
   "file": "Core/Src/system_stm32f0xx.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -930,7 +810,7 @@
   "file": "Core/Src/sysmem.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-c",
@@ -960,7 +840,7 @@
   "file": "Core/Src/syscalls.c"
  },
  {
-  "directory": "C:\\Users\\Shuchen Tao\\Documents\\SHOOT_cmzy_REV081_CPY1",
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
   "arguments": [
    "arm-none-eabi-gcc",
    "-x",
@@ -989,5 +869,125 @@
    "build/startup_stm32f072xb.o"
   ],
   "file": "startup_stm32f072xb.s"
+ },
+ {
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
+  "file": "Core/Src/ir_acquisition.c",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-c",
+   "-mcpu=cortex-m0",
+   "-mthumb",
+   "-DUSE_HAL_DRIVER",
+   "-DSTM32F072xB",
+   "-ICore/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
+   "-IDrivers/CMSIS/Include",
+   "-Og",
+   "-Wall",
+   "-fdata-sections",
+   "-ffunction-sections",
+   "-g",
+   "-gdwarf-2",
+   "-MMD",
+   "-MP",
+   "-MFbuild/ir_acquisition.d",
+   "-Wa,-a,-ad,-alms=build/ir_acquisition.lst",
+   "Core/Src/ir_acquisition.c",
+   "-o",
+   "build/ir_acquisition.o"
+  ]
+ },
+ {
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
+  "file": "Core/Src/ir_detection.c",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-c",
+   "-mcpu=cortex-m0",
+   "-mthumb",
+   "-DUSE_HAL_DRIVER",
+   "-DSTM32F072xB",
+   "-ICore/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
+   "-IDrivers/CMSIS/Include",
+   "-Og",
+   "-Wall",
+   "-fdata-sections",
+   "-ffunction-sections",
+   "-g",
+   "-gdwarf-2",
+   "-MMD",
+   "-MP",
+   "-MFbuild/ir_detection.d",
+   "-Wa,-a,-ad,-alms=build/ir_detection.lst",
+   "Core/Src/ir_detection.c",
+   "-o",
+   "build/ir_detection.o"
+  ]
+ },
+ {
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
+  "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc.c",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-c",
+   "-mcpu=cortex-m0",
+   "-mthumb",
+   "-DUSE_HAL_DRIVER",
+   "-DSTM32F072xB",
+   "-ICore/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
+   "-IDrivers/CMSIS/Include",
+   "-Og",
+   "-Wall",
+   "-fdata-sections",
+   "-ffunction-sections",
+   "-g",
+   "-gdwarf-2",
+   "-MMD",
+   "-MP",
+   "-MFbuild/stm32f0xx_hal_adc.d",
+   "-Wa,-a,-ad,-alms=build/stm32f0xx_hal_adc.lst",
+   "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc.c",
+   "-o",
+   "build/stm32f0xx_hal_adc.o"
+  ]
+ },
+ {
+  "directory": "E:\\STM32_PROJ\\l431_power_management\\SHOOT_cmzy_REV081",
+  "file": "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc_ex.c",
+  "arguments": [
+   "arm-none-eabi-gcc",
+   "-c",
+   "-mcpu=cortex-m0",
+   "-mthumb",
+   "-DUSE_HAL_DRIVER",
+   "-DSTM32F072xB",
+   "-ICore/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc",
+   "-IDrivers/STM32F0xx_HAL_Driver/Inc/Legacy",
+   "-IDrivers/CMSIS/Device/ST/STM32F0xx/Include",
+   "-IDrivers/CMSIS/Include",
+   "-Og",
+   "-Wall",
+   "-fdata-sections",
+   "-ffunction-sections",
+   "-g",
+   "-gdwarf-2",
+   "-MMD",
+   "-MP",
+   "-MFbuild/stm32f0xx_hal_adc_ex.d",
+   "-Wa,-a,-ad,-alms=build/stm32f0xx_hal_adc_ex.lst",
+   "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc_ex.c",
+   "-o",
+   "build/stm32f0xx_hal_adc_ex.o"
+  ]
  }
-]
+]

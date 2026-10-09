@@ -21,8 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "shoot_detect.h"
 #include "ir_acquisition.h"
+#include "ir_detection.h"
 #include "can_protocol.h"
 #include "led_rgb.h"
 #include "ws2812_uart.h"
@@ -52,9 +52,6 @@ DAC_HandleTypeDef hdac;
 ADC_HandleTypeDef hadc;
 DMA_HandleTypeDef hdma_adc;
 
-I2C_HandleTypeDef hi2c1;
-I2C_HandleTypeDef hi2c2;
-
 TIM_HandleTypeDef htim3;
 
 TIM_HandleTypeDef htim14;
@@ -67,8 +64,6 @@ DMA_HandleTypeDef hdma_usart3_tx;
 IWDG_HandleTypeDef hiwdg;
 
 /* USER CODE BEGIN PV */
-/* Global detection instance — accessed by ISR callbacks */
-ShootDetect_t g_shoot_detect;
 ShootData_Report_t g_shoot_report;
 CAN_ErrorStats_t g_can_stats = {0};
 
@@ -77,34 +72,6 @@ volatile bool g_sensor_tick_10hz = false;
 
 /* 10 Hz LED refresh tick (set by TIM15 ISR, cleared by main loop) */
 volatile bool g_led_tick_10hz = false;
-
-/* Debug observation variables (retained for debugger inspection only). */
-volatile uint16_t g_dbg_front_prox = 0;
-volatile uint16_t g_dbg_rear_prox  = 0;
-/* Direct PB5/PB12 levels: true means the VCNL4040 open-drain INT is low. */
-volatile bool g_dbg_front_int_pin_low = false;
-volatile bool g_dbg_rear_int_pin_low  = false;
-/* Peak valid PS_DATA values since this MCU boot; inspect in the debugger. */
-volatile uint16_t g_dbg_front_prox_max = 0;
-volatile uint16_t g_dbg_rear_prox_max  = 0;
-/* Initial 0xFFFF means no valid sample has been seen since this boot. */
-volatile uint16_t g_dbg_front_prox_min = 0xFFFFU;
-volatile uint16_t g_dbg_rear_prox_min  = 0xFFFFU;
-/* Incremented once per full front+rear I2C sample pair. */
-volatile uint32_t g_dbg_sensor_sample_count = 0;
-/* Measured software rate of complete front+rear polling pairs, updated each
-   second.  It is not the VCNL4040 internal conversion rate. */
-volatile uint32_t g_dbg_sensor_pair_rate_hz = 0;
-/* Baselines captured by ShootDetect_Calibrate at this MCU boot. */
-volatile uint16_t g_dbg_front_baseline = 0;
-volatile uint16_t g_dbg_rear_baseline  = 0;
-volatile uint16_t g_dbg_front_threshold = 0;
-volatile uint16_t g_dbg_rear_threshold  = 0;
-/* Threshold crossings reported directly by the ADC DMA ISR. */
-volatile uint32_t g_dbg_front_int_count = 0;
-volatile uint32_t g_dbg_rear_int_count  = 0;
-/* Debug watch variable: valid shots counted since the latest power-up/reset. */
-volatile uint32_t gbd_shoot_count = 0;
 
 /* Firmware identity and shot-to-LED trace points.
    This value is deliberately changed with this diagnostic build.  It lets the
@@ -145,8 +112,9 @@ volatile uint8_t  g_dbg_can_bus_off = 0U;
 volatile uint8_t  g_led_cmd        = 0;
 volatile uint8_t  g_led_cmd_count  = 0;
 volatile uint8_t  g_heat_debug     = 0;   /* current local heat, 0–200           */
-/* Raw-only migration intentionally does not enable the legacy detector. */
-static const bool sensor_calibration_ready = false;
+/* ADC detection owns calibration readiness after its startup window. */
+static bool g_boot_report_pending = true;
+static uint8_t g_pending_strong_fault;
 /* USER CODE END PV */
 
 
@@ -228,13 +196,15 @@ int main(void)
   __HAL_TIM_ENABLE(&htim16);
 
   /* ---- Start fixed-code DAC emitters and timer-triggered raw acquisition ---- */
+  IR_Detection_Init();
+  IR_Acquisition_RegisterSampleHandler(IR_Detection_OnPhysicalSample);
   if (IR_Acquisition_Init() != HAL_OK) {
       Error_Handler();
   }
-  /* Detection is intentionally unavailable in this raw-only migration. */
+  /* The ADC detector owns the application shot path. */
   Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
 
-  /* ---- Init LED strip (WS2812 via USART3 PB10) ---- */
+  /* ---- Init board status LED (RGB_TX3) and eight-pixel strip (RGB_TX2) ---- */
   LedStrip_Init();
   LedStrip_SetTeam(TEAM_BLUE);
   LedStrip_StartBootEffect(HAL_GetTick());
@@ -273,15 +243,11 @@ int main(void)
   MX_IWDG_Init();
 
   /* Report a prior strong reset before announcing this successful startup. */
-  uint8_t pending_strong = Reliability_GetPendingStrongMask();
-  if (pending_strong != 0U) {
-      (void)CANProtocol_SendStrongFault(pending_strong);
-  }
+  g_pending_strong_fault = Reliability_GetPendingStrongMask();
   /* Keep the debugger-visible image identity linked into the final ELF. */
   if (g_dbg_firmware_build_magic != FW_BUILD_MAGIC) {
       Error_Handler();
   }
-  (void)CANProtocol_SendBoot();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -291,30 +257,34 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    /* The legacy calibration request remains observable but has no valid ADC
-       calibration contract yet; consume it without sending a success ACK. */
     if (CANProtocol_TakeCalibrationRequest()) {
-        Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+        (void)IR_Detection_RequestCalibration();
     }
 
     IR_Acquisition_PublishLatest();
-    /* Legacy Ozone names are physically reversed: g_dbg_rear_prox is the
-       front sensor, while g_dbg_front_prox is the rear sensor. */
-    g_dbg_rear_prox = et1_raw;
-    g_dbg_front_prox = et2_raw;
-    g_dbg_sensor_sample_count = adc_half_count + adc_full_count;
-    g_dbg_sensor_pair_rate_hz = 0U;
-
-    /* DMA ISR reports only a lightweight threshold crossing.  Keep the
-       application action out of the ISR until the sensor direction and shot
-       protocol are finalized. */
-    if (IR_Acquisition_TakeRearEvent()) {
-        g_dbg_front_int_count = ir_rear_event_count;
+    IR_Acquisition_ServiceRawCapture();
+    if (g_pending_strong_fault != 0U &&
+        CANProtocol_SendStrongFault(g_pending_strong_fault) == HAL_OK) {
+        g_pending_strong_fault = 0U;
     }
-    if (IR_Acquisition_TakeFrontEvent()) {
-        g_dbg_rear_int_count = ir_front_event_count;
+    if (g_boot_report_pending && g_pending_strong_fault == 0U &&
+        IR_Detection_IsCalibrationReady() &&
+        CANProtocol_SendBoot() == HAL_OK) {
+        g_boot_report_pending = false;
     }
 
+    static uint16_t old_front, new_front, old_rear, new_rear;
+    static bool calibration_ack_pending;
+    if (!calibration_ack_pending &&
+        IR_Detection_TakeCalibrationResult(&old_front, &new_front,
+                                           &old_rear, &new_rear)) {
+        calibration_ack_pending = true;
+    }
+    if (calibration_ack_pending &&
+        CANProtocol_SendCalibrationAck(old_front, new_front,
+                                       old_rear, new_rear) == HAL_OK) {
+        calibration_ack_pending = false;
+    }
 
     uint32_t now_tick = HAL_GetTick();
     Thermal_Update(now_tick);
@@ -322,33 +292,52 @@ int main(void)
     LedStrip_SetOverheatAlert(
         Thermal_IsOverheatIndicatorActive(now_tick));
 
-    gbd_shoot_count = ShootDetect_GetCount(&g_shoot_detect);
-
-    /* A confirmed shot owns its local indication even when CAN is absent or
-       temporarily has no free TX mailbox.  Drain the counter once; the
-       queued event below remains available for later CAN transmission. */
-    uint32_t shot_effect_pending =
-        ShootDetect_TakeShotEffectPending(&g_shoot_detect);
-    if (shot_effect_pending != 0U) {
-        g_dbg_shot_led_start_count += shot_effect_pending;
-        g_dbg_last_shot_led_event_count = gbd_shoot_count;
+    /* Drain acquisition events regardless of CAN availability. */
+    static ShootEvent_t can_shots[IR_SHOT_EVENT_CAPACITY];
+    static uint8_t can_shot_head, can_shot_count;
+    static uint32_t can_shot_dropped;
+    static uint32_t locally_accounted_shots;
+    ShootEvent_t shot_event;
+    while (IR_Detection_PeekShotEvent(&shot_event)) {
+        IR_Detection_DropShotEvent();
+        /* Count gaps represent detection queue loss, not lost physical shots. */
+        while ((int32_t)(shot_event.shot_count - locally_accounted_shots) > 0) {
+            locally_accounted_shots++;
+            g_heat_debug = Thermal_AddShot(now_tick);
+            g_dbg_shot_led_start_count++;
+            g_dbg_last_shot_led_event_count = locally_accounted_shots;
+            LedStrip_StartShotEffect(now_tick);
+        }
+        shot_event.heat_level = g_heat_debug;
+        if (can_shot_count < IR_SHOT_EVENT_CAPACITY) {
+            uint8_t tail = (uint8_t)((can_shot_head + can_shot_count) % IR_SHOT_EVENT_CAPACITY);
+            can_shots[tail] = shot_event;
+            can_shot_count++;
+        } else {
+            can_shot_dropped++;
+        }
+    }
+    /* Preserve local behavior even when the detection event queue overflowed. */
+    uint32_t shot_primask = __get_PRIMASK();
+    __disable_irq();
+    uint32_t detected_shots = IR_Detection_PeekShotEvent(&shot_event)
+        ? locally_accounted_shots : ir_shot_count;
+    __set_PRIMASK(shot_primask);
+    while ((int32_t)(detected_shots - locally_accounted_shots) > 0) {
+        locally_accounted_shots++;
+        g_heat_debug = Thermal_AddShot(now_tick);
+        g_dbg_shot_led_start_count++;
+        g_dbg_last_shot_led_event_count = locally_accounted_shots;
         LedStrip_StartShotEffect(now_tick);
     }
-
-    /* A confirmed 0x230 submission is retried independently of the local
-       shot indication; the rear strip stays reserved for the heat display. */
-    ShootEvent_t shot_event;
-    while (ShootDetect_PeekEvent(&g_shoot_detect, &shot_event)) {
-        if (CANProtocol_SendShotEvent(&shot_event) != HAL_OK) {
-            /* Keep the event queued and retry after CAN becomes available. */
-            break;
-        }
+    if (can_shot_count != 0U &&
+        CANProtocol_SendShotEvent(&can_shots[can_shot_head]) == HAL_OK) {
         g_dbg_shot_mailbox_accept_count++;
-        ShootDetect_DropEvent(&g_shoot_detect);
+        can_shot_head = (uint8_t)((can_shot_head + 1U) % IR_SHOT_EVENT_CAPACITY);
+        can_shot_count--;
     }
 
-    /* Queries are queued by CAN RX ISR and replied from the main loop. This
-       prevents an ISR reply from racing an armor-board response for CAN TX. */
+    /* Queries are queued by CAN RX ISR and replied from the main loop. */
     CANProtocol_Task();
 
     /* CAN 0x200 remains reserved for debug heartbeat but is idle in this build. */
@@ -371,28 +360,38 @@ int main(void)
     if (g_sensor_tick_10hz) {
         g_sensor_tick_10hz = false;
 
-        Reliability_ObserveSensors(ir_acquisition_ready && adc_half_count != 0U,
-                                   ir_acquisition_ready && adc_full_count != 0U);
-        /* A valid raw read alone is not enough to re-enable detection after
-           startup/calibration failure. Keep this fault asserted until a
-           successful calibration establishes valid thresholds. */
-        if (!sensor_calibration_ready) {
+        static uint32_t last_adc_activity;
+        uint32_t adc_activity = adc_activity_count;
+        bool adc_alive = ir_acquisition_ready &&
+                         (adc_activity != last_adc_activity);
+        last_adc_activity = adc_activity;
+        Reliability_ObserveSensors(adc_alive, adc_alive);
+        /* A valid startup/recalibration window establishes ADC thresholds. */
+        if (!IR_Detection_IsCalibrationReady()) {
             Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, true);
+        } else {
+            Reliability_SetWeakFault(REL_WEAK_SHOOT_DETECT, false);
         }
         Reliability_ObserveEventQueueDropped(
-            ShootDetect_GetDroppedEventCount(&g_shoot_detect));
+            IR_Detection_GetDroppedEventCount() + can_shot_dropped);
 
-        g_shoot_report.shot_count      = ShootDetect_GetCount(&g_shoot_detect);
-        g_shoot_report.front_int_count = ShootDetect_GetFrontIntCount(&g_shoot_detect);
-        g_shoot_report.rear_int_count  = ShootDetect_GetRearIntCount(&g_shoot_detect);
-        g_shoot_report.last_speed_mps  = ShootDetect_GetLastSpeed(&g_shoot_detect);
-        g_shoot_report.barrel_mask     = ShootDetect_GetState(&g_shoot_detect);
+        g_shoot_report.shot_count      = ir_shot_count;
+        g_shoot_report.front_int_count = barrel_front_event_count;
+        g_shoot_report.rear_int_count  = barrel_rear_event_count;
+        g_shoot_report.last_speed_mps  = ir_last_speed_valid ? ir_last_speed_mps : 0.0f;
+        g_shoot_report.barrel_mask     = 0U;
         g_shoot_report.heat_level      = g_heat_debug;
-        g_shoot_report.front_prox      = g_dbg_front_prox;
-        g_shoot_report.rear_prox       = g_dbg_rear_prox;
+        g_shoot_report.front_prox      = IR_GetBarrelPhysicalFrontAdc();
+        g_shoot_report.rear_prox       = IR_GetBarrelPhysicalRearAdc();
         CANProtocol_UpdateData(&g_shoot_report);
     }
 
+    /* Feed the display model before any animation renders. Team commands
+       configure the automatic strip; heat includes shots accounted above.
+       The CAN ISR never calls the LED transport or renderer. */
+    LedStrip_SetTeam(CANProtocol_GetLedCommand()->team == 0U
+                     ? TEAM_RED : TEAM_BLUE);
+    LedStrip_SetRefereeData(g_heat_debug);
     bool boot_effect_active = LedStrip_ProcessBootEffect(now_tick);
     bool shot_effect_active = false;
     if (!boot_effect_active &&
@@ -465,7 +464,6 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -493,15 +491,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
-  PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_SYSCLK;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Enables the Clock Security System
-  */
   HAL_RCC_EnableCSS();
 }
 
@@ -567,15 +556,18 @@ static void MX_IWDG_Init(void)
 static void MX_USART1_UART_Init(void)
 {
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  /* RGB_TX2/PB6 carries WS2812 waveforms through the four-pin connector.
+     Two LED bits per 8N1 UART frame require 4 Mbaud and idle-low TX. */
+  huart1.Init.BaudRate = 4000000;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
   huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_8;
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT;
+  huart1.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
   if (HAL_UART_Init(&huart1) != HAL_OK) Error_Handler();
 }
 
@@ -618,104 +610,6 @@ static void MX_DAC_Init(void)
   /* USER CODE END DAC_Init 2 */
 
 }
-
-#if 0 /* Retained legacy VCNL4040 wiring; never initialize on the new board. */
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x10805D88;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief I2C2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C2_Init(void)
-{
-
-  /* USER CODE BEGIN I2C2_Init 0 */
-
-  /* USER CODE END I2C2_Init 0 */
-
-  /* USER CODE BEGIN I2C2_Init 1 */
-
-  /* USER CODE END I2C2_Init 1 */
-  hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x20303E5D;
-  hi2c2.Init.OwnAddress1 = 0;
-  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c2.Init.OwnAddress2 = 0;
-  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C2_Init 2 */
-
-  /* USER CODE END I2C2_Init 2 */
-
-}
-#endif /* legacy VCNL4040 wiring */
 
 /**
   * @brief TIM14 Initialization Function

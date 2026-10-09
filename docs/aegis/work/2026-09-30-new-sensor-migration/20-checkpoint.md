@@ -1,7 +1,9 @@
 # Checkpoint
 
-- Completed: baseline read and snapshot; added dedicated `Core/Src/ir_acquisition.c` and header; enabled ADC HAL and ADC DMA1 Channel1; configured PA1/PA3 scan with circular DMA; configured PA4/PA5 DAC output buffers and adjustable codes; configured TIM3 TRGO at 20 kHz; configured USART1 PB6/PB7; moved CAN mapping to PB8/PB9; disabled old EXTI/I2C runtime calls; retained shoot_detect/vcnl4040 sources and CAN/thermal/LED/IWDG code; fixed pre-existing undefined heartbeat helper reference; GCC build passed.
-- Active slice: final integration review and verification.
-- Evidence: `make -j4 BUILD_DIR=build_sensor` passed, ELF size 24644 text / 3176 bss; `git diff --check` passed before latest IOC edits.
-- Remaining: re-run build after final edits; inspect old-path references and project metadata; document Ozone variables and hardware-only validation; clean generated build dirs from task delta if appropriate without touching pre-existing user files.
-- Drift: scope remains raw-only first version; legacy application algorithms retained but inactive; no persistent state or external contract deletion.
+> Superseded by the completed ADC-only migration. This historical checkpoint is retained for traceability; its raw-only scope and retained legacy-module statements are no longer runtime requirements.
+
+- Historical completed slice: baseline read and snapshot; dedicated `ir_acquisition.c/.h`; ADC DMA1 Channel1; PA1/PA3 scan; PA4/PA5 DAC; TIM3 20 kHz; USART1; CAN PB8/PB9; old runtime calls disabled.
+- Current final slice: `ir_detection` is the sole shot source; main/CAN/thermal/LED integration is complete; VCNL4040, `shoot_detect`, I2C runtime and EXTI sensor routing are retired.
+- Evidence: ADC replay across `tool/data` and `tool/data1` produced 8 real-shot events and 4 zero-event captures; final GNU ARM build passed after migration edits; `git diff --check` passed.
+- Hardware boundary: no flash or board validation was performed. Ozone, CAN-bus and mechanical-through-barrel validation remain hardware tasks.
+- Drift resolution: the historical raw-only scope is superseded by `docs/ir_detection_algorithm_migration_prompt.md` and the current README/CAN/tuning documents.

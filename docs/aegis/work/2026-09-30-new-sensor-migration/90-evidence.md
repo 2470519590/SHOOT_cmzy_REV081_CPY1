@@ -1,9 +1,15 @@
 # Evidence Bundle
 
-- `make -j4 BUILD_DIR=build_sensor`: PASS; ELF linked at 24636 bytes text, 24 bytes data, 3176 bytes bss; HEX/BIN generated during verification and removed afterward as generated artifacts.
-- `uvprojx XML`: PASS.
-- `git diff --check`: PASS.
-- `arm-none-eabi-nm`: PASS; `adc_dma_buf`, `et1_raw`, `et2_raw`, `adc_half_count`, `adc_full_count`, `adc_error_count`, `ir_dac1_code`, `ir_dac2_code`, `ir_acquisition_ready` present in ELF.
-- Static path check: main no longer calls VCNL4040 init/read, ShootDetect calibration/process, or EXTI trigger functions; legacy source modules remain in build/project for future activation.
-- Hardware-only boundary: no board flashing, oscilloscope, Ozone runtime, ADC waveform, DAC voltage, CAN PB8/PB9, USART1, or WS2812 electrical verification performed.
-- Residual warning: root IOC was rewritten to a coherent new-board snapshot; CubeMX regeneration should be reviewed before use because acquisition timing owner is hand-maintained in `ir_acquisition.c`.
+- Final GNU ARM build: PASS, exit 0; `E:\GnuWin32\bin\make.exe -j2 all`; `text=29032`, `data=40`, `bss=13664`; ELF/HEX/BIN generated. Flash load is approximately 29,072 bytes of 65,536. SRAM static use is 13,704 bytes of 16,384; after linker heap/stack reservation of 1,536 bytes, approximately 1,144 bytes remain. Linker fit does not measure worst-case runtime stack or interrupt duration.
+- Actual production C regression: PASS, exit 0; `./tool/tests/run_host_tests.ps1`; 113 checks, 0 failures. The real `Core/Src/ir_detection.c` is compiled to WebAssembly and run via Node WASI. Covers front-only shots, same-sample completion, nearest candidate consumption/no reuse, equal maxima, pulse-width boundaries, calibration/recalibration, constant-input baseline precision, queue overflow, cumulative count and nested PRIMASK restoration.
+- Actual C capture replay: PASS; 12 captures, 8 shots, 8 valid speeds, 4 zero-event captures. First 100 quiet measured samples are repeated to provide the firmware's 20,000-sample calibration preamble; no actual one-second startup recording is available.
+- Python reference replay: PASS, exit 0; same 12 captures yield 8 shots and 4 zero-event captures. Candidate capacity/nearest peak/consumption have been aligned with the approved algorithm.
+- `git diff --check`: PASS; only line-ending notices. Existing unrelated dirty files were preserved; no Git commit, reset or broad staging performed.
+- Retirement: legacy VCNL4040 and `shoot_detect` source/header files removed; active Core runtime, Makefile, MDK source list and compilation database no longer reference them. Generic vendor HAL I2C source remains in the vendor tree, disabled and excluded from application builds.
+- Protocol: `0x230/0x232` invalid speed is `0xFFFF`, mask byte is 0; `0x220` performs synchronized ADC recalibration, completed baseline ACK is retained for retry.
+- Fix boundaries: detector owns synchronized calibration and ISR/main events; main owns local heat/LED and independent CAN retry queue; acquisition retains sole physical mapping and 2000-frame SWD capture.
+- Calibration precision: median histogram bucket with Q8 low-bit mean refinement; robust approximate baseline, not an exact full 12-bit median. Constant inputs preserve their exact ADC value.
+- Unresolved contract boundary: each event queue is bounded to 8 entries. CAN outage beyond backlog capacity may drop new per-shot reports while local count/heat/LED continue and queue loss is diagnosed. Unlimited lossless delivery is not established and needs system acceptance or additional persistent backlog design.
+- Rear matching boundary: only completed validated rear pulses are eligible at front exit. Same-sample completion processes rear first; rear pulses completing later cannot update an already emitted event.
+- Hardware boundary: no flashing. Tests do not emulate IRQ preemption, verify main/CAN/heat integration electrically, or measure ARM timing/stack/ADC noise. Ozone, CAN-bus and physical through-barrel validation remain necessary.
+- Closure: software implementation and detector checks pass, but do not claim unconditional lossless outage reporting or hardware acceptance.
