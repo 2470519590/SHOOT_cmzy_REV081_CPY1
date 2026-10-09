@@ -2,11 +2,12 @@
   ******************************************************************************
   * @file           : led_rgb.h
   * @brief          : WS2812B LED strip control — projectile status indication
-  * @description    : 9 LEDs in series:
+  * @description    : 9 logical LEDs across two independent physical outputs:
   *                   [0]     On-board debug LED
-  *                   [1-8]   Shooting heat progress bar (8-bit referee data)
+  *                   [1-8]   External WS2812 heat bar via four-pin RGB_TX2
   *                   Red  team → pink,  Blue team → lake blue
-  *                   Occluded → 100 % team color on LED[0]
+  *                   Valid shot → 100 ms team color flash on LED[0]
+  *                   Overheat → full team color on LED[0]
   *                   Idle     →  20 % yellow    on LED[0]
   *                   Updated every 100 ms via TIM15 tick.
   ******************************************************************************

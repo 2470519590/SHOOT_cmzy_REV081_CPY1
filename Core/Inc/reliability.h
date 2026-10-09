@@ -33,6 +33,11 @@ extern "C" {
 void Reliability_EarlyInit(void);
 uint8_t Reliability_GetPendingStrongMask(void);
 
+/* Debug-visible reset evidence captured before RCC reset flags are cleared.
+ * These values describe the boot currently running, so they remain readable
+ * after attaching SWD following a spontaneous reset. */
+extern volatile uint32_t g_dbg_reset_flags_on_boot;
+
 void Reliability_ObserveSensors(bool front_ok, bool rear_ok);
 void Reliability_ObserveEventQueueDropped(uint32_t dropped_count);
 void Reliability_SetWeakFault(uint8_t mask, bool active);

@@ -29,6 +29,11 @@ static uint8_t rear_fail_count;
 static uint32_t last_queue_dropped;
 static uint32_t queue_fault_last_tick;
 
+/* Do not make this static: the next no-SWD inspection must be able to read
+ * the reset source after the board has rebooted.  RCC_CSR is cleared below,
+ * therefore it cannot be reconstructed later from the peripheral. */
+volatile uint32_t g_dbg_reset_flags_on_boot;
+
 static uint32_t fault_checksum(const FaultRecord_t *record)
 {
     return record->magic ^ record->strong_mask ^ record->pc ^
@@ -48,6 +53,8 @@ static void save_strong_fault(uint8_t mask, uint32_t pc, uint32_t lr, uint32_t x
 void Reliability_EarlyInit(void)
 {
     uint32_t reset_flags = RCC->CSR;
+
+    g_dbg_reset_flags_on_boot = reset_flags;
 
     pending_strong_mask = 0;
     if (g_fault_record.magic == FAULT_RECORD_MAGIC &&

@@ -1,0 +1,9 @@
+﻿file,type,shot,front_entry_us,front_exit_us,front_peak_us,front_peak_adc,front_amplitude_adc,front_width_us,front_pre_dip_adc,rear_entry_us,rear_front_delta_us,speed_mps,rear_matched
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data\ir_capture_1791094663519114100_001.csv,shot,1,32550,34400,33150,1630,129.945,1850,26.055,26100,6450,7.7519,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data\ir_capture_1791094663519114100_002.csv,shot,1,32450,34350,32850,1647,152.966,1900,26.034,26300,6150,8.1301,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data\ir_capture_1791094663519114100_003.csv,shot,1,33250,35100,34600,1582,90.965,1850,24.035,26450,6800,7.3529,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data\ir_capture_1791094663519114100_006.csv,shot,1,33500,35300,34000,1583,118.657,1800,16.343,26550,6950,7.1942,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data1\ir_capture_1791094954094896800_002.csv,shot,1,31200,33400,31700,1704,225.007,2200,19.993,25550,5650,8.8496,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data1\ir_capture_1791094954094896800_003.csv,shot,1,32100,34400,32750,1862,382.041,2300,18.959,,,,False
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data1\ir_capture_1791094954094896800_005.csv,shot,1,31100,33550,31800,1991,512.007,2450,24.993,25050,6050,8.2645,True
+E:\STM32_PROJ\l431_power_management\SHOOT_cmzy_REV081\tool\data1\ir_capture_1791094954094896800_006.csv,shot,1,32450,33700,32850,1557,78.832,1250,16.168,25100,7350,6.8027,True

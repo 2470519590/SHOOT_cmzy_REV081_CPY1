@@ -1,9 +1,11 @@
 /**
   ******************************************************************************
   * @file           : ws2812_uart.h
-  * @brief          : WS2812B LED driver via USART3 + TX inversion + DMA
-  * @description    : Each color byte becomes 4 UART bytes, encoding 2 WS2812
-  *                   bits per UART frame. USART3 runs at 3.75 Mbaud on PB10.
+  * @brief          : Board LED and external WS2812 strip via two UART DMA outputs
+  * @description    : Each color byte becomes 4 UART bytes, encoding 2 LED
+  *                   bits per UART frame. Both UARTs run at 4 Mbaud.
+  *                   Pixel 0: RGB_TX3/PB10 (USART3, DMA CH2, RGB).
+  *                   Pixels 1..8: RGB_TX2/PB6 (USART1, DMA CH4, GRB).
   *                   TX inversion makes idle low for the WS2812 reset pulse.
   ******************************************************************************
   */
@@ -17,7 +19,8 @@ extern "C" {
 #include "stm32f0xx_hal.h"
 #include <stdbool.h>
 
-/* WS2812B expects color data in GRB order: [G, R, B]. */
+/* Logical colours are GRB. The transport alone handles the board GL5050 RGB
+   order and external WS2812 GRB order, plus routing to physical connectors. */
 #define WS2812_COLOR(g, r, b)   (((uint32_t)(g) << 16) | ((uint32_t)(r) << 8) | (uint32_t)(b))
 
 void ws2812_uart_init(void);

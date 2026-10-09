@@ -2,7 +2,17 @@
 /VCNL4040_Xplorer_v2_6_35
 /ws2812-uart
 /.cache
-/tools/logs/
-/tools/__pycache__/
+/tool/logs/
+/tool/data/
+/tool/data1/
+/tool/tests/
+/tool/__pycache__/
 /3Ds/
+<<<<<<< HEAD
 compile_commands.json
+=======
+/ref/
+/tmp
+/data/
+/docs/aegis/
+>>>>>>> 01db25000ace0244625a1fefc607fc1d2a2cadfe

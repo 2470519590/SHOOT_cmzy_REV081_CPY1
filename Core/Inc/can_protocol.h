@@ -15,13 +15,13 @@ extern "C" {
 #endif
 
 #include "stm32f0xx_hal.h"
-#include "shoot_detect.h"
+#include "ir_detection.h"
 #include <stdbool.h>
 
 /* ========================== CAN Message IDs ================================= */
 
 #define CAN_HEARTBEAT_ID           0x200   /* Tx: debug heartbeat, once per sec   */
-#define CAN_DEBUG_COUNT_ID          0x201   /* Tx: 2 Hz trigger/pair/shot counters */
+#define CAN_DEBUG_COUNT_ID         0x201   /* Tx: 2 Hz trigger/pair/shot counters */
 #define CAN_STRONG_FAULT_ID        0x210   /* Tx: post-reset strong-fault mask    */
 #define CAN_WEAK_FAULT_ID          0x211   /* Tx: weak-fault mask                 */
 #define CAN_BOOT_ID                0x212   /* Tx: initialization complete         */
@@ -47,7 +47,7 @@ extern "C" {
 
 typedef struct __attribute__((packed)) {
     uint32_t shot_count;          /* [ 3: 0] cumulative valid shots             */
-    uint16_t last_speed_cmps;     /* [ 5: 4] last speed × 100 (cm/s)           */
+    uint16_t last_speed_deci_mps; /* [ 5: 4] last speed × 10 (m/s), 0.1 m/s   */
     uint8_t  barrel_mask;         /* [ 6   ] projectiles in barrel, bits[4:0]  */
     uint8_t  heat_level;          /* [ 7   ] current heat 0-200                */
 } CAN_ShootReport_t;
@@ -116,12 +116,15 @@ typedef struct {
 /* ========================== Public API ====================================== */
 
 void CANProtocol_Init(CAN_HandleTypeDef *hcan);
+/* Run from the main loop. Deferred query replies must never transmit in CAN
+ * RX interrupt context. */
+void CANProtocol_Task(void);
 void CANProtocol_UpdateData(const ShootData_Report_t *data);
-HAL_StatusTypeDef CANProtocol_SendHeartbeat(void);
 HAL_StatusTypeDef CANProtocol_SendDebugCounts(uint16_t rear_trigger_count,
                                               uint16_t front_trigger_count,
                                               uint16_t pair_count,
                                               uint16_t valid_shot_count);
+HAL_StatusTypeDef CANProtocol_SendHeartbeat(void);
 HAL_StatusTypeDef CANProtocol_SendShotEvent(const ShootEvent_t *event);
 HAL_StatusTypeDef CANProtocol_SendWeakFault(uint8_t weak_mask);
 HAL_StatusTypeDef CANProtocol_SendStrongFault(uint8_t strong_mask);

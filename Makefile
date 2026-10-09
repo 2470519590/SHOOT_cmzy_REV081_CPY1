@@ -36,11 +36,13 @@ BUILD_DIR = build
 ######################################
 # C sources
 C_SOURCES =  \
+Core/Src/ir_acquisition.c \
+Core/Src/ir_detection.c \
+Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc.c \
+Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_adc_ex.c \
 Core/Src/main.c \
 Core/Src/stm32f0xx_it.c \
 Core/Src/stm32f0xx_hal_msp.c \
-Core/Src/vcnl4040.c \
-Core/Src/shoot_detect.c \
 Core/Src/thermal.c \
 Core/Src/can_protocol.c \
 Core/Src/reliability.c \
@@ -50,8 +52,6 @@ Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_can.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_rcc.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_rcc_ex.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.c \
-Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c.c \
-Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_i2c_ex.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_iwdg.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_gpio.c \
 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dma.c \
@@ -141,7 +141,7 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CFLAGS += $(MCU) $(C_DEFS) $(EXTRA_C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
@@ -205,6 +205,19 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
+
+.PHONY: silent
+# Keep the diagnostic image out of build/ so normal and silent object files
+# can never be mixed.  Flash only build_silent/SHOOT_cmzy_REV081.bin for the
+# gun-connected CAN isolation test.
+silent:
+	$(MAKE) BUILD_DIR=build_silent EXTRA_C_DEFS="-DSHOOT_CAN_DIAGNOSTIC_SILENT=1" all
+
+.PHONY: rx_only
+# The controller is normal and ACKs bus traffic, but the gun application never
+# transmits a CAN frame.  This is distinct from `silent` and builds separately.
+rx_only:
+	$(MAKE) BUILD_DIR=build_rx_only EXTRA_C_DEFS="-DSHOOT_CAN_DIAGNOSTIC_NO_APP_TX=1" all
   
 #######################################
 # dependencies
